@@ -82,11 +82,25 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
 
     updateDebug({ lastAction: 'Injecting Pixel...' });
 
-    const form = toolbar.closest('form') || toolbar.closest('div[role="dialog"]');
-    if (!form) return;
+    // New Strategy: Find closest contenteditable relative to the button
+    // Traverse up from the button until we find a container that holds a contenteditable logic
 
-    // Robust body selector: Any contenteditable div inside the form
-    const body = form.querySelector('[contenteditable="true"]') as HTMLElement;
+    let body: HTMLElement | null = null;
+    let current: Element | null = toolbar; // Start at the button/toolbar
+
+    // Traverse up 15 levels max to find a container with the editor
+    for (let i = 0; i < 15; i++) {
+        if (!current) break;
+
+        // Search down for editor
+        const candidate = current.querySelector('[contenteditable="true"]');
+        if (candidate) {
+            body = candidate as HTMLElement;
+            break;
+        }
+
+        current = current.parentElement;
+    }
 
     if (body) {
         const uuid = crypto.randomUUID();
@@ -119,18 +133,28 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
 
         updateDebug({ pixelInjected: true, lastAction: 'Pixel Injected' });
 
-        const metadata = getEmailMetadata(form);
+        // Metadata extraction is secondary (might fail if no form), but pixel is critical
+        let subject = 'Unknown';
+        let recipient = 'Unknown';
+
+        // Try to find form for metadata
+        const form = toolbar.closest('form') || current;
+        if (form) {
+            const meta = getEmailMetadata(form);
+            subject = meta.subject;
+            recipient = meta.recipient;
+        }
 
         chrome.runtime.sendMessage({
             type: 'REGISTER_EMAIL',
             data: {
                 id: uuid,
-                subject: metadata.subject,
-                recipient: metadata.recipient
+                subject: subject,
+                recipient: recipient
             }
         });
     } else {
-        console.error('EmailTrack: contenteditable body not found in form', form);
+        console.error('EmailTrack: CRITICAL - Body not found via traversal from', toolbar);
         updateDebug({ lastAction: 'Error: Body not found' });
     }
 }
