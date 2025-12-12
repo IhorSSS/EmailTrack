@@ -2,12 +2,13 @@ FROM node:18-alpine
 
 WORKDIR /usr/src/app
 
-COPY package*.json ./
-COPY prisma ./prisma/
+# When building from git, files are in backend/ subdirectory
+COPY backend/package*.json ./
+COPY backend/prisma ./prisma/
 
 RUN npm install
 
-COPY . .
+COPY backend/ .
 
 RUN npx prisma generate
 RUN npm run build
