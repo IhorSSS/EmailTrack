@@ -11,11 +11,7 @@ console.log('EmailTrack: Content Script Loaded and Active');
 const STATS_INJECT_CLASS = 'email-track-stats-injected';
 const HOST = 'https://emailtrack.isnode.pp.ua';
 
-// ... (rest of imports/setup preserved by context, focusing on change)
-
-// ...
-
-
+// ... (rest of imports/setup preserved by reuse)
 
 // Inject Debug Panel
 const debugDiv = document.createElement('div');
@@ -103,35 +99,43 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
     }
 
     if (body) {
-        // AGGRESSIVE CLEANUP: Remove any existing tracking pixels using Regex
-        // We must ensure NO old pixels remain in the quoted history.
+        // CLEANUP: AGGRESSIVE URL DESTRUCTION
+        // Gmail's editor might restore removed nodes, so we also NUKE the src attribute.
+        // We scan for ANY image that looks like a tracker and kill it.
         const existingImages = body.querySelectorAll('img');
         let removedCount = 0;
 
-        console.log(`EmailTrack: Cleanup scanning ${existingImages.length} images in body...`);
+        console.log(`EmailTrack: Scanning ${existingImages.length} images for cleanup...`);
 
         existingImages.forEach(img => {
             const rawSrc = img.src;
             let decodedSrc = rawSrc;
             try { decodedSrc = decodeURIComponent(rawSrc); } catch { }
 
-            // Same regex as detection to identify ANY tracking pixel
             const uuidRegex = /(?:track(?:%2F|\/)|id=)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+            const match = rawSrc.match(uuidRegex) || decodedSrc.match(uuidRegex);
 
-            if (rawSrc.includes('track.gif') || uuidRegex.test(rawSrc) || uuidRegex.test(decodedSrc)) {
-                console.log('EmailTrack: REMOVING old pixel:', rawSrc);
-                img.remove();
+            if (rawSrc.includes('track.gif') || match) {
+                console.log('EmailTrack: DESTROYING old pixel:', match ? match[1] : 'Unknown ID', rawSrc);
+                // Nuke it
+                img.src = '';
+                img.removeAttribute('src'); // Unlink
+                img.style.display = 'none'; // Hide
+                img.remove(); // Delete
                 removedCount++;
             }
         });
 
-        console.log(`EmailTrack: Cleanup finished. Removed ${removedCount} old pixels.`);
+        console.log(`EmailTrack: Cleanup finished. Destroyed ${removedCount} old pixels.`);
 
         const uuid = crypto.randomUUID();
+        console.log('EmailTrack: Generated NEW Track ID:', uuid); // Proof of uniqueness
+
         const timestamp = Date.now();
         const pixelUrl = `${HOST}/track/track.gif?id=${uuid}&t=${timestamp}`;
         // Use a 1x1 style that is proven to work in Gmail
-        const pixelHtml = `<img src="${pixelUrl}" alt="" style="display:none;width:0;height:0;" />`;
+        // Add data-track-id for easy debugging in DOM
+        const pixelHtml = `<img src="${pixelUrl}" alt="" style="display:none;width:0;height:0;" data-track-id="${uuid}" />`;
 
         try {
             // Method 1: Range Insertion at the end
