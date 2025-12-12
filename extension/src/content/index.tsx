@@ -173,14 +173,18 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
             recipient = meta.recipient;
         }
 
-        chrome.runtime.sendMessage({
-            type: 'REGISTER_EMAIL',
-            data: {
-                id: uuid,
-                subject: subject,
-                recipient: recipient
-            }
-        });
+        try {
+            chrome.runtime.sendMessage({
+                type: 'REGISTER_EMAIL',
+                data: {
+                    id: uuid,
+                    subject: subject,
+                    recipient: recipient
+                }
+            });
+        } catch (ctxErr) {
+            console.warn('EmailTrack: Extension context invalidated (Update detected). Pixel injected, backend will lazy-register. PLEASE RELOAD PAGE.');
+        }
     } else {
         console.error('EmailTrack: CRITICAL - Body not found via traversal from', toolbar);
         updateDebug({ lastAction: 'Error: Body not found' });
