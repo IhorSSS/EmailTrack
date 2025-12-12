@@ -47,7 +47,7 @@ function App() {
 
   const handleTestConnection = () => {
     const testId = crypto.randomUUID();
-    const HOST = 'https://salty-times-fold.loca.lt';
+    const HOST = 'https://emailtrack.isnode.pp.ua';
     window.open(`${HOST}/track/${testId}`, '_blank');
   };
 

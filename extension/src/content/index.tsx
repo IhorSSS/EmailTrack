@@ -9,7 +9,7 @@ console.log('EmailTrack: Content Script Loaded and Active');
 
 const INJECT_CLASS = 'email-track-injected';
 const STATS_INJECT_CLASS = 'email-track-stats-injected';
-const HOST = 'https://salty-times-fold.loca.lt';
+const HOST = 'https://emailtrack.isnode.pp.ua';
 
 // ... (rest of imports/setup preserved by context, focusing on change)
 
@@ -91,9 +91,10 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
 
     if (body) {
         const uuid = crypto.randomUUID();
-        // Use a visible but zero-sized image. This is often treated as 'safe' by parsers.
-        // display:none or visibility:hidden are prime candidates for stripping.
-        const pixel = `<img src="${HOST}/track/${uuid}" width="1" height="1" style="display:block; width:0px; height:0px;" alt="" />`;
+        // Use proven format that bypasses Gmail blocking (based on email-signature-image.com)
+        // Key techniques: width=0/height=0, overflow:hidden, .gif extension, query params
+        const timestamp = Date.now();
+        const pixel = `<img src="${HOST}/track.gif?id=${uuid}&t=${timestamp}" alt="" width="0" height="0" style="width:2px;max-height:0;overflow:hidden" />`;
 
         (body as HTMLElement).focus();
 
