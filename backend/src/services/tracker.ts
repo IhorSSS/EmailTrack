@@ -2,9 +2,15 @@ import { prisma } from '../db';
 import geoip from 'geoip-lite';
 import { UAParser } from 'ua-parser-js';
 
-export async function recordOpen(trackId: string, ip: string, userAgent: string) {
+export async function recordOpen(trackId: string, ip: string, userAgent: string, quoted?: string) {
     try {
-        // ...
+        // CRITICAL FILTER: Check if this is a quoted/historical pixel
+        if (quoted === '1') {
+            console.log(`[TRACK] Ignoring quoted pixel open: ${trackId} (from thread history)`);
+            return; // Skip recording - this prevents thread bleed
+        }
+
+        console.log(`[TRACK] Recording open for ${trackId} from ${ip}`);
         console.log(`[TRACK] Raw User Agent: ${userAgent}`);
 
         let targetUA = userAgent;
@@ -76,16 +82,31 @@ export async function recordOpen(trackId: string, ip: string, userAgent: string)
             }
         }
 
-        const email = await prisma.trackedEmail.findUnique({
+        let email = await prisma.trackedEmail.findUnique({
             where: { id: trackId }
         });
 
-        if (email) {
-            // Deduplication logic: Check if we have an event from same IP in last 60 seconds?
-            // For now, let's just record everything but label it correctly. 
-            // The UI can filter if needed.
+        if (!email) {
+            console.warn(`[TRACK] Track ID ${trackId} not found. Lazy registering...`);
+            try {
+                // Schema has no User relation, so we just create the email record.
+                email = await prisma.trackedEmail.create({
+                    data: {
+                        id: trackId,
+                        subject: '(Subject Unavailable - Registration Failed)',
+                        recipient: 'Unknown'
+                    }
+                });
+                console.log('[TRACK] Lazy registration successful for', trackId);
+            } catch (createErr) {
+                console.error('[TRACK] Lazy registration failed', createErr);
+            }
+        }
 
-            console.log(`[TRACK] Email found: ${trackId}. Creating OpenEvent...`);
+        // Re-check email existence
+        if (email) {
+            console.log(`[TRACK] Email found/created: ${trackId}. Creating OpenEvent...`);
+            // ... existing create logic
             await prisma.openEvent.create({
                 data: {
                     trackedEmailId: trackId,
@@ -96,8 +117,6 @@ export async function recordOpen(trackId: string, ip: string, userAgent: string)
                 }
             });
             console.log(`[TRACK] OpenEvent created for ${trackId}`);
-        } else {
-            console.warn(`[TRACK] ERROR: Track ID ${trackId} not found in database!`);
         }
 
     } catch (error) {

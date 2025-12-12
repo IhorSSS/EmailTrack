@@ -138,23 +138,17 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
 
     updateDebug({ lastAction: 'Injecting Pixel...' });
 
-    // New Strategy: Find closest contenteditable relative to the button
-    // Traverse up from the button until we find a container that holds a contenteditable logic
-
     let body: HTMLElement | null = null;
-    let current: Element | null = toolbar; // Start at the button/toolbar
+    let current: Element | null = toolbar;
 
-    // Traverse up 15 levels max to find a container with the editor
+    // Traverse up to find container
     for (let i = 0; i < 15; i++) {
         if (!current) break;
-
-        // Search down for editor
         const candidate = current.querySelector('[contenteditable="true"]');
         if (candidate) {
             body = candidate as HTMLElement;
             break;
         }
-
         current = current.parentElement;
     }
 
@@ -162,47 +156,58 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
         // 1. Sanitize the main body
         sanitizeEditor(body);
 
-        // 2. EXPLICIT QUOTE NUKE
-        // Sometimes quotes are nested deeply or protected. We target them specifically.
+        // === URL PARAMETER MARKING STRATEGY ===
+        // Instead of deleting quoted pixels (which fails due to Gmail's serialization),
+        // we MODIFY their URLs to include &quoted=1
+        // The backend will then ignore/filter these opens
+
+        let markedCount = 0;
         const quotes = body.querySelectorAll('.gmail_quote, blockquote');
+
+        console.log(`EmailTrack: Found ${quotes.length} quote containers to process`);
+
         quotes.forEach(quote => {
             const quoteImages = quote.querySelectorAll('img');
             quoteImages.forEach(img => {
                 const src = img.src || '';
-                if (src.includes('emailtrack.isnode.pp.ua') || src.includes('track.gif')) {
-                    console.log('EmailTrack: [QuoteNuke] Killing quoted pixel:', src);
-                    img.remove();
+
+                // Check if it's one of our tracking pixels
+                if (src.includes('emailtrack.isnode.pp.ua') || src.includes('/track/track.gif')) {
+                    // Check if already marked
+                    if (!src.includes('quoted=1')) {
+                        // Append the quoted parameter
+                        const separator = src.includes('?') ? '&' : '?';
+                        img.src = src + separator + 'quoted=1';
+                        console.log(`EmailTrack: [MARKED] ${src} -> ${img.src}`);
+                        markedCount++;
+                    }
                 }
             });
         });
 
+        console.log(`EmailTrack: Marked ${markedCount} quoted pixels with &quoted=1`);
+
         const uuid = crypto.randomUUID();
-        console.log('EmailTrack: Generated NEW Track ID:', uuid); // Proof of uniqueness
+        console.log('EmailTrack: Generated NEW Track ID:', uuid);
 
         const timestamp = Date.now();
         const pixelUrl = `${HOST}/track/track.gif?id=${uuid}&t=${timestamp}`;
-        // Use a 1x1 style that is proven to work in Gmail
-        // Add data-track-id for easy debugging in DOM
-        // IMPORTANT: Add data-status="new" so the SmartGuard spares this pixel
+
+        // New pixel does NOT have &quoted=1 - it's a fresh email
         const pixelHtml = `<img src="${pixelUrl}" alt="" style="display:none;width:0;height:0;" data-track-id="${uuid}" data-status="new" />`;
 
         try {
-            // Method 1: Range Insertion at the end
             body.focus();
             const range = document.createRange();
             range.selectNodeContents(body);
-            range.collapse(false); // End of body
-
+            range.collapse(false);
             const pixelFragment = range.createContextualFragment(pixelHtml);
             range.insertNode(pixelFragment);
-
             console.log('EmailTrack: Pixel injected via Range');
         } catch (err) {
             console.error('EmailTrack: Range injection failed, trying append', err);
-            // Method 2: Direct Append
             try {
                 body.insertAdjacentHTML('beforeend', pixelHtml);
-                console.log('EmailTrack: Pixel injected via insertAdjacentHTML');
             } catch (err2) {
                 console.error('EmailTrack: All injection methods failed', err2);
             }
@@ -210,11 +215,8 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
 
         updateDebug({ pixelInjected: true, lastAction: 'Pixel Injected' });
 
-        // Metadata extraction is secondary (might fail if no form), but pixel is critical
         let subject = 'Unknown';
         let recipient = 'Unknown';
-
-        // Try to find form for metadata
         const form = toolbar.closest('form') || current;
         if (form) {
             const meta = getEmailMetadata(form);
