@@ -73,19 +73,14 @@ function getEmailMetadata(form: Element) {
     return { subject, recipient };
 }
 
-const UUID_REGEX = /(?:track(?:%2F|\/)|id=)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
-
 // --- SMART SANITATION (IMMUNE SYSTEM) ---
 // Continuously watches editors to keep them sterile of old tracking pixels.
 function sanitizeEditor(editor: Element) {
     const images = editor.querySelectorAll('img');
     images.forEach(img => {
-        // Check if it's a tracking pixel
-        const rawSrc = img.src;
-        let decodedSrc = rawSrc;
-        try { decodedSrc = decodeURIComponent(rawSrc); } catch { }
-
-        const isTracker = rawSrc.includes('track.gif') || UUID_REGEX.test(rawSrc) || UUID_REGEX.test(decodedSrc);
+        // Simple Domain/Path Check - more robust than regex for variations
+        const rawSrc = img.src || '';
+        const isTracker = rawSrc.includes('emailtrack.isnode.pp.ua') || rawSrc.includes('/track/track.gif');
 
         if (isTracker) {
             // CRITICAL CHECK: Is it the FRESH pixel we just added?
@@ -94,9 +89,10 @@ function sanitizeEditor(editor: Element) {
             }
 
             // Otherwise, it's pollution (quote history, old draft). DESTROY IT.
-            console.log('EmailTrack: [SmartGuard] Destroying old/polluted pixel:', rawSrc);
+            console.log('EmailTrack: [SmartGuard] Destroying old pixel:', rawSrc);
             img.src = '';
-            img.removeAttribute('src');
+            img.setAttribute('src', ''); // Force attribute update
+            img.style.display = 'none';
             img.remove();
         }
     });
@@ -163,37 +159,22 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
     }
 
     if (body) {
-        // Sanitize one last time before injection, just in case
+        // 1. Sanitize the main body
         sanitizeEditor(body);
 
-        // CLEANUP: AGGRESSIVE URL DESTRUCTION
-        // Gmail's editor might restore removed nodes, so we also NUKE the src attribute.
-        // We scan for ANY image that looks like a tracker and kill it.
-        const existingImages = body.querySelectorAll('img');
-        let removedCount = 0;
-
-        console.log(`EmailTrack: Scanning ${existingImages.length} images for cleanup...`);
-
-        existingImages.forEach(img => {
-            const rawSrc = img.src;
-            let decodedSrc = rawSrc;
-            try { decodedSrc = decodeURIComponent(rawSrc); } catch { }
-
-            const uuidRegex = /(?:track(?:%2F|\/)|id=)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
-            const match = rawSrc.match(uuidRegex) || decodedSrc.match(uuidRegex);
-
-            if (rawSrc.includes('track.gif') || match) {
-                console.log('EmailTrack: DESTROYING old pixel:', match ? match[1] : 'Unknown ID', rawSrc);
-                // Nuke it
-                img.src = '';
-                img.removeAttribute('src'); // Unlink
-                img.style.display = 'none'; // Hide
-                img.remove(); // Delete
-                removedCount++;
-            }
+        // 2. EXPLICIT QUOTE NUKE
+        // Sometimes quotes are nested deeply or protected. We target them specifically.
+        const quotes = body.querySelectorAll('.gmail_quote, blockquote');
+        quotes.forEach(quote => {
+            const quoteImages = quote.querySelectorAll('img');
+            quoteImages.forEach(img => {
+                const src = img.src || '';
+                if (src.includes('emailtrack.isnode.pp.ua') || src.includes('track.gif')) {
+                    console.log('EmailTrack: [QuoteNuke] Killing quoted pixel:', src);
+                    img.remove();
+                }
+            });
         });
-
-        console.log(`EmailTrack: Cleanup finished. Destroyed ${removedCount} old pixels.`);
 
         const uuid = crypto.randomUUID();
         console.log('EmailTrack: Generated NEW Track ID:', uuid); // Proof of uniqueness
@@ -251,7 +232,7 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
                 }
             });
         } catch (ctxErr) {
-            console.warn('EmailTrack: Extension context invalidated. Backend will lazy-register.');
+            console.warn('EmailTrack: Context invalid. Lazy registration pending.');
         }
     } else {
         console.error('EmailTrack: CRITICAL - Body not found via traversal from', toolbar);
