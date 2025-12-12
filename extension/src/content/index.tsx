@@ -189,38 +189,34 @@ function injectStats() {
         const imgs = body.querySelectorAll('img');
         let trackId = null;
 
-        // ... (Regex matching logic same as before, simplified for brevity in replace if needed, but keeping full)
-        // Scan ALL images to find the one with the LATEST timestamp.
-        // This is the robust way to distinguish the new pixel from old pixels in quoted text.
-        let uniquePixels: { id: string, ts: number }[] = [];
+        // Scan images but STRICTLY EXCLUDE those inside quoted text.
+        // This ensures we only find the pixel that belongs to THIS message body.
+        let uniquePixels: { id: string }[] = [];
 
         for (const img of imgs) {
+            // Check if this image is inside a quote
+            if (img.closest('.gmail_quote') || img.closest('.im')) {
+                continue; // Skip quoted images
+            }
+
             const rawSrc = img.src;
             let decodedSrc = rawSrc;
             try { decodedSrc = decodeURIComponent(rawSrc); } catch { }
 
-            // Match UUID and optionally capture timestamp (t=...)
+            // Match UUID
             const uuidRegex = /(?:track(?:%2F|\/)|id=)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
             const match = rawSrc.match(uuidRegex) || decodedSrc.match(uuidRegex);
 
-            // Match timestamp
-            const tsRegex = /[?&]t=(\d+)/;
-            const tsMatch = rawSrc.match(tsRegex) || decodedSrc.match(tsRegex);
-
             if (match) {
                 const id = match[1];
-                const ts = tsMatch ? parseInt(tsMatch[1], 10) : 0;
-                uniquePixels.push({ id, ts });
+                uniquePixels.push({ id });
             }
         }
 
-        // Sort by timestamp descending
-        uniquePixels.sort((a, b) => b.ts - a.ts);
-
-        // Pick the newest one
+        // Pick the first one found in the non-quoted scope
         if (uniquePixels.length > 0) {
             trackId = uniquePixels[0].id;
-            console.log(`EmailTrack: Found ${uniquePixels.length} pixels, selected newest: ${trackId} (ts: ${uniquePixels[0].ts})`);
+            console.log(`EmailTrack: Found STRICT pixel: ${trackId}`);
         }
 
         if (trackId) {
