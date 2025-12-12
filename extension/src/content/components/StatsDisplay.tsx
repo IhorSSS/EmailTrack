@@ -76,23 +76,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
         return <Monitor className="et-icon" />;
     };
 
-    const formatDevice = (deviceRaw: string) => {
-        try {
-            // Try to parse JSON if it looks like it
-            if (deviceRaw?.startsWith('{')) {
-                const data = JSON.parse(deviceRaw);
-                const parts = [];
-                if (data.browser && data.browser !== 'undefined') parts.push(data.browser);
-                if (data.os && data.os !== 'undefined') parts.push(data.os);
 
-                if (parts.length > 0) return parts.join(' on ');
-                return data.device || 'Unknown Device';
-            }
-            return deviceRaw || 'Unknown Device';
-        } catch (e) {
-            return deviceRaw || 'Unknown Device';
-        }
-    };
 
     const formatLocation = (loc: string) => {
         if (!loc) return 'Unknown Location';
@@ -128,28 +112,57 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
                             <ShieldCheck size={16} color="#34a853" />
                         </div>
                         <ul className="opens-list">
-                            {stats.opens.map((open: any, index: number) => (
-                                <li key={index} className="et-timeline-item">
-                                    <div className="et-row">
-                                        <Clock className="et-icon" size={14} style={{ color: '#1a73e8' }} />
-                                        <span className="et-time">
-                                            {format(new Date(open.openedAt), 'MMM d, yyyy • HH:mm')}
-                                        </span>
-                                    </div>
-                                    <div className="et-row">
-                                        <MapPin className="et-icon" />
-                                        <span className="et-location">
-                                            {formatLocation(open.location)}
-                                        </span>
-                                    </div>
-                                    <div className="et-row">
-                                        {getDeviceIcon(formatDevice(open.device))}
-                                        <span className="et-device">
-                                            {formatDevice(open.device)}
-                                        </span>
-                                    </div>
-                                </li>
-                            ))}
+                            {stats.opens.map((open: any, index: number) => {
+                                let deviceData: any = {};
+                                try {
+                                    if (open.device && open.device.startsWith('{')) {
+                                        deviceData = JSON.parse(open.device);
+                                    } else {
+                                        deviceData = { device: open.device };
+                                    }
+                                } catch {
+                                    deviceData = { device: open.device };
+                                }
+
+                                const isBot = deviceData.isBot || deviceData.device?.includes('Proxy') || deviceData.browser?.includes('Proxy');
+                                const opacity = isBot ? 0.5 : 1;
+
+                                // Clean Location
+                                const location = formatLocation(open.location);
+
+                                // Format Device String
+                                let deviceStr = '';
+                                if (deviceData.isBot) {
+                                    deviceStr = 'Gmail Proxy / Bot';
+                                } else if (deviceData.browser || deviceData.os) {
+                                    deviceStr = `${deviceData.browser || ''} on ${deviceData.os || ''}`;
+                                } else {
+                                    deviceStr = deviceData.device || 'Unknown Device';
+                                }
+
+                                return (
+                                    <li key={index} className="et-timeline-item" style={{ opacity }}>
+                                        <div className="et-row">
+                                            <Clock className="et-icon" size={14} style={{ color: isBot ? '#9aa0a6' : '#1a73e8' }} />
+                                            <span className="et-time">
+                                                {format(new Date(open.openedAt), 'MMM d, yyyy • HH:mm')}
+                                            </span>
+                                        </div>
+                                        <div className="et-row">
+                                            <MapPin className="et-icon" />
+                                            <span className="et-location">
+                                                {location}
+                                            </span>
+                                        </div>
+                                        <div className="et-row">
+                                            {getDeviceIcon(deviceStr)}
+                                            <span className="et-device">
+                                                {deviceStr}
+                                            </span>
+                                        </div>
+                                    </li>
+                                )
+                            })}
                         </ul>
                     </div>
                 </div>,

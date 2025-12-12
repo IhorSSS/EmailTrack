@@ -190,19 +190,33 @@ function injectStats() {
         let trackId = null;
 
         // ... (Regex matching logic same as before, simplified for brevity in replace if needed, but keeping full)
+        // ...
+
+        // Check if we are in "Sent" view or viewing a thread where we are the sender
+        const isSentView = window.location.hash.includes('#sent') ||
+            row.querySelector('.gD')?.getAttribute('email') === row.querySelector('.gD')?.getAttribute('email'); // Heuristic
+
         for (const img of imgs) {
             const rawSrc = img.src;
             let decodedSrc = rawSrc;
             try { decodedSrc = decodeURIComponent(rawSrc); } catch { }
 
-            // Aggressive Regex: Look for UUID v4 pattern anywhere in string
-            // Aggressive Regex WAS too aggressive (finding Gmail's own UUIDs).
-            // Tuned Regex: Must be preceded by 'track/' or 'track%2F' (encoded).
             const uuidRegex = /(?:track(?:%2F|\/)|id=)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
             const match = rawSrc.match(uuidRegex) || decodedSrc.match(uuidRegex);
 
             if (match) {
                 trackId = match[1];
+
+                // If we are in sent view, prevent self-tracking?
+                // The browser might have already started the request.
+                // But if we catch it early in mutation observer...
+                if (isSentView) {
+                    console.log('EmailTrack: Self-view detected (Sent folder). Attempting to block pixel.');
+                    // Replacing src with empty to cancel/prevent request if probable
+                    img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                    img.style.display = 'none';
+                }
+
                 console.log('EmailTrack: Found ID:', trackId);
                 break;
             }

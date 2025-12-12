@@ -8,20 +8,37 @@ export async function recordOpen(trackId: string, ip: string, userAgent: string)
         console.log(`[TRACK] Raw User Agent: ${userAgent}`);
 
         let targetUA = userAgent;
-        // Gmail Proxy sometimes puts the real UA in Via or X-Forwarded-For, but mostly standard UA is GoogleImageProxy.
-        // However, if we see "GoogleImageProxy", we know it's Gmail.
+
+        // Detect Gmail Proxy
+        const isGmailProxy = userAgent.includes('GoogleImageProxy');
+        const isMicrosoftBot = userAgent.includes('Microsoft Preview') || userAgent.includes('Edge/12'); // Example signature
 
         const parser = new UAParser(targetUA);
         const result = parser.getResult();
 
-        const deviceType = result.device.type || 'Desktop';
-        const deviceVendor = result.device.vendor || '';
-        const deviceModel = result.device.model || '';
+        let deviceType = result.device.type || 'Desktop';
+        let deviceVendor = result.device.vendor || '';
+        let deviceModel = result.device.model || '';
+        let browserName = result.browser.name || '';
+        let browserVersion = result.browser.version || '';
+        let osName = result.os.name || '';
+        let osVersion = result.os.version || '';
 
-        // Construct readable strings, avoid "undefined"
+        // Clean up "Firefox 11 on Windows XP" from Google Proxy
+        if (isGmailProxy) {
+            deviceVendor = 'Google';
+            deviceModel = 'Proxy/Server';
+            browserName = 'Gmail Image Proxy';
+            browserVersion = '';
+            osName = 'Cloud';
+            osVersion = '';
+            deviceType = 'Server';
+        }
+
+        // Construct readable strings
         const device = (deviceVendor || deviceModel) ? `${deviceVendor} ${deviceModel}`.trim() : 'Desktop';
-        const os = (result.os.name) ? `${result.os.name} ${result.os.version || ''}`.trim() : 'Unknown OS';
-        const browser = (result.browser.name) ? `${result.browser.name} ${result.browser.version || ''}`.trim() : 'Unknown Browser';
+        const os = (osName) ? `${osName} ${osVersion}`.trim() : 'Unknown OS';
+        const browser = (browserName) ? `${browserName} ${browserVersion}`.trim() : 'Unknown Browser';
 
         const geo = geoip.lookup(ip);
         const location = geo ? `${geo.city ? geo.city + ', ' : ''}${geo.country}` : 'Unknown Location';
@@ -31,31 +48,31 @@ export async function recordOpen(trackId: string, ip: string, userAgent: string)
             os: os,
             browser: browser,
             type: deviceType,
-            raw: userAgent // Store raw for debug
+            isBot: isGmailProxy || isMicrosoftBot,
+            raw: userAgent
         };
 
         // 3. Save to DB
-        // We check if TrackedEmail exists first to avoid foreign key error
         const email = await prisma.trackedEmail.findUnique({
             where: { id: trackId }
         });
 
         if (email) {
+            // Deduplication logic: Check if we have an event from same IP in last 60 seconds?
+            // For now, let's just record everything but label it correctly. 
+            // The UI can filter if needed.
+
             console.log(`[TRACK] Email found: ${trackId}. Creating OpenEvent...`);
             await prisma.openEvent.create({
                 data: {
                     trackedEmailId: trackId,
                     ip: ip,
                     userAgent: userAgent,
-                    device: JSON.stringify(fullDeviceObj), // Storing detailed info as string or we can simplify
-                    // Schema has 'device' as String. I will store a human readable string or JSON. 
-                    // Let's store human readable: "Chrome 90 on Windows 10"
-                    // I will change logic:
+                    device: JSON.stringify(fullDeviceObj),
                     location: location
                 }
             });
             console.log(`[TRACK] OpenEvent created for ${trackId}`);
-            // We need to match schema: device is String.
         } else {
             console.warn(`[TRACK] ERROR: Track ID ${trackId} not found in database!`);
         }

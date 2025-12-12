@@ -19,3 +19,6 @@ https://localhost.run/docs/
 
 ** your connection id is 3383e413-f176-481a-b59f-011f2486a0f1, please mention it if you send me a message about an issue. **
 
+tcsetattr: Interrupted system call
+Connection to localhost.run closed.
+client_loop: send disconnect: Broken pipe
