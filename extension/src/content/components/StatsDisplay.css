@@ -1,0 +1,114 @@
+.email-track-stats-container {
+    display: inline-block;
+    position: relative;
+    margin-left: 10px;
+    vertical-align: middle;
+    font-family: Roboto, sans-serif;
+}
+
+.email-track-badge {
+    background: #e8f0fe;
+    color: #1a73e8;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid transparent;
+}
+
+.email-track-badge:hover {
+    border-color: #1a73e8;
+    background: #d2e3fc;
+}
+
+.email-track-badge.loading {
+    color: #5f6368;
+    background: #f1f3f4;
+}
+
+.email-track-details-popup {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 8px;
+    background: white;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+    border-radius: 8px;
+    width: 280px;
+    z-index: 9999;
+    padding: 12px;
+    border: 1px solid #dadce0;
+}
+
+.email-track-details-popup h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #202124;
+}
+
+.opens-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.opens-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.opens-list li:last-child {
+    border-bottom: none;
+}
+
+.open-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #5f6368;
+    margin-bottom: 2px;
+}
+
+/* Debug Panel Styles - Forced */
+.email-track-debug-panel {
+    position: fixed !important;
+    bottom: 20px !important;
+    right: 20px !important;
+    background: rgba(0, 0, 0, 0.9) !important;
+    color: #fff !important;
+    padding: 12px !important;
+    border-radius: 8px !important;
+    font-family: monospace !important;
+    font-size: 12px !important;
+    z-index: 2147483647 !important;
+    /* Max Z-Index */
+    width: 300px !important;
+    pointer-events: none !important;
+    user-select: none !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+}
+
+.email-track-debug-panel h4 {
+    margin: 0 0 8px !important;
+    color: #10b981 !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+}
+
+.email-track-debug-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    margin-bottom: 4px !important;
+}
+
+.email-track-debug-val {
+    color: #fbbf24 !important;
+    font-weight: bold !important;
+}

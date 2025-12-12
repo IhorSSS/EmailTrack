@@ -1,0 +1,31 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model TrackedEmail {
+  id        String      @id @default(uuid())
+  subject   String?
+  recipient String?
+  createdAt DateTime    @default(now())
+  opens     OpenEvent[]
+
+  @@map("tracked_emails")
+}
+
+model OpenEvent {
+  id             String       @id @default(uuid())
+  trackedEmailId String
+  trackedEmail   TrackedEmail @relation(fields: [trackedEmailId], references: [id])
+  ip             String
+  userAgent      String
+  device         String?
+  location       String?
+  openedAt       DateTime     @default(now())
+
+  @@map("open_events")
+}

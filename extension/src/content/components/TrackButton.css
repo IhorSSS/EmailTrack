@@ -1,0 +1,21 @@
+.email-track-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin: 0 4px;
+  color: #5f6368;
+  transition: background-color 0.2s;
+}
+
+.email-track-btn:hover {
+  background-color: rgba(32, 33, 36, 0.059);
+}
+
+.email-track-btn.enabled {
+  color: #1a73e8;
+  background-color: rgba(26, 115, 232, 0.1);
+}
