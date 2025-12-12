@@ -66,20 +66,8 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
     if (loading) return <span className="email-track-badge loading">...</span>;
     if (!stats) return <span className="email-track-badge error">Error</span>;
 
-    if (loading) return <span className="email-track-badge loading">...</span>;
-    if (!stats) return <span className="email-track-badge error">Error</span>;
-
-    // Filter Stats for Badge
-    const realOpens = Array.isArray(stats.opens)
-        ? stats.opens.filter((o: any) => {
-            let data: any = {};
-            try { data = o.device?.startsWith('{') ? JSON.parse(o.device) : { device: o.device }; } catch { data = { device: o.device }; }
-            const isBot = data.isBot || data.device?.includes('Proxy') || data.browser?.includes('Proxy');
-            return !isBot;
-        })
-        : [];
-
-    const openCount = realOpens.length;
+    // Use total count (backend handles debouncing)
+    const openCount = Array.isArray(stats.opens) ? stats.opens.length : (typeof stats.opens === 'number' ? stats.opens : 0);
     const openText = openCount > 0 ? `${openCount} Open${openCount === 1 ? '' : 's'}` : 'Unopened';
     const statusClass = openCount > 0 ? 'opened' : 'sent';
 
@@ -144,11 +132,13 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
                                     const isBot = deviceData.isBot || deviceData.device?.includes('Proxy') || deviceData.browser?.includes('Proxy');
 
                                     if (isBot) {
-                                        // Specific handling for standard Google Proxy signature to look cleaner
+                                        // Standardize Gmail Proxy label
                                         if (deviceData.os === 'Windows XP' && deviceData.browser?.includes('Firefox 11')) {
-                                            deviceStr = 'Gmail (via Google Proxy)';
+                                            deviceStr = 'Gmail'; // Simple, clean label
+                                        } else if (deviceData.raw?.includes('GoogleImageProxy')) {
+                                            deviceStr = 'Gmail';
                                         } else {
-                                            deviceStr = 'Gmail Proxy';
+                                            deviceStr = 'Proxy/Server';
                                         }
                                     } else if (deviceData.browser || deviceData.os) {
                                         deviceStr = `${deviceData.browser || ''} on ${deviceData.os || ''}`;
@@ -165,12 +155,9 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
                                     };
                                 });
 
-                                // 2. Filter out Bots from Display (User Requirement)
-                                const realEvents = processedEvents.filter((e: any) => !e.isBot);
-
                                 // 3. Group Consecutive Similar Events
                                 const groupedEvents: any[] = [];
-                                realEvents.forEach((current: any) => {
+                                processedEvents.forEach((current: any) => {
                                     const last = groupedEvents[groupedEvents.length - 1];
                                     // Check if same device & location (ignore time for now, or use loose window)
                                     // Using a 10-minute window for grouping "spammy" reloads
@@ -187,7 +174,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
                                 });
 
                                 if (groupedEvents.length === 0) {
-                                    return <li className="et-timeline-item" style={{ justifyContent: 'center', color: '#888' }}>No real opens yet</li>;
+                                    return <li className="et-timeline-item" style={{ justifyContent: 'center', color: '#888' }}>No opens recorded</li>;
                                 }
 
                                 return groupedEvents.map((open: any, index: number) => {

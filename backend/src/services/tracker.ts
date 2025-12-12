@@ -53,11 +53,27 @@ export async function recordOpen(trackId: string, ip: string, userAgent: string)
         };
 
         // 3. Save to DB
-        // STRICT FILTERING: If it's a bot/proxy (especially Google Image Proxy), DO NOT SAVE it.
-        // The user explicitly requested to see ONLY real opens.
-        if (isGmailProxy || isMicrosoftBot) {
-            console.log(`[TRACK] Ignored Bot/Proxy event: ${device} (${ip})`);
-            return;
+        // Deduplication Logic:
+        // We fetch the LATEST open event for this email.
+        // If it exists, and is from the same IP + UA, and is within 60 seconds, we ignore it.
+        // This effectively debounces rapid-fire requests (bots, refreshes) but captures distinct opens.
+
+        const lastEvent = await prisma.openEvent.findFirst({
+            where: { trackedEmailId: trackId },
+            orderBy: { openedAt: 'desc' }
+        });
+
+        const DEBOUNCE_WINDOW_MS = 60 * 1000; // 60 seconds
+        const now = new Date();
+
+        if (lastEvent) {
+            const timeDiff = now.getTime() - lastEvent.openedAt.getTime();
+            const sameActor = lastEvent.ip === ip && lastEvent.userAgent === userAgent;
+
+            if (sameActor && timeDiff < DEBOUNCE_WINDOW_MS) {
+                console.log(`[TRACK] Debounced event for ${trackId} (too soon: ${timeDiff}ms)`);
+                return; // SKIP saving
+            }
         }
 
         const email = await prisma.trackedEmail.findUnique({
