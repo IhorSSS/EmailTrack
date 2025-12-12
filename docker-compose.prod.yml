@@ -45,7 +45,7 @@ services:
     networks:
       - proxy
       - emailtrack-internal
-    command: sh -c "npx prisma migrate deploy && npm start"
+    command: sh -c "npx prisma db push --accept-data-loss && npm start"
     logging:
       driver: "json-file"
       options:
