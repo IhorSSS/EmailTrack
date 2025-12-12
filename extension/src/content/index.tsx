@@ -190,7 +190,11 @@ function injectStats() {
         let trackId = null;
 
         // ... (Regex matching logic same as before, simplified for brevity in replace if needed, but keeping full)
-        for (const img of imgs) {
+        // Scan images in reverse order to find the LATEST injected pixel (usually at the bottom)
+        // This avoids picking up old pixels from quoted text in replies.
+        const reversedImgs = Array.from(imgs).reverse();
+
+        for (const img of reversedImgs) {
             const rawSrc = img.src;
             let decodedSrc = rawSrc;
             try { decodedSrc = decodeURIComponent(rawSrc); } catch { }
@@ -200,9 +204,7 @@ function injectStats() {
 
             if (match) {
                 trackId = match[1];
-                // Found a pixel. 
-                // We rely on declarativeNetRequest rules to block the network request if this is our own open.
-                console.log('EmailTrack: Found ID:', trackId);
+                console.log('EmailTrack: Found ID (Latest):', trackId);
                 break;
             }
         }
@@ -221,16 +223,12 @@ function injectStats() {
                 });
             }
 
-            // 2. Find Injection Point - MOVING TO SUBJECT HEADER to avoid overlap
-            // h2.hP is the subject header. It is very stable.
-            // Or .gH (Date) which is right-aligned.
-
-            // Let's try inserting into the Subject Header wrapper if possible, or right before 'Reply' button?
-            // Actually, inserting AFTER the subject text (h2.hP) is very visible and clean.
-            const subjectHeader = row.closest('.gs')?.parentElement?.querySelector('h2.hP');
+            // 2. Find Injection Point
+            // PREFER the Date Element (.gH) inside the row to anchor it to the specific message.
             const dateElement = row.querySelector('.gH');
+            const subjectHeader = row.closest('.gs')?.parentElement?.querySelector('h2.hP');
 
-            const anchor = subjectHeader || dateElement;
+            const anchor = dateElement || subjectHeader; // Changed priority
 
             if (anchor && anchor.parentElement) {
                 const statsContainer = document.createElement('span');
