@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MapPin, Monitor, Smartphone, Clock, ShieldCheck } from 'lucide-react';
+import { MapPin, Monitor, Smartphone, Clock, ShieldCheck, RefreshCw } from 'lucide-react';
 import './StatsDisplay.css';
 
 import { format } from 'date-fns';
@@ -12,24 +12,41 @@ interface StatsDisplayProps {
 const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false); // New state for manual refresh
     const [showDetails, setShowDetails] = useState(false);
     const [popupStyle, setPopupStyle] = useState<React.CSSProperties>({});
     const badgeRef = useRef<HTMLSpanElement>(null);
 
-    useEffect(() => {
+    const fetchStats = (isRefresh = false) => {
+        if (isRefresh) setRefreshing(true);
         try {
             chrome.runtime.sendMessage({
                 type: 'GET_STATS',
                 trackId
             }, (response) => {
-                if (chrome.runtime.lastError) return setLoading(false);
+                if (chrome.runtime.lastError) {
+                    setLoading(false);
+                    setRefreshing(false);
+                    return;
+                }
                 if (response && !response.error) setStats(response);
                 setLoading(false);
+                setRefreshing(false);
             });
         } catch (e) {
             setLoading(false);
+            setRefreshing(false);
         }
+    };
+
+    useEffect(() => {
+        fetchStats();
     }, [trackId]);
+
+    const handleRefresh = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Don't toggle details
+        fetchStats(true);
+    };
 
     const toggleDetails = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -37,19 +54,19 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
             if (!showDetails && badgeRef.current) {
                 const rect = badgeRef.current.getBoundingClientRect();
                 const POPUP_WIDTH = 320;
-                const POPUP_HEIGHT = 300; // Approx max height
+                const POPUP_HEIGHT = 300;
 
                 let top = rect.bottom + window.scrollY + 8;
                 let left = rect.left + window.scrollX;
 
                 // Vertical collision
                 if (rect.bottom + POPUP_HEIGHT > window.innerHeight) {
-                    top = rect.top + window.scrollY - POPUP_HEIGHT - 8; // Flip up
+                    top = rect.top + window.scrollY - POPUP_HEIGHT - 8;
                 }
 
                 // Horizontal collision
                 if (rect.left + POPUP_WIDTH > window.innerWidth) {
-                    left = window.innerWidth - POPUP_WIDTH - 20; // Shift left
+                    left = window.innerWidth - POPUP_WIDTH - 20;
                 }
 
                 setPopupStyle({ top, left });
@@ -66,7 +83,6 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
     if (loading) return <span className="email-track-badge loading">...</span>;
     if (!stats) return <span className="email-track-badge error">Error</span>;
 
-    // Use total count (backend handles debouncing)
     const openCount = Array.isArray(stats.opens) ? stats.opens.length : (typeof stats.opens === 'number' ? stats.opens : 0);
     const openText = openCount > 0 ? `${openCount} Open${openCount === 1 ? '' : 's'}` : 'Unopened';
     const statusClass = openCount > 0 ? 'opened' : 'sent';
@@ -77,11 +93,8 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
         return <Monitor className="et-icon" />;
     };
 
-
-
     const formatLocation = (loc: string) => {
         if (!loc) return 'Unknown Location';
-        // Remove leading comma if city is missing (e.g. ", US")
         if (loc.startsWith(', ')) return loc.substring(2);
         return loc;
     };
@@ -98,8 +111,18 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
                 >
                     {openCount > 0 && <span className="dot"></span>}
                     {openText}
+
+                    <button
+                        className={`et-refresh-btn ${refreshing ? 'rotating' : ''}`}
+                        onClick={handleRefresh}
+                        title="Refresh status"
+                    >
+                        <RefreshCw size={12} />
+                    </button>
                 </span>
             </div>
+
+            {/* ... popup logic ... */}
 
             {showDetails && openCount > 0 && createPortal(
                 <div className="email-track-portal-overlay" onClick={closeDetails}>

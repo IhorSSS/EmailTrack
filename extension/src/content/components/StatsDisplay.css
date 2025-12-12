@@ -193,5 +193,40 @@
 /* Debug Panel */
 .email-track-debug-panel {
     display: none !important;
-    /* Hide debug panel in production feel */
+}
+
+/* Refresh Button */
+.et-refresh-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    margin-left: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    color: inherit;
+    opacity: 0.6;
+    transition: all 0.2s ease;
+}
+
+.et-refresh-btn:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 50%;
+}
+
+.et-refresh-btn.rotating {
+    animation: et-spin 1s linear infinite;
+    pointer-events: none;
+    /* Prevent clicks while loading */
+}
+
+@keyframes et-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
