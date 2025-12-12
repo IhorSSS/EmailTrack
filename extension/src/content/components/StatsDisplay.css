@@ -1,11 +1,15 @@
 /* Container & Badge */
 .email-track-stats-container {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
     position: relative;
-    margin-left: 10px;
+    /* Match Gmail's icon button alignment */
     vertical-align: middle;
+    margin-left: 8px;
     font-family: 'Google Sans', Roboto, sans-serif;
     user-select: none;
+    height: 20px;
+    /* Force standard height for alignment context */
 }
 
 .email-track-badge {

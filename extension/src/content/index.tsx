@@ -321,9 +321,17 @@ function injectStats() {
 
             if (anchor && anchor.parentElement) {
                 const statsContainer = document.createElement('span');
-                statsContainer.style.marginLeft = '12px';
-                statsContainer.style.display = 'inline-flex'; // flexible
+                statsContainer.style.marginLeft = '10px';
+                statsContainer.style.display = 'inline-flex';
+                statsContainer.style.alignItems = 'center';
+                // 'baseline' usually aligns better with text (timestamp), 'middle' can be off-center depending on line-height.
+                // Let's try 'middle' but verify standard Gmail icon heights (20px).
                 statsContainer.style.verticalAlign = 'middle';
+
+                // Fine-tune to match icons: often they need a tiny visual lift
+                statsContainer.style.position = 'relative';
+                // statsContainer.style.top = '-1px'; // Removed assumption, sticking to pure flex alignment first.
+
                 statsContainer.onclick = (e) => e.stopPropagation();
 
                 // Insert AFTER the anchor
