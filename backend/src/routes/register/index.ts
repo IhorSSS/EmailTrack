@@ -4,6 +4,7 @@ import { prisma } from '../../db';
 const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
     fastify.post('/', async (request, reply) => {
         const { id, subject, recipient } = request.body as { id?: string, subject?: string, recipient?: string };
+        console.log(`[REGISTER] Attempting to register email. ID: ${id}, Subject: ${subject}, Recipient: ${recipient}`);
 
         const email = await prisma.trackedEmail.create({
             data: {

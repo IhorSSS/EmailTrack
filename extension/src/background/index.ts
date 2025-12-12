@@ -1,7 +1,7 @@
 
 console.log('EmailTrack: Background Script Loaded');
 
-const API_BASE = 'http://localhost:3000';
+const API_BASE = 'https://emailtrack.isnode.pp.ua';
 
 async function handleRegister(data: any) {
     console.log('Registering email:', data);

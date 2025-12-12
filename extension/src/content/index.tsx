@@ -94,7 +94,7 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
         // Use proven format that bypasses Gmail blocking (based on email-signature-image.com)
         // Key techniques: width=0/height=0, overflow:hidden, .gif extension, query params
         const timestamp = Date.now();
-        const pixel = `<img src="${HOST}/track.gif?id=${uuid}&t=${timestamp}" alt="" width="0" height="0" style="width:2px;max-height:0;overflow:hidden" />`;
+        const pixel = `<img src="${HOST}/track/track.gif?id=${uuid}&t=${timestamp}" alt="" width="0" height="0" style="width:2px;max-height:0;overflow:hidden" />`;
 
         (body as HTMLElement).focus();
 
@@ -198,7 +198,7 @@ function injectStats() {
             // Aggressive Regex: Look for UUID v4 pattern anywhere in string
             // Aggressive Regex WAS too aggressive (finding Gmail's own UUIDs).
             // Tuned Regex: Must be preceded by 'track/' or 'track%2F' (encoded).
-            const uuidRegex = /track(?:%2F|\/)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+            const uuidRegex = /(?:track(?:%2F|\/)|id=)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
             const match = rawSrc.match(uuidRegex) || decodedSrc.match(uuidRegex);
 
             if (match) {

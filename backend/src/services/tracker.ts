@@ -29,6 +29,7 @@ export async function recordOpen(trackId: string, ip: string, userAgent: string)
         });
 
         if (email) {
+            console.log(`[TRACK] Email found: ${trackId}. Creating OpenEvent...`);
             await prisma.openEvent.create({
                 data: {
                     trackedEmailId: trackId,
@@ -41,9 +42,10 @@ export async function recordOpen(trackId: string, ip: string, userAgent: string)
                     location: location
                 }
             });
+            console.log(`[TRACK] OpenEvent created for ${trackId}`);
             // We need to match schema: device is String.
         } else {
-            console.warn(`Track ID ${trackId} not found`);
+            console.warn(`[TRACK] ERROR: Track ID ${trackId} not found in database!`);
         }
 
     } catch (error) {
