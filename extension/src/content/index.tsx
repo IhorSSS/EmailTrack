@@ -172,8 +172,8 @@ function extractViewMetadata(row: Element) {
 }
 
 function injectStats() {
-    // .gs is the grid system, .a3s is message body.
-    const messages = document.querySelectorAll('.gs');
+    // .adn is the container for a single message in conversation view
+    const messages = document.querySelectorAll('div.adn');
 
     messages.forEach((row) => {
         // Find the message body within this container
