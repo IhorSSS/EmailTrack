@@ -4,6 +4,7 @@ CREATE TABLE "tracked_emails" (
     "subject" TEXT,
     "recipient" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
     CONSTRAINT "tracked_emails_pkey" PRIMARY KEY ("id")
 );
 
@@ -16,6 +17,12 @@ CREATE TABLE "open_events" (
     "device" TEXT,
     "location" TEXT,
     "openedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "open_events_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "open_events_trackedEmailId_fkey" FOREIGN KEY ("trackedEmailId") REFERENCES "tracked_emails" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+
+    CONSTRAINT "open_events_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateIndex
+CREATE INDEX "open_events_trackedEmailId_idx" ON "open_events"("trackedEmailId");
+
+-- AddForeignKey
+ALTER TABLE "open_events" ADD CONSTRAINT "open_events_trackedEmailId_fkey" FOREIGN KEY ("trackedEmailId") REFERENCES "tracked_emails"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
