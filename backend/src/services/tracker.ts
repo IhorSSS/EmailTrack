@@ -5,21 +5,33 @@ import { UAParser } from 'ua-parser-js';
 export async function recordOpen(trackId: string, ip: string, userAgent: string) {
     try {
         // ...
-        // 2. Parse Info
-        const parser = new UAParser(userAgent);
+        console.log(`[TRACK] Raw User Agent: ${userAgent}`);
+
+        let targetUA = userAgent;
+        // Gmail Proxy sometimes puts the real UA in Via or X-Forwarded-For, but mostly standard UA is GoogleImageProxy.
+        // However, if we see "GoogleImageProxy", we know it's Gmail.
+
+        const parser = new UAParser(targetUA);
         const result = parser.getResult();
-        const device = `${result.device.vendor || ''} ${result.device.model || ''}`.trim() || 'Desktop';
-        const os = `${result.os.name || ''} ${result.os.version || ''}`.trim();
-        const browser = `${result.browser.name || ''} ${result.browser.version || ''}`.trim();
+
+        const deviceType = result.device.type || 'Desktop';
+        const deviceVendor = result.device.vendor || '';
+        const deviceModel = result.device.model || '';
+
+        // Construct readable strings, avoid "undefined"
+        const device = (deviceVendor || deviceModel) ? `${deviceVendor} ${deviceModel}`.trim() : 'Desktop';
+        const os = (result.os.name) ? `${result.os.name} ${result.os.version || ''}`.trim() : 'Unknown OS';
+        const browser = (result.browser.name) ? `${result.browser.name} ${result.browser.version || ''}`.trim() : 'Unknown Browser';
 
         const geo = geoip.lookup(ip);
-        const location = geo ? `${geo.city}, ${geo.country}` : 'Unknown';
+        const location = geo ? `${geo.city ? geo.city + ', ' : ''}${geo.country}` : 'Unknown Location';
 
         const fullDeviceObj = {
-            device,
-            os,
-            browser,
-            type: result.device.type
+            device: device,
+            os: os,
+            browser: browser,
+            type: deviceType,
+            raw: userAgent // Store raw for debug
         };
 
         // 3. Save to DB

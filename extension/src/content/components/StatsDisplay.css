@@ -1,114 +1,193 @@
+/* Container & Badge */
 .email-track-stats-container {
     display: inline-block;
     position: relative;
     margin-left: 10px;
     vertical-align: middle;
-    font-family: Roboto, sans-serif;
+    font-family: 'Google Sans', Roboto, sans-serif;
+    user-select: none;
 }
 
 .email-track-badge {
     background: #e8f0fe;
     color: #1a73e8;
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     border: 1px solid transparent;
+    transition: all 0.2s ease;
 }
 
 .email-track-badge:hover {
-    border-color: #1a73e8;
     background: #d2e3fc;
+    border-color: #1a73e8;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.email-track-badge.loading {
-    color: #5f6368;
-    background: #f1f3f4;
+.email-track-badge.opened {
+    background: #e6f4ea;
+    color: #137333;
 }
 
-.email-track-details-popup {
-    position: absolute;
-    top: 100%;
+.email-track-badge.opened:hover {
+    background: #ceead6;
+    border-color: #137333;
+}
+
+.email-track-badge .dot {
+    width: 8px;
+    height: 8px;
+    background: #34a853;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+/* Portal Overlay */
+.email-track-portal-overlay {
+    position: fixed;
+    top: 0;
     left: 0;
-    margin-top: 8px;
-    background: white;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
-    border-radius: 8px;
-    width: 280px;
-    z-index: 9999;
-    padding: 12px;
-    border: 1px solid #dadce0;
+    width: 100%;
+    height: 100%;
+    z-index: 20000;
+    background: transparent;
+    cursor: default;
 }
 
-.email-track-details-popup h4 {
-    margin: 0 0 8px 0;
-    font-size: 14px;
+/* Premium Popup Card */
+.email-track-details-popup {
+    position: fixed;
+    width: 320px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #f1f3f4;
+    font-family: 'Google Sans', Roboto, sans-serif;
+    overflow: hidden;
+    animation: et-fade-in 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
     color: #202124;
 }
 
+@keyframes et-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Header */
+.et-popup-header {
+    background: #f8f9fa;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f3f4;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.et-popup-header h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #5f6368;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Timeline List */
 .opens-list {
     list-style: none;
-    padding: 0;
+    padding: 8px 0;
     margin: 0;
-    max-height: 200px;
+    max-height: 300px;
     overflow-y: auto;
 }
 
-.opens-list li {
-    padding: 8px 0;
-    border-bottom: 1px solid #f1f3f4;
+.opens-list::-webkit-scrollbar {
+    width: 6px;
 }
 
-.opens-list li:last-child {
-    border-bottom: none;
+.opens-list::-webkit-scrollbar-track {
+    background: #f1f3f4;
 }
 
-.open-row {
+.opens-list::-webkit-scrollbar-thumb {
+    background: #dadce0;
+    border-radius: 3px;
+}
+
+/* Timeline Item */
+.et-timeline-item {
+    padding: 12px 16px;
+    position: relative;
+    transition: background 0.1s;
+}
+
+.et-timeline-item:hover {
+    background: #f8f9fa;
+}
+
+.et-timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 24px;
+    top: 36px;
+    bottom: -14px;
+    width: 2px;
+    background: #e8eaed;
+    display: none;
+    /* Can enable for connected lines */
+}
+
+/* Data Rows */
+.et-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.et-time {
+    font-size: 14px;
+    font-weight: 500;
+    color: #202124;
+}
+
+.et-location,
+.et-device {
+    font-size: 12px;
+    color: #5f6368;
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
-    color: #5f6368;
-    margin-bottom: 2px;
 }
 
-/* Debug Panel Styles - Forced */
+.et-icon {
+    width: 14px;
+    height: 14px;
+    color: #9aa0a6;
+    flex-shrink: 0;
+}
+
+.et-empty {
+    padding: 24px;
+    text-align: center;
+    color: #9aa0a6;
+    font-size: 13px;
+}
+
+/* Debug Panel */
 .email-track-debug-panel {
-    position: fixed !important;
-    bottom: 20px !important;
-    right: 20px !important;
-    background: rgba(0, 0, 0, 0.9) !important;
-    color: #fff !important;
-    padding: 12px !important;
-    border-radius: 8px !important;
-    font-family: monospace !important;
-    font-size: 12px !important;
-    z-index: 2147483647 !important;
-    /* Max Z-Index */
-    width: 300px !important;
-    pointer-events: none !important;
-    user-select: none !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
-}
-
-.email-track-debug-panel h4 {
-    margin: 0 0 8px !important;
-    color: #10b981 !important;
-    font-size: 14px !important;
-    font-weight: bold !important;
-}
-
-.email-track-debug-row {
-    display: flex !important;
-    justify-content: space-between !important;
-    margin-bottom: 4px !important;
-}
-
-.email-track-debug-val {
-    color: #fbbf24 !important;
-    font-weight: bold !important;
+    display: none !important;
+    /* Hide debug panel in production feel */
 }

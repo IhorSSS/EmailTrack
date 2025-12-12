@@ -17,7 +17,7 @@ interface DashboardData {
   limit: number;
 }
 
-const API_BASE = 'http://localhost:3000';
+const API_BASE = 'https://emailtrack.isnode.pp.ua';
 
 function App() {
   const [emails, setEmails] = useState<TrackedEmail[]>([]);
