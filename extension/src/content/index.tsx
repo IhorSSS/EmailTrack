@@ -123,52 +123,49 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
     }
 }
 
-// Re-implement button injection essentially just to attach the event listener
-// But simpler, without the UI button
-function attachSendListeners() {
-    // Strategy: Find all potential "Send" buttons
-    // 1. Standard Compose/Reply container (.gU.Up)
-    // 2. Generic buttons with "Send" tooltip (useful for inline replies)
+// Global Capture Listener for Send Actions
+// This replaces the fragile mutation-observer based button attachment.
+// We listen for MOUSE DOWN on the body in capture phase to detect clicks on "Send" buttons
+// before Gmail processes them.
 
-    const possibleButtons = [
-        ...Array.from(document.querySelectorAll('.gU.Up [role="button"]')),
-        ...Array.from(document.querySelectorAll('[role="button"][data-tooltip^="Send"]')), // English
-        ...Array.from(document.querySelectorAll('[role="button"][aria-label^="Send"]')),   // Accessiblity
-        ...Array.from(document.querySelectorAll('[role="button"][data-tooltip*="Senden"]')), // German
-        ...Array.from(document.querySelectorAll('[role="button"][data-tooltip*="Надіслати"]')) // Ukrainian
-    ];
+function isSendButton(target: Element): boolean {
+    // 1. Check specific Gmail classes
+    if (target.closest('.gU.Up')) return true; // Standard Compose toolbar
 
-    const uniqueButtons = [...new Set(possibleButtons)];
+    // 2. Check attributes (Tooltip/Label)
+    const btn = target.closest('[role="button"]');
+    if (!btn) return false;
 
-    uniqueButtons.forEach((btn) => {
-        const element = btn as HTMLElement;
-        const container = element.closest('tr') || element.closest('.gU.Up') || element.parentElement;
+    const tooltip = btn.getAttribute('data-tooltip') || '';
+    const aria = btn.getAttribute('aria-label') || '';
 
-        if (!container) return;
-        if (container.getAttribute('data-email-track-listening')) return;
+    // Check for "Send" variants (English, Ukrainian, German, etc)
+    const keywords = ['Send', 'Senden', 'Надіслати', 'Отправить'];
+    const combined = (tooltip + ' ' + aria).toLowerCase();
 
-        // Verify it looks like a Send button (usually blue or primary action)
-        // or just trust the selector if it's specific enough.
-
-        const composeId = Math.random().toString(36).substring(7);
-        container.setAttribute('data-email-track-listening', 'true');
-        container.setAttribute('data-compose-id', composeId);
-
-        // Use Mousedown to capture event before Gmail destroys the form
-        console.log('EmailTrack: Attached listener to potential Send button', element);
-        element.addEventListener('mousedown', (e) => handleSendClick(e, composeId, container));
-        element.addEventListener('click', (e) => handleSendClick(e, composeId, container)); // Fallback
-    });
+    // Check if it starts with or contains keywords
+    return keywords.some(k => combined.includes(k.toLowerCase()));
 }
 
+document.addEventListener('mousedown', (e) => {
+    const target = e.target as Element;
+    if (isSendButton(target)) {
+        console.log('EmailTrack: Global capture detected Send click on:', target);
+        // Find the form/container
+        const btn = target.closest('[role="button"]') || target.closest('.gU.Up');
+        if (btn) {
+            handleSendClick(e, 'global-capture', btn);
+        }
+    }
+}, true); // Capture phase!
+
 const observer = new MutationObserver((_mutations) => {
-    attachSendListeners();
+    // attachSendListeners(); // Removed
     injectStats();
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
 
-attachSendListeners();
 injectStats();
 
 function extractViewMetadata(row: Element) {
