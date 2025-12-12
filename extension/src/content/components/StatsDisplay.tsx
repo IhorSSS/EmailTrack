@@ -66,7 +66,20 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
     if (loading) return <span className="email-track-badge loading">...</span>;
     if (!stats) return <span className="email-track-badge error">Error</span>;
 
-    const openCount = Array.isArray(stats.opens) ? stats.opens.length : (typeof stats.opens === 'number' ? stats.opens : 0);
+    if (loading) return <span className="email-track-badge loading">...</span>;
+    if (!stats) return <span className="email-track-badge error">Error</span>;
+
+    // Filter Stats for Badge
+    const realOpens = Array.isArray(stats.opens)
+        ? stats.opens.filter((o: any) => {
+            let data: any = {};
+            try { data = o.device?.startsWith('{') ? JSON.parse(o.device) : { device: o.device }; } catch { data = { device: o.device }; }
+            const isBot = data.isBot || data.device?.includes('Proxy') || data.browser?.includes('Proxy');
+            return !isBot;
+        })
+        : [];
+
+    const openCount = realOpens.length;
     const openText = openCount > 0 ? `${openCount} Open${openCount === 1 ? '' : 's'}` : 'Unopened';
     const statusClass = openCount > 0 ? 'opened' : 'sent';
 
@@ -112,57 +125,110 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
                             <ShieldCheck size={16} color="#34a853" />
                         </div>
                         <ul className="opens-list">
-                            {stats.opens.map((open: any, index: number) => {
-                                let deviceData: any = {};
-                                try {
-                                    if (open.device && open.device.startsWith('{')) {
-                                        deviceData = JSON.parse(open.device);
-                                    } else {
+                            {(() => {
+                                // 1. Process and Group Events
+                                const processedEvents = stats.opens.map((open: any) => {
+                                    let deviceData: any = {};
+                                    try {
+                                        if (open.device && open.device.startsWith('{')) {
+                                            deviceData = JSON.parse(open.device);
+                                        } else {
+                                            deviceData = { device: open.device };
+                                        }
+                                    } catch {
                                         deviceData = { device: open.device };
                                     }
-                                } catch {
-                                    deviceData = { device: open.device };
+
+                                    // Determine Label
+                                    let deviceStr = '';
+                                    const isBot = deviceData.isBot || deviceData.device?.includes('Proxy') || deviceData.browser?.includes('Proxy');
+
+                                    if (isBot) {
+                                        // Specific handling for standard Google Proxy signature to look cleaner
+                                        if (deviceData.os === 'Windows XP' && deviceData.browser?.includes('Firefox 11')) {
+                                            deviceStr = 'Gmail (via Google Proxy)';
+                                        } else {
+                                            deviceStr = 'Gmail Proxy';
+                                        }
+                                    } else if (deviceData.browser || deviceData.os) {
+                                        deviceStr = `${deviceData.browser || ''} on ${deviceData.os || ''}`;
+                                    } else {
+                                        deviceStr = deviceData.device || 'Unknown Device';
+                                    }
+
+                                    return {
+                                        ...open,
+                                        deviceStr,
+                                        isBot,
+                                        location: formatLocation(open.location),
+                                        timestamp: new Date(open.openedAt).getTime()
+                                    };
+                                });
+
+                                // 2. Filter out Bots from Display (User Requirement)
+                                const realEvents = processedEvents.filter((e: any) => !e.isBot);
+
+                                // 3. Group Consecutive Similar Events
+                                const groupedEvents: any[] = [];
+                                realEvents.forEach((current: any) => {
+                                    const last = groupedEvents[groupedEvents.length - 1];
+                                    // Check if same device & location (ignore time for now, or use loose window)
+                                    // Using a 10-minute window for grouping "spammy" reloads
+                                    const isSame = last &&
+                                        last.deviceStr === current.deviceStr &&
+                                        last.location === current.location &&
+                                        (last.timestamp - current.timestamp < 10 * 60 * 1000); // Descending order usually
+
+                                    if (isSame) {
+                                        last.count = (last.count || 1) + 1;
+                                    } else {
+                                        groupedEvents.push({ ...current, count: 1 });
+                                    }
+                                });
+
+                                if (groupedEvents.length === 0) {
+                                    return <li className="et-timeline-item" style={{ justifyContent: 'center', color: '#888' }}>No real opens yet</li>;
                                 }
 
-                                const isBot = deviceData.isBot || deviceData.device?.includes('Proxy') || deviceData.browser?.includes('Proxy');
-                                const opacity = isBot ? 0.5 : 1;
-
-                                // Clean Location
-                                const location = formatLocation(open.location);
-
-                                // Format Device String
-                                let deviceStr = '';
-                                if (deviceData.isBot) {
-                                    deviceStr = 'Gmail Proxy / Bot';
-                                } else if (deviceData.browser || deviceData.os) {
-                                    deviceStr = `${deviceData.browser || ''} on ${deviceData.os || ''}`;
-                                } else {
-                                    deviceStr = deviceData.device || 'Unknown Device';
-                                }
-
-                                return (
-                                    <li key={index} className="et-timeline-item" style={{ opacity }}>
-                                        <div className="et-row">
-                                            <Clock className="et-icon" size={14} style={{ color: isBot ? '#9aa0a6' : '#1a73e8' }} />
-                                            <span className="et-time">
-                                                {format(new Date(open.openedAt), 'MMM d, yyyy • HH:mm')}
-                                            </span>
-                                        </div>
-                                        <div className="et-row">
-                                            <MapPin className="et-icon" />
-                                            <span className="et-location">
-                                                {location}
-                                            </span>
-                                        </div>
-                                        <div className="et-row">
-                                            {getDeviceIcon(deviceStr)}
-                                            <span className="et-device">
-                                                {deviceStr}
-                                            </span>
-                                        </div>
-                                    </li>
-                                )
-                            })}
+                                return groupedEvents.map((open: any, index: number) => {
+                                    return (
+                                        <li key={index} className="et-timeline-item">
+                                            <div className="et-row">
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
+                                                    <Clock className="et-icon" size={14} style={{ color: '#1a73e8' }} />
+                                                    <span className="et-time">
+                                                        {format(new Date(open.openedAt), 'MMM d, HH:mm')}
+                                                    </span>
+                                                </div>
+                                                {open.count > 1 && (
+                                                    <span style={{
+                                                        background: '#e8f0fe',
+                                                        color: '#1a73e8',
+                                                        fontSize: '10px',
+                                                        padding: '2px 6px',
+                                                        borderRadius: '10px',
+                                                        fontWeight: 'bold'
+                                                    }}>
+                                                        x{open.count}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="et-row">
+                                                <MapPin className="et-icon" />
+                                                <span className="et-location">
+                                                    {open.location}
+                                                </span>
+                                            </div>
+                                            <div className="et-row">
+                                                {getDeviceIcon(open.deviceStr)}
+                                                <span className="et-device">
+                                                    {open.deviceStr}
+                                                </span>
+                                            </div>
+                                        </li>
+                                    );
+                                });
+                            })()}
                         </ul>
                     </div>
                 </div>,

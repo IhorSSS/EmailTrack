@@ -53,6 +53,13 @@ export async function recordOpen(trackId: string, ip: string, userAgent: string)
         };
 
         // 3. Save to DB
+        // STRICT FILTERING: If it's a bot/proxy (especially Google Image Proxy), DO NOT SAVE it.
+        // The user explicitly requested to see ONLY real opens.
+        if (isGmailProxy || isMicrosoftBot) {
+            console.log(`[TRACK] Ignored Bot/Proxy event: ${device} (${ip})`);
+            return;
+        }
+
         const email = await prisma.trackedEmail.findUnique({
             where: { id: trackId }
         });
