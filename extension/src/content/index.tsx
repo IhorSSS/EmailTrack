@@ -190,23 +190,37 @@ function injectStats() {
         let trackId = null;
 
         // ... (Regex matching logic same as before, simplified for brevity in replace if needed, but keeping full)
-        // Scan images in reverse order to find the LATEST injected pixel (usually at the bottom)
-        // This avoids picking up old pixels from quoted text in replies.
-        const reversedImgs = Array.from(imgs).reverse();
+        // Scan ALL images to find the one with the LATEST timestamp.
+        // This is the robust way to distinguish the new pixel from old pixels in quoted text.
+        let uniquePixels: { id: string, ts: number }[] = [];
 
-        for (const img of reversedImgs) {
+        for (const img of imgs) {
             const rawSrc = img.src;
             let decodedSrc = rawSrc;
             try { decodedSrc = decodeURIComponent(rawSrc); } catch { }
 
+            // Match UUID and optionally capture timestamp (t=...)
             const uuidRegex = /(?:track(?:%2F|\/)|id=)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
             const match = rawSrc.match(uuidRegex) || decodedSrc.match(uuidRegex);
 
+            // Match timestamp
+            const tsRegex = /[?&]t=(\d+)/;
+            const tsMatch = rawSrc.match(tsRegex) || decodedSrc.match(tsRegex);
+
             if (match) {
-                trackId = match[1];
-                console.log('EmailTrack: Found ID (Latest):', trackId);
-                break;
+                const id = match[1];
+                const ts = tsMatch ? parseInt(tsMatch[1], 10) : 0;
+                uniquePixels.push({ id, ts });
             }
+        }
+
+        // Sort by timestamp descending
+        uniquePixels.sort((a, b) => b.ts - a.ts);
+
+        // Pick the newest one
+        if (uniquePixels.length > 0) {
+            trackId = uniquePixels[0].id;
+            console.log(`EmailTrack: Found ${uniquePixels.length} pixels, selected newest: ${trackId} (ts: ${uniquePixels[0].ts})`);
         }
 
         if (trackId) {
