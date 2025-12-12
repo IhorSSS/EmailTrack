@@ -20,7 +20,7 @@ services:
 
   backend:
     build:
-      context: https://github.com/YOUR_USERNAME/EmailTrack.git#main
+      context: https://github.com/IhorSSS/EmailTrack.git#main
       dockerfile: backend/Dockerfile
     container_name: emailtrack-backend
     environment:
