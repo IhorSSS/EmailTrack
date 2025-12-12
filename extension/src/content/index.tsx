@@ -85,26 +85,37 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
     const form = toolbar.closest('form') || toolbar.closest('div[role="dialog"]');
     if (!form) return;
 
-    // Locale-agnostic body selector: look for contenteditable div that is NOT the subject line
-    const body = form.querySelector('div[contenteditable="true"][role="textbox"][aria-multiline="true"]') ||
-        form.querySelector('.Am.Al.editable');
+    // Robust body selector: Any contenteditable div inside the form
+    const body = form.querySelector('[contenteditable="true"]') as HTMLElement;
 
     if (body) {
         const uuid = crypto.randomUUID();
-        // Use proven format that bypasses Gmail blocking (based on email-signature-image.com)
-        // Key techniques: width=0/height=0, overflow:hidden, .gif extension, query params
         const timestamp = Date.now();
-        const pixel = `<img src="${HOST}/track/track.gif?id=${uuid}&t=${timestamp}" alt="" width="0" height="0" style="width:2px;max-height:0;overflow:hidden" />`;
+        const pixelUrl = `${HOST}/track/track.gif?id=${uuid}&t=${timestamp}`;
+        // Use a 1x1 style that is proven to work in Gmail
+        const pixelHtml = `<img src="${pixelUrl}" alt="" style="display:none;width:0;height:0;" />`;
 
-        (body as HTMLElement).focus();
+        try {
+            // Method 1: Range Insertion at the end
+            body.focus();
+            const range = document.createRange();
+            range.selectNodeContents(body);
+            range.collapse(false); // End of body
 
-        // Append to end of body
-        const range = document.createRange();
-        range.selectNodeContents(body);
-        range.collapse(false); // Go to end
+            const pixelFragment = range.createContextualFragment(pixelHtml);
+            range.insertNode(pixelFragment);
 
-        const pixelNode = range.createContextualFragment(pixel);
-        range.insertNode(pixelNode);
+            console.log('EmailTrack: Pixel injected via Range');
+        } catch (err) {
+            console.error('EmailTrack: Range injection failed, trying append', err);
+            // Method 2: Direct Append
+            try {
+                body.insertAdjacentHTML('beforeend', pixelHtml);
+                console.log('EmailTrack: Pixel injected via insertAdjacentHTML');
+            } catch (err2) {
+                console.error('EmailTrack: All injection methods failed', err2);
+            }
+        }
 
         updateDebug({ pixelInjected: true, lastAction: 'Pixel Injected' });
 
@@ -119,6 +130,7 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
             }
         });
     } else {
+        console.error('EmailTrack: contenteditable body not found in form', form);
         updateDebug({ lastAction: 'Error: Body not found' });
     }
 }
