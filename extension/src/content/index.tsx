@@ -103,6 +103,16 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
     }
 
     if (body) {
+        // CLEANUP: Remove any existing tracking pixels (from quotes/history)
+        // This prevents "Double Counting" where opening a reply triggers old emails.
+        const existingImages = body.querySelectorAll('img');
+        existingImages.forEach(img => {
+            if (img.src.includes('/track/track.gif')) {
+                console.log('EmailTrack: Removing old pixel from quote', img.src);
+                img.remove();
+            }
+        });
+
         const uuid = crypto.randomUUID();
         const timestamp = Date.now();
         const pixelUrl = `${HOST}/track/track.gif?id=${uuid}&t=${timestamp}`;
