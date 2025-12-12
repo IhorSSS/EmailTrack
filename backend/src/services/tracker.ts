@@ -63,7 +63,7 @@ export async function recordOpen(trackId: string, ip: string, userAgent: string)
             orderBy: { openedAt: 'desc' }
         });
 
-        const DEBOUNCE_WINDOW_MS = 60 * 1000; // 60 seconds
+        const DEBOUNCE_WINDOW_MS = 10 * 1000; // 10 seconds (User requested to capture re-opens)
         const now = new Date();
 
         if (lastEvent) {

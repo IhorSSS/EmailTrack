@@ -6,12 +6,22 @@
     "permissions": [
         "storage",
         "activeTab",
-        "scripting"
+        "scripting",
+        "declarativeNetRequest"
     ],
     "host_permissions": [
         "https://mail.google.com/*",
-        "http://localhost:3000/*"
+        "https://emailtrack.isnode.pp.ua/*"
     ],
+    "declarative_net_request": {
+        "rule_resources": [
+            {
+                "id": "ruleset_1",
+                "enabled": true,
+                "path": "rules.json"
+            }
+        ]
+    },
     "action": {
         "default_popup": "index.html"
     },

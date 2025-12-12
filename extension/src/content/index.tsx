@@ -190,12 +190,6 @@ function injectStats() {
         let trackId = null;
 
         // ... (Regex matching logic same as before, simplified for brevity in replace if needed, but keeping full)
-        // ...
-
-        // Check if we are in "Sent" view or viewing a thread where we are the sender
-        const isSentView = window.location.hash.includes('#sent') ||
-            row.querySelector('.gD')?.getAttribute('email') === row.querySelector('.gD')?.getAttribute('email'); // Heuristic
-
         for (const img of imgs) {
             const rawSrc = img.src;
             let decodedSrc = rawSrc;
@@ -206,17 +200,8 @@ function injectStats() {
 
             if (match) {
                 trackId = match[1];
-
-                // If we are in sent view, prevent self-tracking?
-                // The browser might have already started the request.
-                // But if we catch it early in mutation observer...
-                if (isSentView) {
-                    console.log('EmailTrack: Self-view detected (Sent folder). Attempting to block pixel.');
-                    // Replacing src with empty to cancel/prevent request if probable
-                    img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-                    img.style.display = 'none';
-                }
-
+                // Found a pixel. 
+                // We rely on declarativeNetRequest rules to block the network request if this is our own open.
                 console.log('EmailTrack: Found ID:', trackId);
                 break;
             }

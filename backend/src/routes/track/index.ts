@@ -10,6 +10,13 @@ const trackRoutes: FastifyPluginAsync = async (fastify, opts) => {
         const ip = request.headers['x-forwarded-for'] as string || request.ip;
         const userAgent = request.headers['user-agent'] || '';
 
+        // Ignore HEAD requests (often used for pre-fetching/checking)
+        if (request.method === 'HEAD') {
+            return reply
+                .header('Content-Type', 'image/gif')
+                .send(transparentGif);
+        }
+
         try {
             await recordOpen(id, ip, userAgent);
         } catch (e) {
