@@ -73,6 +73,70 @@ function getEmailMetadata(form: Element) {
     return { subject, recipient };
 }
 
+const UUID_REGEX = /(?:track(?:%2F|\/)|id=)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+
+// --- SMART SANITATION (IMMUNE SYSTEM) ---
+// Continuously watches editors to keep them sterile of old tracking pixels.
+function sanitizeEditor(editor: Element) {
+    const images = editor.querySelectorAll('img');
+    images.forEach(img => {
+        // Check if it's a tracking pixel
+        const rawSrc = img.src;
+        let decodedSrc = rawSrc;
+        try { decodedSrc = decodeURIComponent(rawSrc); } catch { }
+
+        const isTracker = rawSrc.includes('track.gif') || UUID_REGEX.test(rawSrc) || UUID_REGEX.test(decodedSrc);
+
+        if (isTracker) {
+            // CRITICAL CHECK: Is it the FRESH pixel we just added?
+            if (img.getAttribute('data-status') === 'new') {
+                return; // SPARE IT. It's the one we want to send.
+            }
+
+            // Otherwise, it's pollution (quote history, old draft). DESTROY IT.
+            console.log('EmailTrack: [SmartGuard] Destroying old/polluted pixel:', rawSrc);
+            img.src = '';
+            img.removeAttribute('src');
+            img.remove();
+        }
+    });
+}
+
+// Global Observer that watches for editor activity
+const sanitationObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+        // If nodes added, check if they are editors or inside editors
+        if (mutation.type === 'childList') {
+            mutation.addedNodes.forEach(node => {
+                if (node instanceof Element) {
+                    // If the node itself is an editor
+                    if (node.getAttribute && node.getAttribute('contenteditable') === 'true') {
+                        sanitizeEditor(node);
+                    }
+                    // Or if it contains an editor
+                    const nestedEditors = node.querySelectorAll('[contenteditable="true"]');
+                    nestedEditors.forEach(sanitizeEditor);
+
+                    // Or if we are INSIDE an editor already
+                    const parentEditor = node.closest('[contenteditable="true"]');
+                    if (parentEditor) {
+                        sanitizeEditor(parentEditor);
+                    }
+                }
+            });
+        }
+    }
+});
+
+// Start watching globally
+sanitationObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['contenteditable']
+});
+
+
 function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
     if (!globalTrackingEnabled) return;
 
@@ -99,6 +163,9 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
     }
 
     if (body) {
+        // Sanitize one last time before injection, just in case
+        sanitizeEditor(body);
+
         // CLEANUP: AGGRESSIVE URL DESTRUCTION
         // Gmail's editor might restore removed nodes, so we also NUKE the src attribute.
         // We scan for ANY image that looks like a tracker and kill it.
@@ -135,7 +202,8 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
         const pixelUrl = `${HOST}/track/track.gif?id=${uuid}&t=${timestamp}`;
         // Use a 1x1 style that is proven to work in Gmail
         // Add data-track-id for easy debugging in DOM
-        const pixelHtml = `<img src="${pixelUrl}" alt="" style="display:none;width:0;height:0;" data-track-id="${uuid}" />`;
+        // IMPORTANT: Add data-status="new" so the SmartGuard spares this pixel
+        const pixelHtml = `<img src="${pixelUrl}" alt="" style="display:none;width:0;height:0;" data-track-id="${uuid}" data-status="new" />`;
 
         try {
             // Method 1: Range Insertion at the end
@@ -183,7 +251,7 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
                 }
             });
         } catch (ctxErr) {
-            console.warn('EmailTrack: Extension context invalidated (Update detected). Pixel injected, backend will lazy-register. PLEASE RELOAD PAGE.');
+            console.warn('EmailTrack: Extension context invalidated. Backend will lazy-register.');
         }
     } else {
         console.error('EmailTrack: CRITICAL - Body not found via traversal from', toolbar);
