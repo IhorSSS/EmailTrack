@@ -7,7 +7,7 @@ import './components/StatsDisplay.css';
 
 console.log('EmailTrack: Content Script Loaded and Active');
 
-const INJECT_CLASS = 'email-track-injected';
+
 const STATS_INJECT_CLASS = 'email-track-stats-injected';
 const HOST = 'https://emailtrack.isnode.pp.ua';
 
@@ -126,24 +126,38 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
 // Re-implement button injection essentially just to attach the event listener
 // But simpler, without the UI button
 function attachSendListeners() {
-    const sendButtonContainers = document.querySelectorAll('.gU.Up');
+    // Strategy: Find all potential "Send" buttons
+    // 1. Standard Compose/Reply container (.gU.Up)
+    // 2. Generic buttons with "Send" tooltip (useful for inline replies)
 
-    sendButtonContainers.forEach((container) => {
-        const toolbar = container.closest('tr');
-        if (!toolbar) return;
+    const possibleButtons = [
+        ...Array.from(document.querySelectorAll('.gU.Up [role="button"]')),
+        ...Array.from(document.querySelectorAll('[role="button"][data-tooltip^="Send"]')), // English
+        ...Array.from(document.querySelectorAll('[role="button"][aria-label^="Send"]')),   // Accessiblity
+        ...Array.from(document.querySelectorAll('[role="button"][data-tooltip*="Senden"]')), // German
+        ...Array.from(document.querySelectorAll('[role="button"][data-tooltip*="Надіслати"]')) // Ukrainian
+    ];
 
-        if (toolbar.classList.contains(INJECT_CLASS)) return;
+    const uniqueButtons = [...new Set(possibleButtons)];
+
+    uniqueButtons.forEach((btn) => {
+        const element = btn as HTMLElement;
+        const container = element.closest('tr') || element.closest('.gU.Up') || element.parentElement;
+
+        if (!container) return;
+        if (container.getAttribute('data-email-track-listening')) return;
+
+        // Verify it looks like a Send button (usually blue or primary action)
+        // or just trust the selector if it's specific enough.
 
         const composeId = Math.random().toString(36).substring(7);
-        toolbar.setAttribute('data-compose-id', composeId);
-        toolbar.classList.add(INJECT_CLASS);
+        container.setAttribute('data-email-track-listening', 'true');
+        container.setAttribute('data-compose-id', composeId);
 
-        // Find the actual button to attach listener
-        const btn = container.querySelector('[role="button"]');
-        if (btn) {
-            // Use Mousedown to capture event before Gmail destroys the form
-            btn.addEventListener('mousedown', (e) => handleSendClick(e, composeId, toolbar));
-        }
+        // Use Mousedown to capture event before Gmail destroys the form
+        console.log('EmailTrack: Attached listener to potential Send button', element);
+        element.addEventListener('mousedown', (e) => handleSendClick(e, composeId, container));
+        element.addEventListener('click', (e) => handleSendClick(e, composeId, container)); // Fallback
     });
 }
 
