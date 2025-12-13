@@ -41,37 +41,7 @@ chrome.storage.onChanged.addListener((changes) => {
     }
 });
 
-function getEmailMetadata(form: Element) {
-    let subject = 'No Subject';
-    let recipient = 'Unknown';
-
-    updateDebug({ lastAction: 'Extracting Metadata...' });
-
-    const subjectInput = form.querySelector('input[name="subjectbox"]') as HTMLInputElement;
-    if (subjectInput) {
-        subject = subjectInput.value;
-    } else {
-        const h2 = form.querySelector('h2');
-        if (h2) subject = h2.textContent || subject;
-    }
-
-    const emailElements = form.querySelectorAll('[email]');
-    const foundRecipients = Array.from(emailElements)
-        .map(el => el.getAttribute('email'))
-        .filter(email => email && email.includes('@') && !email.includes(subject) && !email.includes('Content Script'));
-
-    const uniqueRecipients = [...new Set(foundRecipients)];
-
-    if (uniqueRecipients.length > 0) {
-        recipient = uniqueRecipients.join(', ');
-    } else {
-        const val = (form.querySelector('input[name="to"]') as HTMLInputElement)?.value;
-        if (val) recipient = val;
-    }
-
-    updateDebug({ subject, recipient });
-    return { subject, recipient };
-}
+// Metadata extraction moved to registerEmail function
 
 // Sanitization observer removed - not needed with external pixel injection
 
@@ -108,33 +78,75 @@ function injectPixelOnComposeOpen(composeContainer: Element) {
 function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
     if (!globalTrackingEnabled) return;
 
-    // Find the compose container
-    let composeContainer: Element | null = toolbar;
-    for (let i = 0; i < 20; i++) {
-        if (!composeContainer) break;
-        if (composeContainer.hasAttribute('data-track-pending')) break;
-        composeContainer = composeContainer.parentElement;
+    // Find the compose container by going up or finding nearest .aO7
+    let composeContainer: Element | null = toolbar.closest('.aO7');
+
+    // Fallback: search upward for data-track-pending
+    if (!composeContainer || !composeContainer.hasAttribute('data-track-pending')) {
+        let current: Element | null = toolbar;
+        for (let i = 0; i < 25; i++) {
+            if (!current) break;
+            if (current.hasAttribute('data-track-pending')) {
+                composeContainer = current;
+                break;
+            }
+            // Also check for .aO7 class
+            if (current.classList.contains('aO7') && current.hasAttribute('data-track-pending')) {
+                composeContainer = current;
+                break;
+            }
+            current = current.parentElement;
+        }
     }
 
     const trackId = composeContainer?.getAttribute('data-track-pending');
 
     if (!trackId) {
-        console.warn('EmailTrack: No pending track ID found - pixel may not have been injected');
+        // Last resort: find any element with data-track-pending in document
+        const pending = document.querySelector('[data-track-pending]');
+        if (pending) {
+            const fallbackId = pending.getAttribute('data-track-pending');
+            if (fallbackId) {
+                console.log('EmailTrack: Found pending track via fallback search, ID:', fallbackId);
+                registerEmail(fallbackId, toolbar);
+                return;
+            }
+        }
+        console.warn('EmailTrack: No pending track ID found anywhere');
         return;
     }
 
     console.log('EmailTrack: Registering email on Send, ID:', trackId);
+    registerEmail(trackId, toolbar);
+}
 
-    // Extract metadata
-    let subject = 'Unknown';
+function registerEmail(trackId: string, _toolbar: Element) {
+    // Extract metadata from the compose form
+    let subject = 'No Subject';
     let recipient = 'Unknown';
 
-    const form = toolbar.closest('form') || composeContainer;
-    if (form) {
-        const meta = getEmailMetadata(form);
-        subject = meta.subject;
-        recipient = meta.recipient;
+    // Try multiple approaches to find subject
+    const subjectInput = document.querySelector('input[name="subjectbox"]') as HTMLInputElement;
+    if (subjectInput && subjectInput.value) {
+        subject = subjectInput.value;
     }
+
+    // Try to find recipient
+    const toInput = document.querySelector('input[name="to"]') as HTMLInputElement;
+    if (toInput && toInput.value) {
+        recipient = toInput.value;
+    } else {
+        // Try chips/tokens
+        const recipientChips = document.querySelectorAll('[email]');
+        const emails = Array.from(recipientChips)
+            .map(el => el.getAttribute('email'))
+            .filter(e => e && e.includes('@'));
+        if (emails.length > 0) {
+            recipient = emails.join(', ');
+        }
+    }
+
+    console.log('EmailTrack: Metadata - Subject:', subject, 'Recipient:', recipient);
 
     try {
         chrome.runtime.sendMessage({
@@ -146,7 +158,7 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
             }
         });
     } catch (ctxErr) {
-        console.warn('EmailTrack: Context invalid. Lazy registration pending.');
+        console.warn('EmailTrack: Context invalid.');
     }
 
     updateDebug({ lastAction: 'Email Registered' });
