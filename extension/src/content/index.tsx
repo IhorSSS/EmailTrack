@@ -75,90 +75,81 @@ function getEmailMetadata(form: Element) {
 
 // Sanitization observer removed - not needed with external pixel injection
 
+// Track which compose windows already have a pixel injected
+const injectedComposeWindows = new WeakSet<Element>();
+
+function injectPixelOnComposeOpen(composeContainer: Element) {
+    // Already processed?
+    if (injectedComposeWindows.has(composeContainer)) return;
+
+    const body = composeContainer.querySelector('[contenteditable="true"]');
+    if (!body) return;
+
+    // Check if tracking is enabled
+    if (!globalTrackingEnabled) return;
+
+    const uuid = crypto.randomUUID();
+    const timestamp = Date.now();
+    const pixelUrl = `${HOST}/track/track.gif?id=${uuid}&t=${timestamp}`;
+    const pixelHtml = `<img src="${pixelUrl}" alt="" width="0" height="0" style="width:2px;max-height:0;overflow:hidden" data-track-id="${uuid}">`;
+
+    // Insert at end of body - EARLY, before user finishes composing
+    body.insertAdjacentHTML('beforeend', pixelHtml);
+
+    console.log('EmailTrack: Pixel injected on compose open, ID:', uuid);
+
+    // Store the trackId on the container so we can register it on Send
+    composeContainer.setAttribute('data-track-pending', uuid);
+    injectedComposeWindows.add(composeContainer);
+
+    updateDebug({ pixelInjected: true, lastAction: 'Pixel Pre-Injected' });
+}
 
 function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
     if (!globalTrackingEnabled) return;
 
-    updateDebug({ lastAction: 'Injecting Pixel...' });
-
-    let body: HTMLElement | null = null;
-    let current: Element | null = toolbar;
-
-    // Find contenteditable
-    for (let i = 0; i < 15; i++) {
-        if (!current) break;
-        const candidate = current.querySelector('[contenteditable="true"]');
-        if (candidate) {
-            body = candidate as HTMLElement;
-            break;
-        }
-        current = current.parentElement;
+    // Find the compose container
+    let composeContainer: Element | null = toolbar;
+    for (let i = 0; i < 20; i++) {
+        if (!composeContainer) break;
+        if (composeContainer.hasAttribute('data-track-pending')) break;
+        composeContainer = composeContainer.parentElement;
     }
 
-    if (body) {
-        console.log('=== EmailTrack DEBUG ===');
-        console.log('1. Contenteditable found:', body);
-        console.log('2. Parent element:', body.parentElement);
-        console.log('3. Parent tagName:', body.parentElement?.tagName);
-        console.log('4. Parent innerHTML length:', body.parentElement?.innerHTML.length);
+    const trackId = composeContainer?.getAttribute('data-track-pending');
 
-        const uuid = crypto.randomUUID();
-        console.log('5. Generated Track ID:', uuid);
+    if (!trackId) {
+        console.warn('EmailTrack: No pending track ID found - pixel may not have been injected');
+        return;
+    }
 
-        const timestamp = Date.now();
-        const pixelUrl = `${HOST}/track/track.gif?id=${uuid}&t=${timestamp}`;
-        const pixelHtml = `<img src="${pixelUrl}" alt="" width="0" height="0" style="width:2px;max-height:0;overflow:hidden">`;
+    console.log('EmailTrack: Registering email on Send, ID:', trackId);
 
-        console.log('6. Pixel HTML:', pixelHtml);
+    // Extract metadata
+    let subject = 'Unknown';
+    let recipient = 'Unknown';
 
-        // SIMPLE TEST: Just insert at end of body
-        try {
-            body.insertAdjacentHTML('beforeend', '<br>' + pixelHtml);
-            console.log('7. ✅ Pixel inserted via beforeend');
-        } catch (err) {
-            console.error('7. ❌ Insertion FAILED:', err);
-        }
+    const form = toolbar.closest('form') || composeContainer;
+    if (form) {
+        const meta = getEmailMetadata(form);
+        subject = meta.subject;
+        recipient = meta.recipient;
+    }
 
-        // Also try parent insertion for comparison
-        const parent = body.parentElement;
-        if (parent) {
-            try {
-                parent.insertAdjacentHTML('beforeend', `<!-- PARENT TEST -->${pixelHtml}`);
-                console.log('8. ✅ Also inserted in parent');
-            } catch (err) {
-                console.error('8. ❌ Parent insertion failed:', err);
+    try {
+        chrome.runtime.sendMessage({
+            type: 'REGISTER_EMAIL',
+            data: {
+                id: trackId,
+                subject: subject,
+                recipient: recipient
             }
-        }
-
-        console.log('=== END DEBUG ===');
-
-        updateDebug({ pixelInjected: true, lastAction: 'Pixel Injected' });
-
-        let subject = 'Unknown';
-        let recipient = 'Unknown';
-        const form = toolbar.closest('form') || current;
-        if (form) {
-            const meta = getEmailMetadata(form);
-            subject = meta.subject;
-            recipient = meta.recipient;
-        }
-
-        try {
-            chrome.runtime.sendMessage({
-                type: 'REGISTER_EMAIL',
-                data: {
-                    id: uuid,
-                    subject: subject,
-                    recipient: recipient
-                }
-            });
-        } catch (ctxErr) {
-            console.warn('EmailTrack: Context invalid. Lazy registration pending.');
-        }
-    } else {
-        console.error('EmailTrack: Body not found');
-        updateDebug({ lastAction: 'Error: Body not found' });
+        });
+    } catch (ctxErr) {
+        console.warn('EmailTrack: Context invalid. Lazy registration pending.');
     }
+
+    updateDebug({ lastAction: 'Email Registered' });
 }
 
 // Global Capture Listener for Send Actions
@@ -188,7 +179,7 @@ function isSendButton(target: Element): boolean {
 document.addEventListener('mousedown', (e) => {
     const target = e.target as Element;
     if (isSendButton(target)) {
-        console.log('EmailTrack: Global capture detected Send click on:', target);
+        console.log('EmailTrack: Send click detected');
         // Find the form/container
         const btn = target.closest('[role="button"]') || target.closest('.gU.Up');
         if (btn) {
@@ -197,13 +188,23 @@ document.addEventListener('mousedown', (e) => {
     }
 }, true); // Capture phase!
 
-const observer = new MutationObserver((_mutations) => {
-    // attachSendListeners(); // Removed
+// Watch for compose windows appearing
+const composeObserver = new MutationObserver(() => {
+    // Look for compose containers
+    const composeContainers = document.querySelectorAll('.aO7');
+    composeContainers.forEach(container => {
+        injectPixelOnComposeOpen(container);
+    });
+
     injectStats();
 });
 
-observer.observe(document.body, { childList: true, subtree: true });
+composeObserver.observe(document.body, { childList: true, subtree: true });
 
+// Initial scan
+document.querySelectorAll('.aO7').forEach(container => {
+    injectPixelOnComposeOpen(container);
+});
 injectStats();
 
 function extractViewMetadata(row: Element) {
