@@ -2,7 +2,7 @@ import { prisma } from '../db';
 import geoip from 'geoip-lite';
 import { UAParser } from 'ua-parser-js';
 
-export async function recordOpen(trackId: string, ip: string, userAgent: string) {
+export async function recordOpen(trackId: string, ip: string, userAgent: string, pixelTimestamp?: string) {
     try {
         console.log(`[TRACK] Recording open for ${trackId} from ${ip}`);
         console.log(`[TRACK] Raw User Agent: ${userAgent}`);
@@ -94,6 +94,22 @@ export async function recordOpen(trackId: string, ip: string, userAgent: string)
                 console.log('[TRACK] Lazy registration successful for', trackId);
             } catch (createErr) {
                 console.error('[TRACK] Lazy registration failed', createErr);
+            }
+        }
+
+        // THREAD BLEED DETECTION
+        // If the pixel timestamp is older than the email creation time,
+        // this is a quoted/copied pixel from an older email - ignore it
+        if (email && pixelTimestamp) {
+            const pixelTime = parseInt(pixelTimestamp, 10);
+            const emailCreatedAt = email.createdAt.getTime();
+
+            // Allow 5 second tolerance for network delays
+            const TOLERANCE_MS = 5000;
+
+            if (pixelTime < emailCreatedAt - TOLERANCE_MS) {
+                console.log(`[TRACK] THREAD BLEED DETECTED! Pixel timestamp ${pixelTime} is older than email creation ${emailCreatedAt}. Ignoring.`);
+                return; // SKIP - this is a quoted pixel
             }
         }
 

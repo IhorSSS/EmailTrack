@@ -6,7 +6,7 @@ const transparentGif = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAAB
 const trackRoutes: FastifyPluginAsync = async (fastify, opts) => {
     // Support both /track/:id and /track.gif?id=... formats
     fastify.get('/track.gif', async (request, reply) => {
-        const { id } = request.query as { id: string };
+        const { id, t } = request.query as { id: string; t?: string };
         const ip = request.headers['x-forwarded-for'] as string || request.ip;
         const userAgent = request.headers['user-agent'] || '';
 
@@ -18,7 +18,7 @@ const trackRoutes: FastifyPluginAsync = async (fastify, opts) => {
         }
 
         try {
-            await recordOpen(id, ip, userAgent);
+            await recordOpen(id, ip, userAgent, t);
         } catch (e) {
             request.log.error(e);
         }
@@ -33,11 +33,12 @@ const trackRoutes: FastifyPluginAsync = async (fastify, opts) => {
 
     fastify.get('/:id', async (request, reply) => {
         const { id } = request.params as { id: string };
+        const { t } = request.query as { t?: string };
         const ip = request.headers['x-forwarded-for'] as string || request.ip;
         const userAgent = request.headers['user-agent'] || '';
 
         try {
-            await recordOpen(id, ip, userAgent);
+            await recordOpen(id, ip, userAgent, t);
         } catch (e) {
             request.log.error(e);
         }
