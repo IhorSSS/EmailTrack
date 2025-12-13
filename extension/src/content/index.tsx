@@ -109,6 +109,12 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
             if (fallbackId) {
                 console.log('EmailTrack: Found pending track via fallback search, ID:', fallbackId);
                 updatePixelTimestamp(fallbackId);
+
+                // Also perform cleanup in fallback path
+                // pending is the element with data-track-pending, likely the container or body
+                // We'll search within its parent/itself
+                cleanupOldPixels(fallbackId, pending);
+
                 registerEmail(fallbackId);
                 return;
             }
