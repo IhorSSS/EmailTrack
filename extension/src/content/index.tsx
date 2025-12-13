@@ -73,64 +73,7 @@ function getEmailMetadata(form: Element) {
     return { subject, recipient };
 }
 
-// --- SMART SANITATION (IMMUNE SYSTEM) ---
-// Continuously watches editors to keep them sterile of old tracking pixels.
-function sanitizeEditor(editor: Element) {
-    const images = editor.querySelectorAll('img');
-    images.forEach(img => {
-        // Simple Domain/Path Check - more robust than regex for variations
-        const rawSrc = img.src || '';
-        const isTracker = rawSrc.includes('emailtrack.isnode.pp.ua') || rawSrc.includes('/track/track.gif');
-
-        if (isTracker) {
-            // CRITICAL CHECK: Is it the FRESH pixel we just added?
-            if (img.getAttribute('data-status') === 'new') {
-                return; // SPARE IT. It's the one we want to send.
-            }
-
-            // Otherwise, it's pollution (quote history, old draft). DESTROY IT.
-            console.log('EmailTrack: [SmartGuard] Destroying old pixel:', rawSrc);
-            img.src = '';
-            img.setAttribute('src', ''); // Force attribute update
-            img.style.display = 'none';
-            img.remove();
-        }
-    });
-}
-
-// Global Observer that watches for editor activity
-const sanitationObserver = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-        // If nodes added, check if they are editors or inside editors
-        if (mutation.type === 'childList') {
-            mutation.addedNodes.forEach(node => {
-                if (node instanceof Element) {
-                    // If the node itself is an editor
-                    if (node.getAttribute && node.getAttribute('contenteditable') === 'true') {
-                        sanitizeEditor(node);
-                    }
-                    // Or if it contains an editor
-                    const nestedEditors = node.querySelectorAll('[contenteditable="true"]');
-                    nestedEditors.forEach(sanitizeEditor);
-
-                    // Or if we are INSIDE an editor already
-                    const parentEditor = node.closest('[contenteditable="true"]');
-                    if (parentEditor) {
-                        sanitizeEditor(parentEditor);
-                    }
-                }
-            });
-        }
-    }
-});
-
-// Start watching globally
-sanitationObserver.observe(document.body, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ['contenteditable']
-});
+// Sanitization observer removed - not needed with external pixel injection
 
 
 function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
@@ -141,7 +84,7 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
     let body: HTMLElement | null = null;
     let current: Element | null = toolbar;
 
-    // Traverse up to find container
+    // Find contenteditable
     for (let i = 0; i < 15; i++) {
         if (!current) break;
         const candidate = current.querySelector('[contenteditable="true"]');
@@ -153,64 +96,22 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
     }
 
     if (body) {
-        // 1. Sanitize the main body
-        sanitizeEditor(body);
-
-        // === URL PARAMETER MARKING STRATEGY ===
-        // Instead of deleting quoted pixels (which fails due to Gmail's serialization),
-        // we MODIFY their URLs to include &quoted=1
-        // The backend will then ignore/filter these opens
-
-        let markedCount = 0;
-        const quotes = body.querySelectorAll('.gmail_quote, blockquote');
-
-        console.log(`EmailTrack: Found ${quotes.length} quote containers to process`);
-
-        quotes.forEach(quote => {
-            const quoteImages = quote.querySelectorAll('img');
-            quoteImages.forEach(img => {
-                const src = img.src || '';
-
-                // Check if it's one of our tracking pixels
-                if (src.includes('emailtrack.isnode.pp.ua') || src.includes('/track/track.gif')) {
-                    // Check if already marked
-                    if (!src.includes('quoted=1')) {
-                        // Append the quoted parameter
-                        const separator = src.includes('?') ? '&' : '?';
-                        img.src = src + separator + 'quoted=1';
-                        console.log(`EmailTrack: [MARKED] ${src} -> ${img.src}`);
-                        markedCount++;
-                    }
-                }
-            });
-        });
-
-        console.log(`EmailTrack: Marked ${markedCount} quoted pixels with &quoted=1`);
-
         const uuid = crypto.randomUUID();
-        console.log('EmailTrack: Generated NEW Track ID:', uuid);
+        console.log('EmailTrack: Generated Track ID:', uuid);
 
         const timestamp = Date.now();
         const pixelUrl = `${HOST}/track/track.gif?id=${uuid}&t=${timestamp}`;
 
         // New pixel does NOT have &quoted=1 - it's a fresh email
-        const pixelHtml = `<img src="${pixelUrl}" alt="" style="display:none;width:0;height:0;" data-track-id="${uuid}" data-status="new" />`;
+        const pixelHtml = `<img src="${pixelUrl}" alt="" width="0" height="0" style="width:2px;max-height:0;overflow:hidden">`;
 
+        // KEY FIX: Inject OUTSIDE contenteditable (afterend), not inside
+        // This prevents Gmail from copying the pixel to quotes
         try {
-            body.focus();
-            const range = document.createRange();
-            range.selectNodeContents(body);
-            range.collapse(false);
-            const pixelFragment = range.createContextualFragment(pixelHtml);
-            range.insertNode(pixelFragment);
-            console.log('EmailTrack: Pixel injected via Range');
+            body.insertAdjacentHTML('afterend', pixelHtml);
+            console.log('EmailTrack: Pixel injected OUTSIDE contenteditable (afterend)');
         } catch (err) {
-            console.error('EmailTrack: Range injection failed, trying append', err);
-            try {
-                body.insertAdjacentHTML('beforeend', pixelHtml);
-            } catch (err2) {
-                console.error('EmailTrack: All injection methods failed', err2);
-            }
+            console.error('EmailTrack: Injection failed', err);
         }
 
         updateDebug({ pixelInjected: true, lastAction: 'Pixel Injected' });
@@ -237,7 +138,7 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
             console.warn('EmailTrack: Context invalid. Lazy registration pending.');
         }
     } else {
-        console.error('EmailTrack: CRITICAL - Body not found via traversal from', toolbar);
+        console.error('EmailTrack: Body not found');
         updateDebug({ lastAction: 'Error: Body not found' });
     }
 }

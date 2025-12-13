@@ -2,14 +2,8 @@ import { prisma } from '../db';
 import geoip from 'geoip-lite';
 import { UAParser } from 'ua-parser-js';
 
-export async function recordOpen(trackId: string, ip: string, userAgent: string, quoted?: string) {
+export async function recordOpen(trackId: string, ip: string, userAgent: string) {
     try {
-        // CRITICAL FILTER: Check if this is a quoted/historical pixel
-        if (quoted === '1') {
-            console.log(`[TRACK] Ignoring quoted pixel open: ${trackId} (from thread history)`);
-            return; // Skip recording - this prevents thread bleed
-        }
-
         console.log(`[TRACK] Recording open for ${trackId} from ${ip}`);
         console.log(`[TRACK] Raw User Agent: ${userAgent}`);
 
