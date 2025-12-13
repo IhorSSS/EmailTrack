@@ -108,7 +108,8 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
             const fallbackId = pending.getAttribute('data-track-pending');
             if (fallbackId) {
                 console.log('EmailTrack: Found pending track via fallback search, ID:', fallbackId);
-                registerEmail(fallbackId, toolbar);
+                updatePixelTimestamp(fallbackId);
+                registerEmail(fallbackId);
                 return;
             }
         }
@@ -117,10 +118,30 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
     }
 
     console.log('EmailTrack: Registering email on Send, ID:', trackId);
-    registerEmail(trackId, toolbar);
+
+    // CRITICAL: Update pixel timestamp to NOW before Gmail serializes
+    updatePixelTimestamp(trackId);
+
+    registerEmail(trackId);
 }
 
-function registerEmail(trackId: string, _toolbar: Element) {
+function updatePixelTimestamp(trackId: string) {
+    // Find the pixel by its data-track-id attribute
+    const pixel = document.querySelector(`img[data-track-id="${trackId}"]`) as HTMLImageElement;
+
+    if (pixel) {
+        const currentSrc = pixel.src;
+        // Replace the timestamp parameter with current time
+        const newTimestamp = Date.now();
+        const newSrc = currentSrc.replace(/&t=\d+/, `&t=${newTimestamp}`);
+        pixel.src = newSrc;
+        console.log('EmailTrack: Updated pixel timestamp to:', newTimestamp);
+    } else {
+        console.warn('EmailTrack: Could not find pixel to update timestamp');
+    }
+}
+
+function registerEmail(trackId: string) {
     // Extract metadata from the compose form
     let subject = 'No Subject';
     let recipient = 'Unknown';
