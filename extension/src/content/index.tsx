@@ -122,7 +122,40 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
     // CRITICAL: Update pixel timestamp to NOW before Gmail serializes
     updatePixelTimestamp(trackId);
 
+    // CRITICAL: Remove all OTHER tracking pixels (from quotes/history) to prevent thread bleed
+    if (composeContainer) {
+        cleanupOldPixels(trackId, composeContainer);
+    }
+
     registerEmail(trackId);
+}
+
+function cleanupOldPixels(currentTrackId: string, composeContainer: Element) {
+    const body = composeContainer.querySelector('[contenteditable="true"]');
+    if (!body) return;
+
+    const allImages = body.querySelectorAll('img');
+    let removedCount = 0;
+
+    allImages.forEach(img => {
+        const src = img.src || '';
+        // Check if it's our pixel
+        if (src.includes('emailtrack.isnode.pp.ua') || src.includes('/track/track.gif')) {
+            // Check if it matches current ID
+            const id = img.getAttribute('data-track-id');
+            // If ID doesn't match, OR if it has no ID (legacy), remove it
+            if (id !== currentTrackId) {
+                console.log(`EmailTrack: Removing old pixel: ${src}`);
+                img.remove();
+                removedCount++;
+            }
+        }
+    });
+
+    if (removedCount > 0) {
+        console.log(`EmailTrack: Cleaned up ${removedCount} old tracking pixels from quotes.`);
+        updateDebug({ lastAction: `Cleaned ${removedCount} old pixels` });
+    }
 }
 
 function updatePixelTimestamp(trackId: string) {
