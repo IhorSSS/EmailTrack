@@ -139,14 +139,10 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
 function cleanupOldPixels(currentTrackId: string, composeContainer: Element) {
     console.log('EmailTrack: cleanupOldPixels started for', currentTrackId);
 
-    const body = composeContainer.querySelector('[contenteditable="true"]');
-    if (!body) {
-        console.warn('EmailTrack: Cleanup failed - ContentEditable body not found in', composeContainer);
-        return;
-    }
-
-    const allImages = body.querySelectorAll('img');
-    console.log(`EmailTrack: Found ${allImages.length} images in compose body during cleanup`);
+    // Search the ENTIRE compose container, not just contenteditable
+    // This catches quoted text, forwarded content, etc.
+    const allImages = composeContainer.querySelectorAll('img');
+    console.log(`EmailTrack: Found ${allImages.length} images in compose container during cleanup`);
 
     let removedCount = 0;
 
@@ -170,7 +166,7 @@ function cleanupOldPixels(currentTrackId: string, composeContainer: Element) {
     });
 
     if (removedCount > 0) {
-        console.log(`EmailTrack: Cleaned up ${removedCount} old tracking pixels from quotes.`);
+        console.log(`EmailTrack: Cleaned up ${removedCount} old tracking pixels.`);
         updateDebug({ lastAction: `Cleaned ${removedCount} old pixels` });
     } else {
         console.log('EmailTrack: No old pixels found to clean up.');
