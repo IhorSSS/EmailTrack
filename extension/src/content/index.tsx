@@ -101,17 +101,25 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
 
         const timestamp = Date.now();
         const pixelUrl = `${HOST}/track/track.gif?id=${uuid}&t=${timestamp}`;
-
-        // New pixel does NOT have &quoted=1 - it's a fresh email
         const pixelHtml = `<img src="${pixelUrl}" alt="" width="0" height="0" style="width:2px;max-height:0;overflow:hidden">`;
 
-        // KEY FIX: Inject OUTSIDE contenteditable (afterend), not inside
-        // This prevents Gmail from copying the pixel to quotes
-        try {
-            body.insertAdjacentHTML('afterend', pixelHtml);
-            console.log('EmailTrack: Pixel injected OUTSIDE contenteditable (afterend)');
-        } catch (err) {
-            console.error('EmailTrack: Injection failed', err);
+        // Find the parent container that holds both contenteditable and gmail_quote
+        const parent = body.parentElement;
+        if (parent) {
+            // Try to find gmail_quote container
+            const gmailQuote = parent.querySelector('.gmail_quote, .gmail_quote_container');
+
+            if (gmailQuote) {
+                // Insert pixel BEFORE gmail_quote (like email-signature-image.com does)
+                gmailQuote.insertAdjacentHTML('beforebegin', pixelHtml + '<br>');
+                console.log('EmailTrack: Pixel injected before gmail_quote');
+            } else {
+                // No quote container, append to parent (after contenteditable)
+                parent.insertAdjacentHTML('beforeend', pixelHtml);
+                console.log('EmailTrack: Pixel injected at end of parent');
+            }
+        } else {
+            console.error('EmailTrack: Parent container not found');
         }
 
         updateDebug({ pixelInjected: true, lastAction: 'Pixel Injected' });
