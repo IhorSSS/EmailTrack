@@ -96,31 +96,41 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
     }
 
     if (body) {
+        console.log('=== EmailTrack DEBUG ===');
+        console.log('1. Contenteditable found:', body);
+        console.log('2. Parent element:', body.parentElement);
+        console.log('3. Parent tagName:', body.parentElement?.tagName);
+        console.log('4. Parent innerHTML length:', body.parentElement?.innerHTML.length);
+
         const uuid = crypto.randomUUID();
-        console.log('EmailTrack: Generated Track ID:', uuid);
+        console.log('5. Generated Track ID:', uuid);
 
         const timestamp = Date.now();
         const pixelUrl = `${HOST}/track/track.gif?id=${uuid}&t=${timestamp}`;
         const pixelHtml = `<img src="${pixelUrl}" alt="" width="0" height="0" style="width:2px;max-height:0;overflow:hidden">`;
 
-        // Find the parent container that holds both contenteditable and gmail_quote
+        console.log('6. Pixel HTML:', pixelHtml);
+
+        // SIMPLE TEST: Just insert at end of body
+        try {
+            body.insertAdjacentHTML('beforeend', '<br>' + pixelHtml);
+            console.log('7. ✅ Pixel inserted via beforeend');
+        } catch (err) {
+            console.error('7. ❌ Insertion FAILED:', err);
+        }
+
+        // Also try parent insertion for comparison
         const parent = body.parentElement;
         if (parent) {
-            // Try to find gmail_quote container
-            const gmailQuote = parent.querySelector('.gmail_quote, .gmail_quote_container');
-
-            if (gmailQuote) {
-                // Insert pixel BEFORE gmail_quote (like email-signature-image.com does)
-                gmailQuote.insertAdjacentHTML('beforebegin', pixelHtml + '<br>');
-                console.log('EmailTrack: Pixel injected before gmail_quote');
-            } else {
-                // No quote container, append to parent (after contenteditable)
-                parent.insertAdjacentHTML('beforeend', pixelHtml);
-                console.log('EmailTrack: Pixel injected at end of parent');
+            try {
+                parent.insertAdjacentHTML('beforeend', `<!-- PARENT TEST -->${pixelHtml}`);
+                console.log('8. ✅ Also inserted in parent');
+            } catch (err) {
+                console.error('8. ❌ Parent insertion failed:', err);
             }
-        } else {
-            console.error('EmailTrack: Parent container not found');
         }
+
+        console.log('=== END DEBUG ===');
 
         updateDebug({ pixelInjected: true, lastAction: 'Pixel Injected' });
 
