@@ -152,18 +152,24 @@ function registerEmail(trackId: string) {
         subject = subjectInput.value;
     }
 
-    // Try to find recipient
+    // Try to find recipient - ONLY within compose forms
+    // First try the "to" input
     const toInput = document.querySelector('input[name="to"]') as HTMLInputElement;
     if (toInput && toInput.value) {
         recipient = toInput.value;
     } else {
-        // Try chips/tokens
-        const recipientChips = document.querySelectorAll('[email]');
-        const emails = Array.from(recipientChips)
-            .map(el => el.getAttribute('email'))
-            .filter(e => e && e.includes('@'));
-        if (emails.length > 0) {
-            recipient = emails.join(', ');
+        // Try to find the compose form and get chips only from there
+        const composeForm = document.querySelector('form.bAs') || document.querySelector('[role="dialog"]');
+        if (composeForm) {
+            const recipientChips = composeForm.querySelectorAll('[email]');
+            const emails = Array.from(recipientChips)
+                .map(el => el.getAttribute('email'))
+                .filter(e => e && e.includes('@'));
+            // Remove duplicates
+            const uniqueEmails = [...new Set(emails)];
+            if (uniqueEmails.length > 0) {
+                recipient = uniqueEmails.join(', ');
+            }
         }
     }
 
