@@ -131,10 +131,17 @@ function handleSendClick(_e: Event, _composeId: string, toolbar: Element) {
 }
 
 function cleanupOldPixels(currentTrackId: string, composeContainer: Element) {
+    console.log('EmailTrack: cleanupOldPixels started for', currentTrackId);
+
     const body = composeContainer.querySelector('[contenteditable="true"]');
-    if (!body) return;
+    if (!body) {
+        console.warn('EmailTrack: Cleanup failed - ContentEditable body not found in', composeContainer);
+        return;
+    }
 
     const allImages = body.querySelectorAll('img');
+    console.log(`EmailTrack: Found ${allImages.length} images in compose body during cleanup`);
+
     let removedCount = 0;
 
     allImages.forEach(img => {
@@ -143,11 +150,15 @@ function cleanupOldPixels(currentTrackId: string, composeContainer: Element) {
         if (src.includes('emailtrack.isnode.pp.ua') || src.includes('/track/track.gif')) {
             // Check if it matches current ID
             const id = img.getAttribute('data-track-id');
+            console.log(`EmailTrack: Found pixel. ID: ${id}, Current: ${currentTrackId}, Src: ${src}`);
+
             // If ID doesn't match, OR if it has no ID (legacy), remove it
             if (id !== currentTrackId) {
-                console.log(`EmailTrack: Removing old pixel: ${src}`);
+                console.log(`EmailTrack: REMOVING OLD PIXEL: ${src}`);
                 img.remove();
                 removedCount++;
+            } else {
+                console.log('EmailTrack: Skipping current pixel (match)');
             }
         }
     });
@@ -155,6 +166,8 @@ function cleanupOldPixels(currentTrackId: string, composeContainer: Element) {
     if (removedCount > 0) {
         console.log(`EmailTrack: Cleaned up ${removedCount} old tracking pixels from quotes.`);
         updateDebug({ lastAction: `Cleaned ${removedCount} old pixels` });
+    } else {
+        console.log('EmailTrack: No old pixels found to clean up.');
     }
 }
 
