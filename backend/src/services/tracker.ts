@@ -98,22 +98,22 @@ export async function recordOpen(trackId: string, ip: string, userAgent: string,
         }
 
         // THREAD BLEED DETECTION
-        // If the pixel timestamp is MUCH older than the email creation time,
-        // this is a quoted/copied pixel from an older email - ignore it
-        // 
-        // Note: Pixel is created when compose OPENS, email is registered when SEND is clicked.
-        // User might take 30+ minutes to compose, so we need a large tolerance.
-        // Old quoted pixels will be hours/days older, so 30 minutes is still effective.
+        // If the pixel timestamp is OLDER than the email creation time,
+        // this is a quoted/copied pixel from an older email - ignore it.
+        //
+        // NOTE: We now update the pixel timestamp on the frontend RIGHT BEFORE SEND.
+        // So valid pixels will have t ≈ createdAt.
+        // We can use a tight tolerance to catch even quick replies (e.g. 2 mins ago).
         if (email && pixelTimestamp) {
             const pixelTime = parseInt(pixelTimestamp, 10);
             const emailCreatedAt = email.createdAt.getTime();
 
-            // Allow 30 minutes tolerance for compose time
-            const TOLERANCE_MS = 30 * 60 * 1000; // 30 minutes
+            // Allow 15 seconds tolerance for network/processing delays
+            const TOLERANCE_MS = 15 * 1000;
 
             if (pixelTime < emailCreatedAt - TOLERANCE_MS) {
-                console.log(`[TRACK] THREAD BLEED DETECTED! Pixel timestamp ${pixelTime} is >30min older than email creation ${emailCreatedAt}. Ignoring.`);
-                return; // SKIP - this is a quoted pixel
+                console.log(`[TRACK] THREAD BLEED DETECTED! Pixel timestamp ${pixelTime} is older than email creation ${emailCreatedAt} (limit 15s). Ignoring.`);
+                return; // SKIP
             }
         }
 
