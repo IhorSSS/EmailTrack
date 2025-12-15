@@ -39,6 +39,22 @@ const authRoutes: FastifyPluginAsync = async (fastify, opts) => {
             return reply.status(500).send({ error: 'Internal Sync Error' });
         }
     });
+
+    fastify.post('/check-conflicts', async (request, reply) => {
+        const { googleId, emailIds } = request.body as { googleId: string, emailIds: string[] };
+
+        if (!googleId || !Array.isArray(emailIds)) {
+            return reply.status(400).send({ error: 'Missing required fields' });
+        }
+
+        try {
+            const conflict = await UserService.hasOwnershipConflict(emailIds, googleId);
+            return reply.send({ conflict });
+        } catch (e) {
+            console.error('Conflict check error:', e);
+            return reply.status(500).send({ error: 'Internal Conflict Check Error' });
+        }
+    });
 };
 
 export default authRoutes;

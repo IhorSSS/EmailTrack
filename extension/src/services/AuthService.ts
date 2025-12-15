@@ -53,15 +53,46 @@ export class AuthService {
     /**
      * Logout: Remove cached token and clear local state
      */
+    /**
+     * Logout: Revoke token and remove from cache
+     */
     static async logout(token: string): Promise<void> {
         return new Promise((resolve) => {
             if (!chrome.identity) {
-                resolve(); // Consider done
+                resolve();
                 return;
             }
-            chrome.identity.removeCachedAuthToken({ token }, () => {
-                resolve();
-            });
+
+            // 1. Revoke token to force account selection next time
+            // Using POST is more standard for newer endpoints
+            const revokeUrl = 'https://oauth2.googleapis.com/revoke';
+
+            fetch(revokeUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ token, token_type_hint: 'access_token' }).toString()
+            })
+                .then(async (res) => {
+                    if (res.ok) {
+                        console.log('Token revoked successfully');
+                    } else {
+                        console.warn('Token revocation failed:', res.status, await res.text());
+                    }
+                })
+                .catch((err) => {
+                    console.error('Token revocation network error:', err);
+                })
+                .finally(() => {
+                    // 2. Remove from Chrome Identity Cache
+                    chrome.identity.removeCachedAuthToken({ token }, () => {
+                        console.log('Token removed from cache');
+
+                        // 3. Clear Local Storage 'currentUser' to prevent UI stickiness
+                        chrome.storage.local.remove(['currentUser'], () => {
+                            resolve();
+                        });
+                    });
+                });
         });
     }
 
@@ -78,6 +109,28 @@ export class AuthService {
             // We don't want to block login if sync fails (e.g. offline), but good to know
             console.warn('Failed to sync user with backend');
         }
+    }
+
+    /**
+     * Check if local email IDs are owned by another user
+     */
+    static async checkOwnershipConflict(emailIds: string[], googleId: string): Promise<boolean> {
+        const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/check-conflicts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ googleId, emailIds })
+        });
+
+        if (!response.ok) {
+            // If check fails technically, we might want to block or allow?
+            // Safer to allow (fail open) or block (fail closed)? 
+            // Let's assume fail open for now but log error, or fail closed to be safe?
+            console.error('Failed to check ownership conflicts');
+            return false;
+        }
+
+        const data = await response.json();
+        return data.conflict;
     }
 
     /**

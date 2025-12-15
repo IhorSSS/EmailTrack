@@ -69,9 +69,14 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
 
         try {
             const result = await prisma.$transaction(async (tx) => {
-                const whereClause: any = {};
-                if (ownerId) whereClause.ownerId = ownerId;
-                else if (user) whereClause.user = user;
+                // Construct OR clause to catch both Cloud (ownerId) and Legacy/Ghost (user email) records
+                const conditions: any[] = [];
+                if (ownerId) conditions.push({ ownerId });
+                if (user) conditions.push({ user });
+
+                const whereClause = {
+                    OR: conditions
+                };
 
                 // 1. Find all emails for this user to get their IDs
                 const userEmails = await tx.trackedEmail.findMany({

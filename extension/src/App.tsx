@@ -36,6 +36,7 @@ const App = () => {
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'opened' | 'sent'>('all');
+  const [senderFilter, setSenderFilter] = useState<string>('all');
 
   // Stats
   const [stats, setStats] = useState({ tracked: 0, opened: 0, rate: 0 });
@@ -59,40 +60,71 @@ const App = () => {
     try {
       const token = await AuthService.getAuthToken(true);
       setAuthToken(token);
-      const profile = await AuthService.getUserProfile(token);
-      setUserProfile(profile);
+      let profile: UserProfile;
+      try {
+        profile = await AuthService.getUserProfile(token);
+        setUserProfile(profile);
+      } catch (err) {
+        throw new Error('Failed to fetch user profile');
+      }
 
-      // Sync with Backend
+      // 1. Conflict Check: Do local emails belong to someone else?
+      const localEmails = await LocalStorageService.getEmails();
+      const localIds = localEmails.map(e => e.id);
+
+      if (localIds.length > 0) {
+        const hasConflict = await AuthService.checkOwnershipConflict(localIds, profile.id);
+
+        if (hasConflict) {
+          // ABDICATE: Abort login, force logout
+          await AuthService.logout(token);
+          setAuthToken(null);
+          setUserProfile(null);
+
+          setStatusModal({
+            isOpen: true,
+            title: 'Account Conflict',
+            message: `This device contains tracking history linked to a DIFFERENT account. Please 'Delete All History' before logging in with ${profile.email}, or login with the previous account.`,
+            type: 'danger'
+          });
+          return;
+        }
+      }
+
+      // 2. Sync User
       await AuthService.syncUser(profile.email, profile.id);
 
-      // Upload Local History if exists
-      try {
-        const localEmails = await LocalStorageService.getEmails();
-        if (localEmails.length > 0) {
-          const count = await AuthService.uploadHistory(localEmails, profile.id, profile.email);
+      // 3. Upload Local History (Merge Strategy)
+      // Only upload items that haven't been marked as synced yet
+      const unsynced = localEmails.filter(e => !e.synced);
+      if (unsynced.length > 0) {
+        try {
+          const count = await AuthService.uploadHistory(unsynced, profile.id, profile.email);
           if (count > 0) {
-            await LocalStorageService.clearAll();
+            // Mark these IDs as synced so we don't re-upload
+            await LocalStorageService.markAsSynced(unsynced.map(e => e.id));
+
             setStatusModal({
               isOpen: true,
               title: 'History Synced',
-              message: `Migrated ${count} existing emails to your cloud account.`,
+              message: `Synced ${count} emails to your cloud account.`,
               type: 'success'
             });
           }
+        } catch (syncErr) {
+          console.warn('History upload failed:', syncErr);
         }
-      } catch (syncErr) {
-        console.warn('History upload failed:', syncErr);
-        // Fail silently for user flow, but keep local data to retry later
       }
 
-      // Refresh list to include cloud data
+      // 4. Refresh list
       fetchEmails(profile);
+
     } catch (e) {
       console.error('Login failed', e);
       setStatusModal({
         isOpen: true,
         title: 'Login Failed',
-        message: 'Could not sign in to Google. ' + (e instanceof Error ? e.message : ''),
+        message: 'Could not sign in. ' + (e instanceof Error ? e.message : ''),
         type: 'danger'
       });
     }
@@ -100,10 +132,12 @@ const App = () => {
 
   const handleLogout = async () => {
     if (authToken) {
+      // Logout logic: Revoke token but PRESERVE local storage
       await AuthService.logout(authToken);
       setAuthToken(null);
       setUserProfile(null);
-      // Refresh list (revert to incognito only)
+
+      // Refresh list: Should revert to showing Local Storage data
       fetchEmails(null);
     }
   };
@@ -167,9 +201,8 @@ const App = () => {
 
       if (effectiveProfile) {
         // Authenticated: Use Owner ID (Cloud Mode)
+        // We DO NOT filter by user email here, so that ALL aliases/identities linked to this account are shown.
         params.append('ownerId', effectiveProfile.id);
-        // Optionally filter by specific sender if currentUser is set?
-        // For now, Cloud Mode shows ALL history for this account.
       } else if (currentUser) {
         // Unauthenticated: Filter by Sender Identity (Incognito)
         params.append('user', currentUser);
@@ -273,8 +306,11 @@ const App = () => {
     }
   };
 
+
+  const activeIdentity = userProfile ? userProfile.email : currentUser;
+
   const confirmDeleteHistory = async () => {
-    if (!currentUser) return;
+    if (!activeIdentity) return;
 
     // Check context validity before async
     if (typeof chrome !== 'undefined' && chrome.runtime && !chrome.runtime.id) {
@@ -289,11 +325,28 @@ const App = () => {
 
     setLoading(true);
     try {
-      const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}?user=${encodeURIComponent(currentUser)}`;
-      const res = await fetch(url, { method: 'DELETE' });
+      const urlBase = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}`;
+      const params = new URLSearchParams();
+
+      if (userProfile) {
+        params.append('ownerId', userProfile.id);
+        // Also send user email to catch legacy/ghost data
+        if (userProfile.email) params.append('user', userProfile.email);
+      } else {
+        params.append('user', activeIdentity);
+      }
+
+      const res = await fetch(`${urlBase}?${params.toString()}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete history');
 
-      // Clear local state
+      // Clear local state AND Storage (Conditionally)
+      if (userProfile) {
+        // Cloud Mode: Reset everything for this account context (local cache matches account)
+        await LocalStorageService.deleteAll();
+      } else {
+        // Incognito Mode: Delete ONLY for the current filtered sender
+        await LocalStorageService.deleteBySender(activeIdentity);
+      }
       setEmails([]);
       setStats({ tracked: 0, opened: 0, rate: 0 });
       setIsDeleteModalOpen(false); // Close confirmation modal
@@ -319,21 +372,31 @@ const App = () => {
 
   // -- COMPUTED DATA --
 
+  // 1. Get Unique Senders for Dropdown
+  const uniqueSenders = useMemo(() => {
+    const senders = new Set<string>();
+    emails.forEach(e => {
+      if (e.user) senders.add(e.user);
+    });
+    return Array.from(senders).sort();
+  }, [emails]);
+
+  // 2. Apply Filters (Sender -> Search -> Type) to get "Processed" (Visible) Emails
   const processedEmails = useMemo(() => {
     let filtered = emails;
 
-    // Filter by Current User (if known)
-    if (currentUser) {
-      filtered = filtered.filter(e => !e.user || e.user === currentUser);
+    // Filter by Sender
+    if (senderFilter !== 'all') {
+      filtered = filtered.filter(e => e.user === senderFilter);
+    } else if (currentUser && !userProfile) {
+      // Optional: If in Incognito (no userProfile), and currentUser is known,
+      // should we default to currentUser?
+      // User requested manual switching.
+      // But maybe default to 'all' is better to show everything available?
+      // Let's stick to manual filter via dropdown.
     }
 
-    return filtered;
-  }, [emails, currentUser]); // Removed deletedIds dependency
-
-  const displayEmails = useMemo(() => {
-    let filtered = processedEmails;
-
-    // 3. Search (Body, Subject, Recipient)
+    // Search
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(e =>
@@ -343,7 +406,7 @@ const App = () => {
       );
     }
 
-    // 4. Status Filter
+    // Status Filter
     if (filterType === 'opened') {
       filtered = filtered.filter(e => e.openCount > 0);
     } else if (filterType === 'sent') {
@@ -351,9 +414,9 @@ const App = () => {
     }
 
     return filtered;
-  }, [processedEmails, searchQuery, filterType]);
+  }, [emails, senderFilter, searchQuery, filterType]);
 
-  // Update Stats based on PROCESSED (User's) emails, not global
+  // Update Stats based on VISIBLE emails
   useEffect(() => {
     const tracked = processedEmails.length;
     const opened = processedEmails.filter(e => e.openCount > 0).length;
@@ -364,11 +427,37 @@ const App = () => {
     });
   }, [processedEmails]);
 
+
+
   // -- RENDERERS --
 
   // 1. Dashboard View
   const renderDashboard = () => (
     <div style={{ padding: '12px' }}>
+      {/* Sender Filter for Dashboard Scope described by stats */}
+      {uniqueSenders.length > 0 && (
+        <div style={{ marginBottom: '12px' }}>
+          <select
+            value={senderFilter}
+            onChange={(e) => setSenderFilter(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-bg-card)',
+              color: 'var(--color-text-main)',
+              fontSize: '13px'
+            }}
+          >
+            <option value="all">All Senders</option>
+            {uniqueSenders.map(sender => (
+              <option key={sender} value={sender}>{sender}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Stats Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
         <Card>
@@ -405,12 +494,7 @@ const App = () => {
         </div>
       )}
 
-      {/* Current User Badge */}
-      {currentUser && (
-        <div style={{ marginBottom: '16px', padding: '8px 12px', background: theme.colors.infoLight, borderRadius: '6px', fontSize: '13px', color: theme.colors.infoDark, display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span>👤</span> Logged in as: <strong>{currentUser}</strong>
-        </div>
-      )}
+
 
       {/* Recent Activity Preview */}
       <div style={{ marginBottom: '12px' }}>
@@ -452,6 +536,29 @@ const App = () => {
         background: 'var(--color-bg)',
         borderBottom: '1px solid var(--color-border)' // Explicit separator below header ONLY
       }}>
+        {/* Sender Filter */}
+        {uniqueSenders.length > 0 && (
+          <select
+            value={senderFilter}
+            onChange={(e) => setSenderFilter(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px',
+              marginBottom: '10px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-bg-card)',
+              color: 'var(--color-text-main)',
+              fontSize: '13px'
+            }}
+          >
+            <option value="all">All Senders</option>
+            {uniqueSenders.map(sender => (
+              <option key={sender} value={sender}>{sender}</option>
+            ))}
+          </select>
+        )}
+
         <input
           type="text"
           placeholder="Search subject, body, recipient..."
@@ -469,15 +576,15 @@ const App = () => {
 
       {/* List Container - No extra borders */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '0' }}>
-        {displayEmails.length === 0 ? (
+        {processedEmails.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', color: theme.colors.gray400 }}>
-            {searchQuery ? 'No matches found.' : 'No emails found.'}
+            {searchQuery || senderFilter !== 'all' ? 'No matches found.' : 'No emails found.'}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {displayEmails.map((email, index) => (
+            {processedEmails.map((email, index) => (
               <div key={email.id} style={{
-                borderBottom: index === displayEmails.length - 1 ? 'none' : '1px solid var(--color-border)'
+                borderBottom: index === processedEmails.length - 1 ? 'none' : '1px solid var(--color-border)'
               }}>
                 <EmailItem
                   email={email}
@@ -580,12 +687,12 @@ const App = () => {
             <div>
               <span style={{ fontSize: '13px', fontWeight: 500, color: '#ef4444' }}>Delete All History</span>
               <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px', margin: 0 }}>
-                Permanently delete all tracking data for {currentUser}
+                Permanently delete all tracking data for {activeIdentity}
               </p>
             </div>
             <button
               onClick={() => setIsDeleteModalOpen(true)}
-              disabled={loading || !currentUser}
+              disabled={loading || !activeIdentity}
               style={{
                 fontSize: '11px',
                 color: theme.colors.danger,
@@ -593,7 +700,7 @@ const App = () => {
                 border: `1px solid ${theme.colors.danger}`,
                 padding: '6px 12px',
                 borderRadius: '4px',
-                cursor: (loading || !currentUser) ? 'not-allowed' : 'pointer',
+                cursor: (loading || !activeIdentity) ? 'not-allowed' : 'pointer',
                 fontWeight: 600
               }}
             >
@@ -608,7 +715,7 @@ const App = () => {
         title="Delete Tracking History"
         message={
           <span>
-            Are you sure you want to <b>DELETE ALL</b> tracking history for <b>{currentUser}</b>?
+            Are you sure you want to <b>DELETE ALL</b> tracking history for <b>{activeIdentity}</b>?
             <br /><br />
             This action cannot be undone.
           </span>
@@ -620,16 +727,6 @@ const App = () => {
         loading={loading}
       />
 
-      <Modal
-        isOpen={statusModal.isOpen}
-        title={statusModal.title}
-        message={statusModal.message}
-        type={statusModal.type}
-        confirmLabel="Close"
-        showCancel={false}
-        onConfirm={() => setStatusModal({ ...statusModal, isOpen: false })}
-        onCancel={() => setStatusModal({ ...statusModal, isOpen: false })}
-      />
     </div>
   );
 
@@ -666,6 +763,16 @@ const App = () => {
         <TabButton label="Activity" icon="list" active={view === 'activity'} onClick={() => setView('activity')} />
         <TabButton label="Settings" icon="⚙️" active={view === 'settings'} onClick={() => setView('settings')} />
       </nav>
+      <Modal
+        isOpen={statusModal.isOpen}
+        title={statusModal.title}
+        message={statusModal.message}
+        type={statusModal.type}
+        confirmLabel="Close"
+        showCancel={false}
+        onConfirm={() => setStatusModal({ ...statusModal, isOpen: false })}
+        onCancel={() => setStatusModal({ ...statusModal, isOpen: false })}
+      />
     </div>
   );
 }

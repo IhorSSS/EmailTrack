@@ -34,12 +34,55 @@ export class LocalStorageService {
     }
 
     /**
+     * Mark emails as safely synced to cloud
+     */
+    static async markAsSynced(ids: string[]): Promise<void> {
+        return new Promise((resolve) => {
+            chrome.storage.local.get([STORAGE_KEY], (result) => {
+                const history = (result[STORAGE_KEY] || []) as LocalEmailMetadata[];
+                const updated = history.map(e => {
+                    if (ids.includes(e.id)) {
+                        return { ...e, synced: true };
+                    }
+                    return e;
+                });
+                chrome.storage.local.set({ [STORAGE_KEY]: updated }, () => {
+                    resolve();
+                });
+            });
+        });
+    }
+
+    /**
      * Delete persistent history (clear all)
      */
-    static async clearAll(): Promise<void> {
+    static async deleteAll(): Promise<void> {
         return new Promise((resolve) => {
             chrome.storage.local.remove(STORAGE_KEY, () => {
                 resolve();
+            });
+        });
+    }
+
+    /**
+     * Delete persistent history (clear all) - Alias for backward compatibility if needed, 
+     * but we should use deleteAll for explicit intent.
+     */
+    static async clearAll(): Promise<void> {
+        return this.deleteAll();
+    }
+
+    /**
+     * Delete emails by Sender Identity (for Incognito cleanup)
+     */
+    static async deleteBySender(sender: string): Promise<void> {
+        return new Promise((resolve) => {
+            chrome.storage.local.get([STORAGE_KEY], (result) => {
+                let history = (result[STORAGE_KEY] || []) as LocalEmailMetadata[];
+                history = history.filter(e => e.user !== sender);
+                chrome.storage.local.set({ [STORAGE_KEY]: history }, () => {
+                    resolve();
+                });
             });
         });
     }

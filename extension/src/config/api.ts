@@ -9,6 +9,7 @@ export const API_CONFIG = {
         REGISTER: '/register',
         LOGIN: '/auth/login',
         SYNC: '/auth/sync',
+        AUTH: '/auth',
         TRACK: '/track/img.png', // Changed to img.png to avoid blockers
         DASHBOARD: '/dashboard',
         STATS: '/stats'

@@ -54,8 +54,32 @@ export class UserService {
     /**
      * Batch link anonymous emails to a user account and update metadata
      */
+    /**
+     * Batch link anonymous emails to a user account and update metadata.
+     * STRICTLY PREVENTS taking ownership of emails already owned by another user.
+     */
     static async batchLinkEmails(userId: string, emails: { id: string, subject?: string, recipient?: string, body?: string }[]) {
-        // Use upsert to handle cases where email might be missing on server but exists locally
+        if (emails.length === 0) return [];
+
+        const emailIds = emails.map(e => e.id);
+
+        // 1. Security Check: Ensure we are not overwriting someone else's emails
+        // Ideally the Frontend checks this via /check-conflicts, but Backend must be the final gatekeeper.
+        const conflicts = await prisma.trackedEmail.findMany({
+            where: {
+                id: { in: emailIds },
+                ownerId: { not: null }, // Already owned
+                NOT: { ownerId: userId } // By someone else
+            },
+            select: { id: true, ownerId: true }
+        });
+
+        if (conflicts.length > 0) {
+            console.warn(`[Security] User ${userId} attempted to claim owned emails: ${conflicts.map(c => c.id).join(', ')}`);
+            throw new Error(`Ownership Conflict: ${conflicts.length} emails already belong to another user.`);
+        }
+
+        // 2. Safe to Upsert
         return prisma.$transaction(
             emails.map(email =>
                 prisma.trackedEmail.upsert({
@@ -77,5 +101,33 @@ export class UserService {
                 })
             )
         );
+    }
+    /**
+     * Check if any of the provided email IDs are owned by a different user.
+     * Returns true if there is a conflict.
+     */
+    static async hasOwnershipConflict(emailIds: string[], intendedOwnerGoogleId: string): Promise<boolean> {
+        if (emailIds.length === 0) return false;
+
+        // Find existing emails provided in the list that are already owned
+        const existing = await prisma.trackedEmail.findMany({
+            where: {
+                id: { in: emailIds },
+                ownerId: { not: null }
+            },
+            include: { owner: true }
+        });
+
+        if (existing.length === 0) return false;
+
+        // Check if any owner is different from intended
+        for (const email of existing) {
+            // If the email has an owner, and that owner's Google ID is different from the one trying to sync
+            if (email.owner && email.owner.googleId !== intendedOwnerGoogleId) {
+                return true; // Conflict found! Owned by someone else.
+            }
+        }
+
+        return false;
     }
 }

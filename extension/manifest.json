@@ -11,7 +11,7 @@
         "identity"
     ],
     "oauth2": {
-        "client_id": "YOUR_CLIENT_ID.apps.googleusercontent.com",
+        "client_id": "349190611674-relalq6nbvkepeeeubefho55r3f9rv1r.apps.googleusercontent.com",
         "scopes": [
             "email",
             "profile"
@@ -19,7 +19,9 @@
     },
     "host_permissions": [
         "https://mail.google.com/*",
-        "https://emailtrack.isnode.pp.ua/*"
+        "https://emailtrack.isnode.pp.ua/*",
+        "https://accounts.google.com/*",
+        "https://oauth2.googleapis.com/*"
     ],
     "declarative_net_request": {
         "rule_resources": [
