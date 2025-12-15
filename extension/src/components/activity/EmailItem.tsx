@@ -11,6 +11,11 @@ interface EmailItemProps {
 export const EmailItem = ({ email, onClick, onDelete }: EmailItemProps) => {
     const isOpened = email.openCount > 0;
 
+    const handleDeleteClick = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent email item click
+        onDelete(e);
+    };
+
     return (
         <div className={styles.container} onClick={onClick}>
             <div className={styles.content}>
@@ -36,7 +41,7 @@ export const EmailItem = ({ email, onClick, onDelete }: EmailItemProps) => {
 
             <button
                 className={styles.deleteBtn}
-                onClick={onDelete}
+                onClick={handleDeleteClick}
                 title="Delete from history"
             >
                 ×

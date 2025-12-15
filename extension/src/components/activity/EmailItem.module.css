@@ -10,7 +10,7 @@
 }
 
 .container:hover {
-    background-color: #f8fafc;
+    background-color: var(--color-bg);
 }
 
 .container:hover .deleteBtn {
@@ -86,15 +86,24 @@
     right: 8px;
     top: 8px;
     background: #fee2e2;
-    border: none;
-    border-radius: 4px;
-    width: 20px;
-    height: 20px;
+    border: 1px solid #fca5a5;
+    border-radius: 6px;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: all 0.2s ease;
     color: #dc2626;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.deleteBtn:hover {
+    background: #dc2626;
+    color: white;
+    transform: scale(1.1);
 }

@@ -14,11 +14,12 @@ interface TrackedEmail {
   id: string;
   recipient: string;
   subject: string;
-  body?: string; // New field
-  user?: string; // New field
+  body?: string;
+  user?: string;
   createdAt: string;
   opens: any[];
   openCount: number;
+  _count?: { opens: number }; // Backend format
 }
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Settings
   const [globalEnabled, setGlobalEnabled] = useState(true);
@@ -75,6 +77,7 @@ function App() {
 
   const fetchEmails = async () => {
     setLoading(true);
+    setError(null);
     try {
       // Increased limit to 1000 to get a good history window
       let url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}?limit=${API_CONFIG.PARAMS.DASHBOARD_LIMIT}`;
@@ -82,11 +85,25 @@ function App() {
         url += `&user=${encodeURIComponent(currentUser)}`;
       }
       const res = await fetch(url);
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+
       const data = await res.json();
       const list: TrackedEmail[] = data.data || [];
-      setEmails(list);
+
+      // Transform backend response: _count.opens -> openCount
+      const transformedList = list.map(email => ({
+        ...email,
+        openCount: email._count?.opens ?? email.openCount ?? 0,
+        opens: email.opens || []
+      }));
+
+      setEmails(transformedList);
     } catch (e) {
-      console.error(e);
+      console.error('Failed to fetch emails:', e);
+      setError(e instanceof Error ? e.message : 'Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -188,6 +205,24 @@ function App() {
           </div>
         </Card>
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div style={{
+          marginBottom: '16px',
+          padding: '12px',
+          background: theme.colors.dangerLight,
+          borderRadius: 'var(--radius-md)',
+          fontSize: '13px',
+          color: theme.colors.danger,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          border: `1px solid ${theme.colors.danger}`
+        }}>
+          <span>⚠️</span> {error}
+        </div>
+      )}
 
       {/* Current User Badge */}
       {currentUser && (
