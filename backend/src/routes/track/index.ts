@@ -31,6 +31,26 @@ const trackRoutes: FastifyPluginAsync = async (fastify, opts) => {
             .send(transparentGif);
     });
 
+    // Alias for track.gif to evade ad-blockers (Added img.png)
+    fastify.get('/img.png', async (request, reply) => {
+        const { id, t } = request.query as { id: string; t?: string };
+        const ip = request.headers['x-forwarded-for'] as string || request.ip;
+        const userAgent = request.headers['user-agent'] || '';
+
+        try {
+            await recordOpen(id, ip, userAgent, t);
+        } catch (e) {
+            request.log.error(e);
+        }
+
+        reply
+            .header('Content-Type', 'image/png')
+            .header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+            .header('Pragma', 'no-cache')
+            .header('Expires', '0')
+            .send(transparentGif);
+    });
+
     fastify.get('/:id', async (request, reply) => {
         const { id } = request.params as { id: string };
         const { t } = request.query as { t?: string };

@@ -4,16 +4,14 @@
  */
 
 export const API_CONFIG = {
-    BASE_URL: 'https://emailtrack.isnode.pp.ua',
-
+    BASE_URL: import.meta.env.VITE_API_URL || 'https://emailtrack.isnode.pp.ua',
     ENDPOINTS: {
-        DASHBOARD: '/dashboard',
         REGISTER: '/register',
-        STATS: '/stats',
-        TRACK_PIXEL: '/track/track.gif'
+        TRACK: '/track/img.png', // Changed to img.png to avoid blockers
+        DASHBOARD: '/dashboard',
+        STATS: '/stats'
     },
-
     PARAMS: {
-        DASHBOARD_LIMIT: 1000
+        DASHBOARD_LIMIT: 1000  // High limit to get all emails
     }
 } as const;

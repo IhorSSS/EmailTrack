@@ -1,13 +1,12 @@
 .container {
     padding: 12px;
     padding-right: 40px;
-    /* Make room for delete button */
     background-color: var(--color-bg-card);
-    border-bottom: 1px solid var(--color-border);
     cursor: pointer;
     display: flex;
     flex-direction: column;
     position: relative;
+    /* No borders here - handled by parent layout */
 }
 
 .container:hover {

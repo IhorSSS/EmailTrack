@@ -34,6 +34,19 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
             limit: Number(limit)
         });
     });
+    fastify.delete('/', async (request, reply) => {
+        const { user } = request.query as { user?: string };
+
+        if (!user) {
+            return reply.status(400).send({ error: 'User parameter is required' });
+        }
+
+        const result = await prisma.trackedEmail.deleteMany({
+            where: { user: user }
+        });
+
+        reply.send({ success: true, count: result.count });
+    });
 };
 
 export default dashboardRoutes;

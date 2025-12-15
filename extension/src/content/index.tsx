@@ -30,6 +30,45 @@ setTimeout(() => {
 
 const STATS_INJECT_CLASS = 'email-track-stats-injected';
 
+// --- Configuration syncing to Main World (DOM-based for Sync Access) ---
+const sendConfigToMainWorld = () => {
+    chrome.storage.sync.get(['bodyPreviewLength'], (res) => {
+        const length = typeof res.bodyPreviewLength === 'number' ? res.bodyPreviewLength : 0;
+
+        const ensureConfig = () => {
+            let configEl = document.getElementById('emailtrack-config');
+            if (!configEl) {
+                configEl = document.createElement('div');
+                configEl.id = 'emailtrack-config';
+                configEl.style.display = 'none';
+                (document.head || document.documentElement).appendChild(configEl);
+            }
+            if (configEl.getAttribute('data-body-preview-length') !== length.toString()) {
+                configEl.setAttribute('data-body-preview-length', length.toString());
+                // Use console.error to ensure it appears in user logs (bypass filters)
+                logger.log('EmailTrack: [Content] Written config to DOM:', length);
+            }
+        };
+
+        ensureConfig();
+        // Re-check periodically to ensure Gmail didn't wipe it
+        setTimeout(ensureConfig, 1000);
+    });
+};
+
+// Initial sync - Aggressive
+setTimeout(sendConfigToMainWorld, 0);
+setTimeout(sendConfigToMainWorld, 500);
+setTimeout(sendConfigToMainWorld, 2000);
+setInterval(sendConfigToMainWorld, 5000); // Heartbeat config sync
+
+// Watch for changes
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'sync' && changes.bodyPreviewLength) {
+        sendConfigToMainWorld();
+    }
+});
+
 // --- Helper to extract user email from Gmail UI ---
 function extractUserEmail(): string | null {
     // Try Gmail's user email element
@@ -45,12 +84,16 @@ function extractUserEmail(): string | null {
 }
 
 // --- Optimistic UI: Listen for Sent Events from logic.js ---
-window.addEventListener('EMAILTRACK_REGISTER', (event: any) => {
-    logger.log('[Content] EMAILTRACK_REGISTER event received:', event.detail);
-    const { id, subject, recipient, body } = event.detail;
+window.addEventListener('message', (event) => {
+    if (event.source !== window) return;
+    if (!event.data || event.data.type !== 'EMAILTRACK_REGISTER') return;
 
-    if (!id) {
-        logger.warn('[Content] EMAILTRACK_REGISTER event missing ID.');
+    logger.log('[Content] EMAILTRACK_REGISTER event received:', event.data.detail);
+    const { id, subject, recipient, body } = event.data.detail;
+
+    // Strict Validation to prevent "Unknown" ghosts
+    if (!id || !subject || subject === 'No Subject') {
+        logger.warn('[Content] Ignoring invalid registration event:', event.data.detail);
         return;
     }
 
@@ -58,7 +101,7 @@ window.addEventListener('EMAILTRACK_REGISTER', (event: any) => {
     logger.log('[Content] Extracted user email:', userEmail);
 
     // 1. Register with Backend
-    fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.REGISTER} `, {
+    fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.REGISTER}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, subject, recipient, body, user: userEmail }),
@@ -68,7 +111,7 @@ window.addEventListener('EMAILTRACK_REGISTER', (event: any) => {
                 logger.error('[Content] Register failed:', res.status, res.statusText);
                 return res.text().then((text) => {
                     logger.error('[Content] Error response:', text);
-                    throw new Error(`HTTP ${res.status} `);
+                    throw new Error(`HTTP ${res.status}`);
                 });
             }
             return res.json();
@@ -84,7 +127,7 @@ window.addEventListener('EMAILTRACK_REGISTER', (event: any) => {
     const attemptInject = (attempt = 1) => {
         const success = handleOptimisticBadge(id);
         if (success) {
-            logger.log(`EmailTrack: [UI] Badge Injected on attempt ${attempt} `);
+            logger.log(`EmailTrack: [UI] Badge Injected on attempt ${attempt}`);
         } else if (attempt < 5) {
             // Retry with backoff (500ms, 1000ms... 2500ms)
             setTimeout(() => attemptInject(attempt + 1), 500 * attempt);

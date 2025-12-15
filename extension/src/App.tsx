@@ -28,7 +28,6 @@ function App() {
 
   // Data
   const [emails, setEmails] = useState<TrackedEmail[]>([]);
-  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,12 +52,9 @@ function App() {
   const loadInitialData = async () => {
     setLoading(true);
 
-    // 1. Load Local Storage (Deleted IDs & Current User)
+    // 1. Load Local Storage (Current User only)
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      const local = await chrome.storage.local.get(['deletedIds', 'currentUser']);
-      if (local.deletedIds && Array.isArray(local.deletedIds)) {
-        setDeletedIds(new Set(local.deletedIds as string[]));
-      }
+      const local = await chrome.storage.local.get(['currentUser']);
       if (local.currentUser && typeof local.currentUser === 'string') {
         setCurrentUser(local.currentUser);
       }
@@ -84,32 +80,37 @@ function App() {
     setError(null);
     try {
       // Increased limit to 1000 to get a good history window
-      let url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}?limit=${API_CONFIG.PARAMS.DASHBOARD_LIMIT}`;
+      // Force no-cache to get fresh list
+      let url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}?limit=${API_CONFIG.PARAMS.DASHBOARD_LIMIT}&t=${Date.now()}`;
       if (currentUser) {
         url += `&user=${encodeURIComponent(currentUser)}`;
       }
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        cache: 'no-store'
+      });
 
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
 
-      const data = await res.json();
-      const list: TrackedEmail[] = data.data || [];
+      const { data, total } = await res.json();
+      const list: TrackedEmail[] = data || [];
 
-      // Transform backend response: _count.opens -> openCount
-      const transformedList = list.map(email => ({
+      // Transform backend response
+      const transformedList = list.map((email: any) => ({
         ...email,
         openCount: email._count?.opens ?? email.openCount ?? 0,
         opens: email.opens || []
       }));
 
+      // No more hidden emails filter
       setEmails(transformedList);
 
-      // Recalculate stats (Issue #3 fix: refresh now updates stats)
-      const tracked = transformedList.length;
-      const opened = transformedList.filter(e => e.openCount > 0).length;
-      const rate = tracked > 0 ? Math.round((opened / tracked) * 100) : 0;
+      // Recalculate stats using TOTAL from backend for accuracy
+      const tracked = total || transformedList.length;
+      const opened = transformedList.filter((e: TrackedEmail) => e.openCount > 0).length;
+      const rate = transformedList.length > 0 ? Math.round((opened / transformedList.length) * 100) : 0;
+
       setStats({ tracked, opened, rate });
     } catch (e) {
       console.error('Failed to fetch emails:', e);
@@ -134,15 +135,24 @@ function App() {
     }
   };
 
-  const handleDelete = (id: string) => {
-    // Confirm? Maybe not needed for just a history cleanup
-    const newSet = new Set(deletedIds);
-    newSet.add(id);
-    setDeletedIds(newSet);
+  const handleDeleteAllHistory = async () => {
+    if (!currentUser) return;
+    if (!confirm('Are you sure you want to DELETE ALL tracking history? This cannot be undone.')) return;
 
-    // Persist
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({ deletedIds: Array.from(newSet) });
+    setLoading(true);
+    try {
+      const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}?user=${encodeURIComponent(currentUser)}`;
+      const res = await fetch(url, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete history');
+
+      // Clear local state
+      setEmails([]);
+      setStats({ tracked: 0, opened: 0, rate: 0 });
+      alert('History cleared successfully.');
+    } catch (e) {
+      alert('Error clearing history: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -151,20 +161,13 @@ function App() {
   const processedEmails = useMemo(() => {
     let filtered = emails;
 
-    // 1. Exclude Deleted
-    filtered = filtered.filter(e => !deletedIds.has(e.id));
-
-    // 2. Filter by Current User (if known) -> "Dynamic pulling... for specific user"
-    // Only apply if we actually have a user to filter by.
+    // Filter by Current User (if known)
     if (currentUser) {
-      // Check if the email object has a 'user' field. If backend doesn't send it yet, we might skip this.
-      // But assuming we updated backend or will update it.
-      // SAFEGUARD: If 'user' field is missing in data, show all (fallback).
       filtered = filtered.filter(e => !e.user || e.user === currentUser);
     }
 
     return filtered;
-  }, [emails, deletedIds, currentUser]);
+  }, [emails, currentUser]); // Removed deletedIds dependency
 
   const displayEmails = useMemo(() => {
     let filtered = processedEmails;
@@ -260,7 +263,6 @@ function App() {
                 key={email.id}
                 email={email}
                 onClick={() => { setSelectedEmail(email); }}
-                onDelete={() => handleDelete(email.id)}
               />
             ))
           )}
@@ -282,18 +284,20 @@ function App() {
 
   // 2. Activity View
   const renderActivity = () => (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Search & Filter Bar */}
-      <div style={{ padding: '12px', background: 'var(--color-bg)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Search & Filter - Clean Container */}
+      <div style={{
+        padding: '12px',
+        background: 'var(--color-bg)',
+        borderBottom: '1px solid var(--color-border)' // Explicit separator below header ONLY
+      }}>
         <input
           type="text"
           placeholder="Search subject, body, recipient..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          style={{
-            width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid var(--color-border)',
-            marginBottom: '10px', fontSize: '13px'
-          }}
+          className="search-input" // Use CSS class for styling
+          style={{ marginBottom: '10px' }}
         />
         <div style={{ display: 'flex', gap: '8px' }}>
           <FilterChip label="All" active={filterType === 'all'} onClick={() => setFilterType('all')} />
@@ -302,20 +306,25 @@ function App() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      {/* List Container - No extra borders */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0' }}>
         {displayEmails.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', color: theme.colors.gray400 }}>
             {searchQuery ? 'No matches found.' : 'No emails found.'}
           </div>
         ) : (
-          displayEmails.map(email => (
-            <EmailItem
-              key={email.id}
-              email={email}
-              onClick={() => setSelectedEmail(email)}
-              onDelete={() => handleDelete(email.id)}
-            />
-          ))
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {displayEmails.map((email, index) => (
+              <div key={email.id} style={{
+                borderBottom: index === displayEmails.length - 1 ? 'none' : '1px solid var(--color-border)'
+              }}>
+                <EmailItem
+                  email={email}
+                  onClick={() => setSelectedEmail(email)}
+                />
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
@@ -383,7 +392,7 @@ function App() {
               <option value={-1}>Full email</option>
             </select>
 
-            {bodyPreviewLength > 0 && (
+            {bodyPreviewLength !== 0 && (
               <div style={{
                 marginTop: '12px',
                 padding: '8px 12px',
@@ -404,35 +413,30 @@ function App() {
       </div>
 
       <div style={{ marginTop: '20px' }}>
-        <h4 style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '8px', textTransform: 'uppercase' }}>Hidden Emails</h4>
+        <h4 style={{ fontSize: '12px', color: '#ef4444', marginBottom: '8px', textTransform: 'uppercase' }}>Danger Zone</h4>
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <span style={{ fontSize: '13px', fontWeight: 500 }}>{deletedIds.size} hidden</span>
+              <span style={{ fontSize: '13px', fontWeight: 500, color: '#ef4444' }}>Delete All History</span>
               <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px', margin: 0 }}>
-                Emails you've hidden from this view
+                Permanently delete all tracking data for {currentUser}
               </p>
             </div>
             <button
-              onClick={() => {
-                setDeletedIds(new Set());
-                if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                  chrome.storage.local.remove('deletedIds');
-                }
-              }}
-              disabled={deletedIds.size === 0}
+              onClick={handleDeleteAllHistory}
+              disabled={loading || !currentUser}
               style={{
                 fontSize: '11px',
-                color: deletedIds.size === 0 ? theme.colors.gray400 : theme.colors.primary,
-                background: 'none',
-                border: `1px solid ${deletedIds.size === 0 ? theme.colors.gray300 : theme.colors.primary}`,
+                color: theme.colors.danger,
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: `1px solid ${theme.colors.danger}`,
                 padding: '6px 12px',
                 borderRadius: '4px',
-                cursor: deletedIds.size === 0 ? 'not-allowed' : 'pointer',
-                opacity: deletedIds.size === 0 ? 0.5 : 1
+                cursor: (loading || !currentUser) ? 'not-allowed' : 'pointer',
+                fontWeight: 600
               }}
             >
-              Show All
+              Delete All
             </button>
           </div>
         </Card>

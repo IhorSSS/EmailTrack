@@ -32,6 +32,15 @@ export const DetailView = ({ email, onBack }: DetailViewProps) => {
                     </div>
                 </div>
 
+                {email.body && (
+                    <div className={styles.section}>
+                        <label className={styles.label}>Body Preview</label>
+                        <div className={styles.value} style={{ fontSize: '13px', lineHeight: '1.4', whiteSpace: 'pre-wrap', color: 'var(--color-text-secondary)' }}>
+                            {email.body}
+                        </div>
+                    </div>
+                )}
+
                 <div className={styles.section}>
                     <label className={styles.label}>Sent At</label>
                     <div className={styles.valueSmall}>
@@ -47,19 +56,54 @@ export const DetailView = ({ email, onBack }: DetailViewProps) => {
                         </div>
                     ) : (
                         <div className={styles.opensList}>
-                            {email.opens.map((open: any, idx: number) => (
-                                <div
-                                    key={idx}
-                                    className={`${styles.openItem} ${idx < email.opens.length - 1 ? styles.openItemDivider : ''}`}
-                                >
-                                    <div className={styles.openRow}>
-                                        <span className={styles.openLabel}>Opened</span>
-                                        <span className={styles.openTimestamp}>
-                                            {formatFullDate(open.timestamp || open.createdAt || new Date())}
-                                        </span>
+                            {email.opens.map((open: any, idx: number) => {
+                                // Parse device JSON
+                                let deviceInfo = { device: 'Unknown', os: 'Unknown', browser: 'Unknown', isBot: false };
+                                try {
+                                    if (open.device) {
+                                        deviceInfo = JSON.parse(open.device);
+                                    }
+                                } catch (e) {
+                                    console.warn('Failed to parse device:', e);
+                                }
+
+                                return (
+                                    <div
+                                        key={idx}
+                                        className={`${styles.openItem} ${idx < email.opens.length - 1 ? styles.openItemDivider : ''}`}
+                                    >
+                                        <div className={styles.openRow}>
+                                            <span className={styles.openLabel}>Opened</span>
+                                            <span className={styles.openTimestamp}>
+                                                {formatFullDate(open.openedAt || open.timestamp || new Date())}
+                                            </span>
+                                        </div>
+
+                                        {/* Device Details */}
+                                        <div className={styles.openDetails}>
+                                            <div className={styles.detailRow}>
+                                                <span className={styles.detailIcon}>📱</span>
+                                                <span className={styles.detailText}>
+                                                    {deviceInfo.device || 'Unknown Device'}
+                                                    {deviceInfo.isBot && <span className={styles.botBadge}> (Bot)</span>}
+                                                </span>
+                                            </div>
+                                            <div className={styles.detailRow}>
+                                                <span className={styles.detailIcon}>💻</span>
+                                                <span className={styles.detailText}>
+                                                    {deviceInfo.os || 'Unknown OS'} • {deviceInfo.browser || 'Unknown Browser'}
+                                                </span>
+                                            </div>
+                                            <div className={styles.detailRow}>
+                                                <span className={styles.detailIcon}>🌍</span>
+                                                <span className={styles.detailText}>
+                                                    {open.location || 'Unknown'} • {open.ip || 'N/A'}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

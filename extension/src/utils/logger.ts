@@ -12,7 +12,7 @@
  *   VITE_DEBUG=false - Disable debug logs (errors still show)
  */
 
-const DEBUG = import.meta.env.VITE_DEBUG === 'true';
+const DEBUG = true; // Forced for debugging
 
 export const logger = {
     /**

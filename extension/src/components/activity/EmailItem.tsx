@@ -5,16 +5,21 @@ import styles from './EmailItem.module.css';
 interface EmailItemProps {
     email: any;
     onClick: () => void;
-    onDelete: (e: React.MouseEvent) => void;
 }
 
-export const EmailItem = ({ email, onClick, onDelete }: EmailItemProps) => {
+export const EmailItem = ({ email, onClick }: EmailItemProps) => {
     const isOpened = email.openCount > 0;
 
-    const handleDeleteClick = (e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent email item click
-        onDelete(e);
-    };
+
+
+    // Calculate last opened time
+    const lastOpened = email.opens && email.opens.length > 0
+        ? email.opens.reduce((latest: any, current: any) => {
+            const latestTime = new Date(latest.openedAt || latest.timestamp || 0).getTime();
+            const currentTime = new Date(current.openedAt || current.timestamp || 0).getTime();
+            return currentTime > latestTime ? current : latest;
+        })
+        : null;
 
     return (
         <div className={styles.container} onClick={onClick}>
@@ -32,20 +37,19 @@ export const EmailItem = ({ email, onClick, onDelete }: EmailItemProps) => {
 
             <div className={styles.meta}>
                 <span className={`${styles.badge} ${isOpened ? styles.badgeOpened : styles.badgeSent}`}>
-                    {isOpened ? 'Opened' : 'Sent'}
+                    {isOpened ? (email.openCount > 1 ? `Opened (${email.openCount})` : 'Opened') : 'Sent'}
                 </span>
                 <span className={styles.timestamp}>
-                    {formatDateTime(email.createdAt)}
+                    Sent: {formatDateTime(email.createdAt)}
                 </span>
+                {lastOpened && (
+                    <span className={styles.timestamp}>
+                        Last Opened: {formatDateTime(lastOpened.openedAt || lastOpened.timestamp)}
+                    </span>
+                )}
             </div>
 
-            <button
-                className={styles.deleteBtn}
-                onClick={handleDeleteClick}
-                title="Delete from history"
-            >
-                ×
-            </button>
+
         </div>
     );
 };

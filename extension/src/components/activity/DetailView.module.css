@@ -80,6 +80,35 @@
     border-bottom: 1px solid var(--color-border);
 }
 
+.openDetails {
+    margin-top: 8px;
+    padding-left: 8px;
+    font-size: 11px;
+    color: var(--color-text-secondary);
+}
+
+.detailRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px 0;
+}
+
+.detailIcon {
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.detailText {
+    flex: 1;
+    line-height: 1.4;
+}
+
+.botBadge {
+    color: var(--color-warning, #f59e0b);
+    font-weight: 600;
+}
+
 .openRow {
     display: flex;
     justify-content: space-between;
