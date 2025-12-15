@@ -8,6 +8,7 @@ import { DetailView } from './components/activity/DetailView';
 import { Card } from './components/common/Card';
 import { API_CONFIG } from './config/api';
 import { theme } from './config/theme';
+import { Modal } from './components/common/Modal';
 import { CONSTANTS } from './config/constants';
 
 interface TrackedEmail {
@@ -42,6 +43,15 @@ function App() {
 
   // Stats
   const [stats, setStats] = useState({ tracked: 0, opened: 0, rate: 0 });
+
+  // Modal State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [statusModal, setStatusModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'danger' | 'info' }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'success'
+  });
 
   // -- EFFECTS --
 
@@ -135,9 +145,19 @@ function App() {
     }
   };
 
-  const handleDeleteAllHistory = async () => {
+  const confirmDeleteHistory = async () => {
     if (!currentUser) return;
-    if (!confirm('Are you sure you want to DELETE ALL tracking history? This cannot be undone.')) return;
+
+    // Check context validity before async
+    if (typeof chrome !== 'undefined' && chrome.runtime && !chrome.runtime.id) {
+      setStatusModal({
+        isOpen: true,
+        title: 'Context Invalidated',
+        message: 'Extension context invalidated. Please reload the page.',
+        type: 'danger'
+      });
+      return;
+    }
 
     setLoading(true);
     try {
@@ -148,9 +168,22 @@ function App() {
       // Clear local state
       setEmails([]);
       setStats({ tracked: 0, opened: 0, rate: 0 });
-      alert('History cleared successfully.');
+      setIsDeleteModalOpen(false); // Close confirmation modal
+
+      setStatusModal({
+        isOpen: true,
+        title: 'History Deleted',
+        message: 'Tracking history has been cleared successfully.',
+        type: 'success'
+      });
     } catch (e) {
-      alert('Error clearing history: ' + (e instanceof Error ? e.message : String(e)));
+      setIsDeleteModalOpen(false);
+      setStatusModal({
+        isOpen: true,
+        title: 'Error',
+        message: 'Error clearing history: ' + (e instanceof Error ? e.message : String(e)),
+        type: 'danger'
+      });
     } finally {
       setLoading(false);
     }
@@ -423,7 +456,7 @@ function App() {
               </p>
             </div>
             <button
-              onClick={handleDeleteAllHistory}
+              onClick={() => setIsDeleteModalOpen(true)}
               disabled={loading || !currentUser}
               style={{
                 fontSize: '11px',
@@ -441,6 +474,34 @@ function App() {
           </div>
         </Card>
       </div>
+
+      <Modal
+        isOpen={isDeleteModalOpen}
+        title="Delete Tracking History"
+        message={
+          <span>
+            Are you sure you want to <b>DELETE ALL</b> tracking history for <b>{currentUser}</b>?
+            <br /><br />
+            This action cannot be undone.
+          </span>
+        }
+        type="danger"
+        confirmLabel="Delete Forever"
+        onConfirm={confirmDeleteHistory}
+        onCancel={() => setIsDeleteModalOpen(false)}
+        loading={loading}
+      />
+
+      <Modal
+        isOpen={statusModal.isOpen}
+        title={statusModal.title}
+        message={statusModal.message}
+        type={statusModal.type}
+        confirmLabel="Close"
+        showCancel={false}
+        onConfirm={() => setStatusModal({ ...statusModal, isOpen: false })}
+        onCancel={() => setStatusModal({ ...statusModal, isOpen: false })}
+      />
     </div>
   );
 

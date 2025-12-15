@@ -19,14 +19,24 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
     const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set()); // Track expanded groups
     const badgeRef = useRef<HTMLSpanElement>(null);
 
+    const [contextInvalidated, setContextInvalidated] = useState(false);
+
     const fetchStats = (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
         try {
+            // Check if runtime exists (basic invalidation check)
+            if (!chrome.runtime?.id) throw new Error("Extension context invalidated");
+
             chrome.runtime.sendMessage({
                 type: 'GET_STATS',
                 trackId
             }, (response) => {
-                if (chrome.runtime.lastError) {
+                const lastError = chrome.runtime.lastError;
+                if (lastError) {
+                    const msg = lastError.message || '';
+                    if (msg.includes('context invalidated')) {
+                        setContextInvalidated(true);
+                    }
                     setLoading(false);
                     setRefreshing(false);
                     return;
@@ -35,7 +45,11 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
                 setLoading(false);
                 setRefreshing(false);
             });
-        } catch (e) {
+        } catch (e: any) {
+            const msg = e?.message || '';
+            if (msg.includes('context invalidated') || msg.includes('Extension context invalidated')) {
+                setContextInvalidated(true);
+            }
             setLoading(false);
             setRefreshing(false);
         }
@@ -98,6 +112,18 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
             return next;
         });
     };
+
+    if (contextInvalidated) {
+        return (
+            <span
+                className="email-track-badge error"
+                title="Extension updated. Please reload the page."
+                style={{ cursor: 'help' }}
+            >
+                ⚠️ Reload
+            </span>
+        );
+    }
 
     if (loading) return <span className="email-track-badge loading">...</span>;
     if (!stats) return <span className="email-track-badge error">Error</span>;

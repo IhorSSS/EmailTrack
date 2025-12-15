@@ -41,11 +41,44 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
             return reply.status(400).send({ error: 'User parameter is required' });
         }
 
-        const result = await prisma.trackedEmail.deleteMany({
-            where: { user: user }
-        });
+        try {
+            const result = await prisma.$transaction(async (tx) => {
+                // 1. Find all emails for this user to get their IDs
+                const userEmails = await tx.trackedEmail.findMany({
+                    where: { user: user },
+                    select: { id: true }
+                });
 
-        reply.send({ success: true, count: result.count });
+                if (userEmails.length === 0) {
+                    return { count: 0 };
+                }
+
+                const emailIds = userEmails.map(e => e.id);
+
+                // 2. Explicitly delete all open events for these specific Email IDs
+                await tx.openEvent.deleteMany({
+                    where: {
+                        trackedEmailId: {
+                            in: emailIds
+                        }
+                    }
+                });
+
+                // 3. Now it is safe to delete the emails themselves
+                return await tx.trackedEmail.deleteMany({
+                    where: {
+                        id: {
+                            in: emailIds
+                        }
+                    }
+                });
+            });
+
+            reply.send({ success: true, count: result.count });
+        } catch (e) {
+            console.error('Failed to delete history:', e);
+            reply.status(500).send({ error: 'Internal Server Error' });
+        }
     });
 };
 
