@@ -204,20 +204,20 @@ function App() {
 
   // 1. Dashboard View
   const renderDashboard = () => (
-    <div style={{ padding: 'var(--spacing-md)' }}>
+    <div style={{ padding: '12px' }}>
       {/* Stats Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
         <Card>
-          <div style={{ fontSize: '28px', fontWeight: 800, color: 'var(--color-primary)' }}>{stats.tracked}</div>
-          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--color-primary)' }}>{stats.tracked}</div>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
             Emails Tracked
           </div>
         </Card>
         <Card>
-          <div style={{ fontSize: '28px', fontWeight: 800, color: stats.rate > 50 ? theme.colors.successText : theme.colors.primary }}>
+          <div style={{ fontSize: '24px', fontWeight: 800, color: stats.rate > 50 ? theme.colors.successText : theme.colors.primary }}>
             {stats.rate}%
           </div>
-          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
             Open Rate
           </div>
         </Card>
@@ -249,8 +249,8 @@ function App() {
       )}
 
       {/* Recent Activity Preview */}
-      <div style={{ marginBottom: '16px' }}>
-        <h3 style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>Recent Activity</h3>
+      <div style={{ marginBottom: '12px' }}>
+        <h3 style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '6px' }}>Recent Activity</h3>
         <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
           {processedEmails.length === 0 ? (
             <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: theme.colors.gray400 }}>No activity yet.</div>
@@ -284,7 +284,7 @@ function App() {
   const renderActivity = () => (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       {/* Search & Filter Bar */}
-      <div style={{ padding: '12px', borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)' }}>
+      <div style={{ padding: '12px', background: 'var(--color-bg)' }}>
         <input
           type="text"
           placeholder="Search subject, body, recipient..."
@@ -460,7 +460,7 @@ function App() {
 
       {/* Bottom Tabs */}
       <nav style={{
-        height: '60px', background: 'var(--color-bg-card)', borderTop: '1px solid var(--color-border)',
+        height: '60px', background: 'var(--color-bg-card)',
         display: 'flex', justifyContent: 'space-around', alignItems: 'center', flexShrink: 0
       }}>
         <TabButton label="Dashboard" icon="📊" active={view === 'dashboard'} onClick={() => setView('dashboard')} />

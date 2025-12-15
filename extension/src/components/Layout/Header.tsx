@@ -9,7 +9,7 @@ interface HeaderProps {
 export const Header = ({ onRefresh, loading }: HeaderProps) => {
     return (
         <header style={{
-            height: '60px',
+            height: '50px',
             padding: '0 var(--spacing-md)',
             background: 'var(--color-bg-card)',
             borderBottom: '1px solid var(--color-border)',

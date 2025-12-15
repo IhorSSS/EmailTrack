@@ -33,12 +33,22 @@ export const formatDateTime = (dateStr: string): string => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
     const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
 
-    if (isToday) {
-        return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    // Reset time to midnight for comparison
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffDays = Math.floor((today.getTime() - dateOnly.getTime()) / (1000 * 60 * 60 * 24));
+
+    const timeStr = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+
+    if (diffDays === 0) {
+        return `Today, ${timeStr}`;
+    } else if (diffDays === 1) {
+        return `Yesterday, ${timeStr}`;
+    } else {
+        const dateStr = date.toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
+        return `${dateStr}, ${timeStr}`;
     }
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 };
 
 export const formatFullDate = (dateStr: string): string => {

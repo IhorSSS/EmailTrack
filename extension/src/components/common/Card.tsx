@@ -9,7 +9,7 @@ export const Card = ({ children }: CardProps) => {
     return (
         <div
             style={{
-                padding: '16px',
+                padding: '12px',
                 backgroundColor: 'var(--color-bg-card)',
                 borderRadius: 'var(--radius-md)',
                 border: '1px solid var(--color-border)',
