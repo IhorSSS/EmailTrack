@@ -58,7 +58,7 @@ export class UserService {
      * Batch link anonymous emails to a user account and update metadata.
      * STRICTLY PREVENTS taking ownership of emails already owned by another user.
      */
-    static async batchLinkEmails(userId: string, emails: { id: string, subject?: string, recipient?: string, body?: string }[]) {
+    static async batchLinkEmails(userId: string, emails: { id: string, subject?: string, recipient?: string, body?: string, user?: string }[]) {
         if (emails.length === 0) return [];
 
         const emailIds = emails.map(e => e.id);
@@ -90,13 +90,14 @@ export class UserService {
                         subject: email.subject || 'Unknown',
                         recipient: email.recipient || 'Unknown',
                         body: email.body,
-                        user: 'Unknown' // Placeholder, will be linked to ownerId
+                        user: email.user || 'Unknown' // Save Sender Identity
                     },
                     update: {
                         ownerId: userId,
                         subject: email.subject,
                         recipient: email.recipient,
-                        body: email.body
+                        body: email.body,
+                        user: email.user // Update Sender Identity
                     }
                 })
             )
