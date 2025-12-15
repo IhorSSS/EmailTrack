@@ -11,6 +11,8 @@ model TrackedEmail {
   id        String      @id @default(uuid())
   subject   String?
   recipient String?
+  body      String?     // Email body snippet
+  user      String?     // Sender email (User ID)
   createdAt DateTime    @default(now())
   opens     OpenEvent[]
 

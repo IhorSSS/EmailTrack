@@ -14,9 +14,16 @@ async function handleRegister(data: any) {
             body: JSON.stringify({
                 id: data.id,
                 subject: data.subject,
-                recipient: data.recipient
+                recipient: data.recipient,
+                body: data.body, // Send body snippet
+                user: data.user  // Send sender email
             })
         });
+
+        // Cache the current user for the Popup to use
+        if (data.user) {
+            chrome.storage.local.set({ currentUser: data.user });
+        }
 
         console.log('Email registered successfully');
     } catch (err) {
@@ -39,7 +46,8 @@ async function handleGetStats(trackId: string) {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'REGISTER_EMAIL') {
-        handleRegister(message.data);
+        handleRegister(message.data).then(() => sendResponse({ success: true }));
+        return true; // Keep channel open
     } else if (message.type === 'GET_STATS') {
         handleGetStats(message.trackId).then(sendResponse);
         return true; // Keep channel open for async response

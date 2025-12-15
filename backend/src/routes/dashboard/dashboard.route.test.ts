@@ -43,4 +43,23 @@ describe('Dashboard Route', () => {
         expect(body.total).toBe(1);
         expect(body.data[0]._count.opens).toBe(5);
     });
+    it('should filter by user if provided', async () => {
+        (prisma.trackedEmail.findMany as any).mockResolvedValue([
+            { id: '1', user: 'test@example.com' }
+        ]);
+        (prisma.trackedEmail.count as any).mockResolvedValue(1);
+
+        const response = await app.inject({
+            method: 'GET',
+            url: '/dashboard?user=test@example.com',
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(prisma.trackedEmail.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: { user: 'test@example.com' }
+        }));
+        expect(prisma.trackedEmail.count).toHaveBeenCalledWith(expect.objectContaining({
+            where: { user: 'test@example.com' }
+        }));
+    });
 });

@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+**/.env
+
+# Build outputs
+dist/
+build/
+**/dist/
+**/build/
+
+# Extension build
+extension/dist/
+
+# Database
+*.db
+*.sqlite
+
+# Logs
+*.log
+npm-debug.log*
+**/*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Prisma
+**/src/generated/prisma
+
+# Tunnel logs
+tunnel*.log
+lh*.log
+serveo.log
+pinggy.log
+ngrok.log
+
+# SSH keys
+*.key
+*.key.pub
+server.key*
+
+# Docker
+docker-compose.override.yml

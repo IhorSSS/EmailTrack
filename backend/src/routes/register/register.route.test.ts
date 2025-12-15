@@ -1,7 +1,7 @@
+
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FastifyInstance } from 'fastify';
 
-// Mock the db module BEFORE importing app
 vi.mock('../../db', () => ({
     prisma: {
         trackedEmail: {
@@ -21,32 +21,42 @@ describe('Register Route', () => {
         app = buildApp();
     });
 
-    it('should register a new email and return tracking ID', async () => {
-        const mockId = '123-uuid';
-        (prisma.trackedEmail.create as any).mockResolvedValue({
-            id: mockId,
-            subject: 'Hello',
+    it('should register a new email with user and body', async () => {
+        const mockEmail = {
+            id: '123',
+            subject: 'Test Subject',
             recipient: 'test@example.com',
-            createdAt: new Date(),
-        });
+            body: 'Hello World',
+            user: 'sender@example.com',
+        };
+
+        (prisma.trackedEmail.create as any).mockResolvedValue(mockEmail);
 
         const response = await app.inject({
             method: 'POST',
             url: '/register',
             payload: {
-                subject: 'Hello',
-                recipient: 'test@example.com',
+                id: mockEmail.id,
+                subject: mockEmail.subject,
+                recipient: mockEmail.recipient,
+                body: mockEmail.body,
+                user: mockEmail.user
             },
         });
 
         expect(response.statusCode).toBe(201);
-        expect(response.json()).toEqual({
-            id: mockId,
-            pixelUrl: expect.stringContaining(`/track/${mockId}`),
-        });
-    });
+        const body = response.json();
+        expect(body.id).toBe('123');
+        expect(body.pixelUrl).toContain('/track/123');
 
-    it('should return 400 if payload is invalid (if we add validation)', async () => {
-        // For now simplistic
+        expect(prisma.trackedEmail.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                id: '123',
+                subject: 'Test Subject',
+                recipient: 'test@example.com',
+                body: 'Hello World',
+                user: 'sender@example.com'
+            })
+        }));
     });
 });
