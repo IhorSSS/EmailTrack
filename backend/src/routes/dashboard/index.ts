@@ -15,8 +15,14 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
 
         const whereClause: any = {};
         if (ownerId) {
-            whereClause.ownerId = ownerId;
-            if (user) whereClause.user = user; // Filter specific sender within owner
+            if (user) {
+                // Filter specific sender within owner
+                whereClause.ownerId = ownerId;
+                whereClause.user = user;
+            } else {
+                // ownerId only (handled in ids section if ids present)
+                whereClause.ownerId = ownerId;
+            }
         } else if (user) {
             whereClause.user = user; // Legacy/Incognito strict filter
         }
@@ -25,12 +31,30 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
         if (ids) {
             const idList = ids.split(',');
             if (idList.length > 0) {
-                // If ids are provided, we generally ignore ownerId/user strictness OR combine them?
-                // For Incognito hydration, we just want these specific IDs.
-                // But for security, we might want to ensure they match user? 
-                // In Incognito, user is null in DB, but matches local storage list.
-                // Simple approach: ID matches.
-                whereClause.id = { in: idList };
+                // SECURITY: When fetching by IDs, verify ownership
+                // If ownerId provided, ensure IDs belong to that owner
+                // If user provided, ensure IDs belong to that sender
+                // If neither, only return unowned (incognito) items
+
+                if (ownerId) {
+                    // Cloud mode: Return only items owned by this account OR unowned items
+                    // Clear previous whereClause and use OR logic
+                    whereClause.id = { in: idList };
+                    whereClause.OR = [
+                        { ownerId: ownerId },
+                        { ownerId: null }
+                    ];
+                    // Remove individual ownerId to avoid conflict with OR
+                    delete whereClause.ownerId;
+                } else if (user) {
+                    // Incognito with user filter: Return items for this sender
+                    whereClause.id = { in: idList };
+                    whereClause.user = user;
+                } else {
+                    // No auth provided: Only return unowned items
+                    whereClause.id = { in: idList };
+                    whereClause.ownerId = null;
+                }
             }
         }
 
@@ -73,16 +97,43 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
                 if (ids) {
                     const idList = ids.split(',').filter(Boolean);
                     if (idList.length > 0) {
-                        // Security/Logic Check:
-                        // If ownerId is present, we SHOULD verify these IDs belong to that owner?
-                        // If user (email) is present, we SHOULD verify these IDs belong to that sender?
-                        // However, standard dashboard usage implies filtering already happened on client.
-                        // For Incognito, we just want to delete these specific IDs that the client knows about locally.
+                        // SECURITY: Verify ownership before deletion
+                        // Fetch existing emails to check ownership
+                        const existingEmails = await tx.trackedEmail.findMany({
+                            where: { id: { in: idList } },
+                            select: { id: true, ownerId: true, user: true }
+                        });
+
+                        // IMPORTANT: For Incognito mode (ownerId=null), we allow deletion
+                        // These are local-only pixels that haven't been claimed by any account
+                        // For owned items, we need to verify they match the requester
+
+                        // If ownerId or user is provided with ids, verify all items match
+                        if (ownerId || user) {
+                            const unauthorized = existingEmails.filter(email => {
+                                // If email is owned, verify it matches requester
+                                if (email.ownerId) {
+                                    return email.ownerId !== ownerId;
+                                }
+                                // If email has user field, verify it matches
+                                if (email.user && user) {
+                                    return email.user !== user;
+                                }
+                                return false; // Unowned items are OK
+                            });
+
+                            if (unauthorized.length > 0) {
+                                throw new Error('Unauthorized: Cannot delete items belonging to another user');
+                            }
+                        } else {
+                            // No ownerId/user provided - only allow deletion of unowned items
+                            const ownedItems = existingEmails.filter(e => e.ownerId !== null);
+                            if (ownedItems.length > 0) {
+                                throw new Error('Unauthorized: Cannot delete owned items without authentication');
+                            }
+                        }
 
                         const whereIdObj = { in: idList };
-
-                        // Optional: Add ownership filter if ownerId/user is provided to ensure we don't delete random IDs?
-                        // But UUIDs are hard to guess. Let's trust the IDs for now, as client sends local history.
 
                         // 1. Delete events
                         await tx.openEvent.deleteMany({

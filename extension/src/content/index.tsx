@@ -222,69 +222,86 @@ function handleOptimisticBadge(trackId: string): boolean {
 }
 
 function injectStats() {
-    // .adn is the container for a single message in conversation view
-    const messages = document.querySelectorAll('div.adn');
+    // PRIVACY: Only show badges if user has access rights
+    chrome.storage.sync.get(['userProfile'], async (syncResult) => {
+        const hasCloudAccess = !!syncResult.userProfile;
 
-    messages.forEach((row) => {
-        const body = row.querySelector('.a3s');
-        if (!body) return;
-
-        // Skip if already injected
-        if (row.classList.contains(STATS_INJECT_CLASS)) return;
-
-        const imgs = body.querySelectorAll('img');
-        let trackId = null;
-
-        // Scan images but STRICTLY EXCLUDE those inside quoted text.
-        let uniquePixels: { id: string }[] = [];
-
-        for (const img of imgs) {
-            if (img.closest('.gmail_quote') || img.closest('.im')) {
-                continue;
-            }
-
-            const rawSrc = img.src;
-            let decodedSrc = rawSrc;
-            try { decodedSrc = decodeURIComponent(rawSrc); } catch { }
-
-            const uuidRegex = /(?:track(?:%2F|\/)|id=)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
-            const match = rawSrc.match(uuidRegex) || decodedSrc.match(uuidRegex);
-
-            if (match) {
-                uniquePixels.push({ id: match[1] });
+        // If not logged in, check for local history
+        if (!hasCloudAccess) {
+            try {
+                const localEmails = await LocalStorageService.getEmails();
+                if (localEmails.length === 0) {
+                    return; // No access
+                }
+            } catch (e) {
+                return; // Fail-safe
             }
         }
 
-        if (uniquePixels.length > 0) {
-            trackId = uniquePixels[0].id;
-        }
+        // User has access - proceed
+        const messages = document.querySelectorAll('div.adn');
 
-        if (trackId) {
-            // Find Injection Point: .gH (Date/Header) prioritized
-            const dateElement = row.querySelector('.gH');
-            const subjectHeader = row.closest('.gs')?.parentElement?.querySelector('h2.hP');
-            const anchor = dateElement || subjectHeader;
+        messages.forEach((row) => {
+            const body = row.querySelector('.a3s');
+            if (!body) return;
 
-            if (anchor && anchor.parentElement) {
-                const statsContainer = document.createElement('span');
-                statsContainer.style.marginLeft = '10px';
-                statsContainer.style.display = 'inline-flex';
-                statsContainer.style.alignItems = 'center';
-                statsContainer.style.verticalAlign = 'middle';
-                statsContainer.style.position = 'relative';
+            // Skip if already injected
+            if (row.classList.contains(STATS_INJECT_CLASS)) return;
 
-                statsContainer.onclick = (e) => e.stopPropagation();
+            const imgs = body.querySelectorAll('img');
+            let trackId = null;
 
-                if (anchor.nextSibling) {
-                    anchor.parentElement.insertBefore(statsContainer, anchor.nextSibling);
-                } else {
-                    anchor.parentElement.appendChild(statsContainer);
+            // Scan images but STRICTLY EXCLUDE those inside quoted text.
+            let uniquePixels: { id: string }[] = [];
+
+            for (const img of imgs) {
+                if (img.closest('.gmail_quote') || img.closest('.im')) {
+                    continue;
                 }
 
-                row.classList.add(STATS_INJECT_CLASS);
-                createRoot(statsContainer).render(<StatsDisplay trackId={trackId} />);
+                const rawSrc = img.src;
+                let decodedSrc = rawSrc;
+                try { decodedSrc = decodeURIComponent(rawSrc); } catch { }
+
+                const uuidRegex = /(?:track(?:%2F|\/)|id=)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+                const match = rawSrc.match(uuidRegex) || decodedSrc.match(uuidRegex);
+
+                if (match) {
+                    uniquePixels.push({ id: match[1] });
+                }
             }
-        }
+
+            if (uniquePixels.length > 0) {
+                trackId = uniquePixels[0].id;
+            }
+
+            if (trackId) {
+                // Find Injection Point: .gH (Date/Header) prioritized
+                const dateElement = row.querySelector('.gH');
+                const subjectHeader = row.closest('.gs')?.parentElement?.querySelector('h2.hP');
+                const anchor = dateElement || subjectHeader;
+
+                if (anchor && anchor.parentElement) {
+                    const statsContainer = document.createElement('span');
+                    statsContainer.style.marginLeft = '10px';
+                    statsContainer.style.display = 'inline-flex';
+                    statsContainer.style.alignItems = 'center';
+                    statsContainer.style.verticalAlign = 'middle';
+                    statsContainer.style.position = 'relative';
+
+                    statsContainer.onclick = (e) => e.stopPropagation();
+
+                    if (anchor.nextSibling) {
+                        anchor.parentElement.insertBefore(statsContainer, anchor.nextSibling);
+                    } else {
+                        anchor.parentElement.appendChild(statsContainer);
+                    }
+
+                    row.classList.add(STATS_INJECT_CLASS);
+                    createRoot(statsContainer).render(<StatsDisplay trackId={trackId} />);
+                }
+            }
+        });
     });
 }
 

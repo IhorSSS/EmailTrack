@@ -1,5 +1,6 @@
 import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
+import rateLimit from '@fastify/rate-limit';
 
 import trackRoutes from './routes/track';
 import registerRoutes from './routes/register';
@@ -15,7 +16,17 @@ export function buildApp(): FastifyInstance {
     app.register(cors, {
         origin: '*', // Allow all for now, lock down later
         allowedHeaders: ['Content-Type', 'Authorization', 'Bypass-Tunnel-Reminder'],
-        methods: ['GET', 'POST', 'OPTIONS']
+        methods: ['GET', 'POST', 'OPTIONS', 'DELETE']
+    });
+
+    // Rate limiting - 100 requests per minute per IP
+    app.register(rateLimit, {
+        max: 100,
+        timeWindow: '1 minute',
+        cache: 10000,
+        allowList: ['127.0.0.1'],
+        // Skip rate limiting for auth/dashboard (trusted endpoints)
+        skipOnError: true,
     });
 
     app.register(trackRoutes, { prefix: '/track' });

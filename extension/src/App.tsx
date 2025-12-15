@@ -249,15 +249,12 @@ const App = () => {
         const existing = emailMap.get(local.id);
         if (existing) {
           // Hybrid Merge: Keep Server Stats, Restore Local Metadata if Server missing it
-          // If authenticated, Server might have full metadata. If so, don't overwrite with local?
-          // Actually local is usually fresher or source of truth for Incognito.
-          // But if I synced to cloud, Cloud is truth.
-          // For now, if server has body, keep it.
           emailMap.set(local.id, {
             ...existing,
             subject: existing.subject || local.subject,
             recipient: existing.recipient || local.recipient,
             body: existing.body || local.body,
+            user: existing.user || local.user, // CRITICAL: Preserve sender email
           });
         } else {
           // Local-only item
@@ -360,12 +357,13 @@ const App = () => {
 
         // 1. Delete Server Data (Pixels) by IDs
         if (idsToDelete.length > 0) {
-          // Chunking might be needed if too many, but for now send all
-          // 2000 chars URL limit protection? 
-          // If many IDs, we might need a POST, but route is DELETE.
-          // Let's rely on standard params for reasonable usage. 
-          // If huge, we might fail. MVP: send IDs.
           params.append('ids', idsToDelete.join(','));
+
+          // IMPORTANT: Also send 'user' for authorization
+          // If these IDs were synced to cloud, backend needs to verify ownership
+          if (senderToDelete) {
+            params.append('user', senderToDelete);
+          }
 
           const res = await fetch(`${urlBase}?${params.toString()}`, { method: 'DELETE' });
           if (!res.ok) console.warn('Server deletion partial failure', await res.text());
@@ -374,8 +372,21 @@ const App = () => {
         // 2. Delete Local Data
         if (senderToDelete) {
           await LocalStorageService.deleteBySender(senderToDelete);
+          // If we deleted the history of the current "active" ghost user, we should reset that identity
+          // so the UI doesn't claim we are still managing that user's data (which is now empty).
+          if (currentUser === senderToDelete) {
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+              await chrome.storage.local.remove(['currentUser']);
+            }
+            setCurrentUser(null);
+          }
         } else {
           await LocalStorageService.deleteAll();
+          // Delete All -> Definitely clear current user identity
+          if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+            await chrome.storage.local.remove(['currentUser']);
+          }
+          setCurrentUser(null);
         }
       }
 
@@ -408,11 +419,11 @@ const App = () => {
 
   // -- COMPUTED DATA --
 
-  // 1. Get Unique Senders for Dropdown
+  // 1. Get Unique Senders for Dropdown - ONLY from actual email data
   const uniqueSenders = useMemo(() => {
     const senders = new Set<string>();
     emails.forEach(e => {
-      if (e.user) senders.add(e.user);
+      if (e.user) senders.add(e.user); // Temporarily allow 'Unknown' for debugging
     });
     return Array.from(senders).sort();
   }, [emails]);
@@ -470,8 +481,8 @@ const App = () => {
   // 1. Dashboard View
   const renderDashboard = () => (
     <div style={{ padding: '12px' }}>
-      {/* Sender Filter for Dashboard Scope described by stats */}
-      {uniqueSenders.length > 0 && (
+      {/* Sender Filter for Dashboard Scope - show only if multiple senders */}
+      {uniqueSenders.length > 1 && (
         <div style={{ marginBottom: '12px' }}>
           <select
             value={senderFilter}
@@ -572,8 +583,8 @@ const App = () => {
         background: 'var(--color-bg)',
         borderBottom: '1px solid var(--color-border)' // Explicit separator below header ONLY
       }}>
-        {/* Sender Filter */}
-        {uniqueSenders.length > 0 && (
+        {/* Sender Filter - show only if multiple senders */}
+        {uniqueSenders.length > 1 && (
           <select
             value={senderFilter}
             onChange={(e) => setSenderFilter(e.target.value)}
@@ -721,14 +732,19 @@ const App = () => {
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <span style={{ fontSize: '13px', fontWeight: 500, color: '#ef4444' }}>Delete All History</span>
+              <span style={{ fontSize: '13px', fontWeight: 500, color: '#ef4444' }}>Delete History</span>
               <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px', margin: 0 }}>
-                Permanently delete all tracking data for {activeIdentity}
+                {userProfile
+                  ? `Permanently delete all tracking data for account ${userProfile.email}`
+                  : senderFilter !== 'all'
+                    ? `Delete tracking data for sender: ${senderFilter}`
+                    : 'Delete all local tracking history'
+                }
               </p>
             </div>
             <button
               onClick={() => setIsDeleteModalOpen(true)}
-              disabled={loading || !activeIdentity}
+              disabled={loading || (!userProfile && !activeIdentity && senderFilter === 'all')}
               style={{
                 fontSize: '11px',
                 color: theme.colors.danger,
@@ -736,11 +752,11 @@ const App = () => {
                 border: `1px solid ${theme.colors.danger}`,
                 padding: '6px 12px',
                 borderRadius: '4px',
-                cursor: (loading || !activeIdentity) ? 'not-allowed' : 'pointer',
+                cursor: (loading || (!userProfile && !activeIdentity && senderFilter === 'all')) ? 'not-allowed' : 'pointer',
                 fontWeight: 600
               }}
             >
-              Delete All
+              Delete {senderFilter !== 'all' && !userProfile ? 'Sender' : 'All'}
             </button>
           </div>
         </Card>
@@ -751,7 +767,21 @@ const App = () => {
         title="Delete Tracking History"
         message={
           <span>
-            Are you sure you want to <b>DELETE ALL</b> tracking history for <b>{activeIdentity}</b>?
+            {userProfile ? (
+              <>
+                Are you sure you want to <b>DELETE ALL</b> tracking history for cloud account <b>{userProfile.email}</b>?
+              </>
+            ) : senderFilter !== 'all' ? (
+              <>
+                Are you sure you want to delete all tracking history for sender <b>{senderFilter}</b>?
+                <br /><br />
+                <i style={{ fontSize: '10px' }}>Other senders' history will remain intact.</i>
+              </>
+            ) : (
+              <>
+                Are you sure you want to <b>DELETE ALL</b> local tracking history?
+              </>
+            )}
             <br /><br />
             This action cannot be undone.
           </span>

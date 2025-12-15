@@ -253,6 +253,65 @@ const logger = {
             .trim();
     }
 
+    // --- HELPER: Extract Sender Email from Compose Form ---
+    function extractSenderEmail() {
+        try {
+            // Strategy 1: Look for the "From" field selector in compose window
+            // Gmail uses different selectors for the From dropdown
+            const fromField = document.querySelector('input[name="from"]');
+            if (fromField && fromField.value) {
+                const emailMatch = fromField.value.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+                if (emailMatch) {
+                    logger.log(`[extractSenderEmail] Found via input[name="from"]: ${emailMatch[1]}`);
+                    return emailMatch[1];
+                }
+            }
+
+            // Strategy 2: Look for visible "From" display in compose
+            const fromSpan = document.querySelector('span[email]');
+            if (fromSpan) {
+                const email = fromSpan.getAttribute('email');
+                if (email) {
+                    logger.log(`[extractSenderEmail] Found via span[email]: ${email}`);
+                    return email;
+                }
+            }
+
+            // Strategy 3: Check for data attributes in compose form
+            const composeForm = document.querySelector('[role="dialog"] form, td.Bu form');
+            if (composeForm) {
+                const dataFrom = composeForm.getAttribute('data-from') || composeForm.querySelector('[data-from]')?.getAttribute('data-from');
+                if (dataFrom) {
+                    const emailMatch = dataFrom.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+                    if (emailMatch) {
+                        logger.log(`[extractSenderEmail] Found via data-from: ${emailMatch[1]}`);
+                        return emailMatch[1];
+                    }
+                }
+            }
+
+            // Strategy 4: Parse from current Gmail user (last resort - account default)
+            // Look for the profile button or account info
+            const profileBtn = document.querySelector('a[aria-label*="@"][href*="SignOutOptions"]');
+            if (profileBtn) {
+                const ariaLabel = profileBtn.getAttribute('aria-label');
+                if (ariaLabel) {
+                    const emailMatch = ariaLabel.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+                    if (emailMatch) {
+                        logger.log(`[extractSenderEmail] Found via profile (fallback): ${emailMatch[1]}`);
+                        return emailMatch[1];
+                    }
+                }
+            }
+
+            logger.warn('[extractSenderEmail] Could not extract sender email');
+            return null;
+        } catch (e) {
+            logger.error('[extractSenderEmail] Error:', e);
+            return null;
+        }
+    }
+
     // --- GMAIL.JS INTEGRATION ---
     function startInterceptionSystem() {
         if (typeof window.jQuery === 'undefined' && typeof window.$ !== 'undefined') window.jQuery = window.$;
@@ -338,11 +397,14 @@ const logger = {
                 logger.log('EmailTrack: [Logic] Body preview disabled by user setting.');
             }
 
+            const senderEmail = extractSenderEmail();
+
             const eventData = {
                 id: trackId,
                 subject: data.subject || "No Subject",
                 recipient: JSON.stringify(data.to || []),
-                body: bodyPreview || null
+                body: bodyPreview || null,
+                sender: senderEmail || 'Unknown'
             };
 
             window.postMessage({

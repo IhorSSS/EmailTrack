@@ -75,11 +75,18 @@ describe('Dashboard Route', () => {
         it('should delete emails by IDs when ids param is provided', async () => {
             const mockDeleteOpenEvents = vi.fn();
             const mockDeleteEmails = vi.fn().mockResolvedValue({ count: 2 });
+            const mockFindMany = vi.fn().mockResolvedValue([
+                { id: 'id1', ownerId: null, user: 'test@example.com' },
+                { id: 'id2', ownerId: null, user: 'test@example.com' }
+            ]);
 
             (prisma.$transaction as any).mockImplementation(async (callback: any) => {
                 return callback({
-                    openEvent: { deleteMany: mockDeleteOpenEvents },
-                    trackedEmail: { deleteMany: mockDeleteEmails }
+                    trackedEmail: {
+                        findMany: mockFindMany,
+                        deleteMany: mockDeleteEmails
+                    },
+                    openEvent: { deleteMany: mockDeleteOpenEvents }
                 });
             });
 
@@ -90,6 +97,10 @@ describe('Dashboard Route', () => {
 
             expect(response.statusCode).toBe(200);
             expect(response.json()).toEqual({ success: true, count: 2 });
+            expect(mockFindMany).toHaveBeenCalledWith({
+                where: { id: { in: ['id1', 'id2'] } },
+                select: { id: true, ownerId: true, user: true }
+            });
             expect(mockDeleteOpenEvents).toHaveBeenCalledWith({
                 where: { trackedEmailId: { in: ['id1', 'id2'] } }
             });

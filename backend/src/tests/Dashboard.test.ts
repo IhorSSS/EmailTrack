@@ -91,11 +91,19 @@ describe('Dashboard Routes', () => {
                 url: '/?ids=uuid1,uuid2'
             });
 
-            expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
+            expect(mockFindMany).toHaveBeenCalledWith({
                 where: {
-                    id: { in: ['uuid1', 'uuid2'] }
+                    id: { in: ['uuid1', 'uuid2'] },
+                    ownerId: null // Security fix: without auth, only return unowned items
+                },
+                skip: 0,
+                take: 20,
+                orderBy: { createdAt: 'desc' },
+                include: {
+                    opens: { orderBy: { openedAt: 'desc' } },
+                    _count: { select: { opens: true } }
                 }
-            }));
+            });
         });
     });
 
