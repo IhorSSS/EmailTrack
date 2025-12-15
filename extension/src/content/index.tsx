@@ -2,15 +2,16 @@
 import { createRoot } from 'react-dom/client';
 import StatsDisplay from './components/StatsDisplay';
 import './components/StatsDisplay.css';
+import { logger } from '../utils/logger';
 
-console.log('EmailTrack: Content Script UI Loaded');
+logger.log('EmailTrack: Content Script UI Loaded');
 
 // --- Script Injection for Main World (Tracking) ---
 const injectScript = (fileName: string) => {
     const script = document.createElement('script');
     script.src = chrome.runtime.getURL(fileName);
     script.onload = function () {
-        console.log(`EmailTrack: Injected ${fileName}`);
+        logger.log(`EmailTrack: Injected ${fileName}`);
         (this as HTMLScriptElement).remove();
     };
     (document.head || document.documentElement).appendChild(script);
@@ -35,26 +36,26 @@ window.addEventListener('EMAILTRACK_REGISTER', (event: any) => {
     if (!data || !data.id) return;
 
     const { id } = data;
-    console.log('EmailTrack: [UI] Received REGISTER CustomEvent for ID:', id);
+    logger.log('EmailTrack: [UI] Received REGISTER CustomEvent for ID:', id);
 
     // 1. Forward to Background Script
     chrome.runtime.sendMessage({
         type: 'REGISTER_EMAIL',
         data: data
     }, (response) => {
-        console.log('EmailTrack: [UI] Registration forwarded to background:', response);
+        logger.log('EmailTrack: [UI] Registration forwarded to background:', response);
     });
 
     // 2. Optimistic UI Update (With Retries)
     const attemptInject = (attempt = 1) => {
         const success = handleOptimisticBadge(id);
         if (success) {
-            console.log(`EmailTrack: [UI] Badge Injected on attempt ${attempt}`);
+            logger.log(`EmailTrack: [UI] Badge Injected on attempt ${attempt}`);
         } else if (attempt < 5) {
             // Retry with backoff (500ms, 1000ms... 2500ms)
             setTimeout(() => attemptInject(attempt + 1), 500 * attempt);
         } else {
-            console.warn('EmailTrack: [UI] Failed to inject optimistic badge after 5 attempts');
+            logger.warn('EmailTrack: [UI] Failed to inject optimistic badge after 5 attempts');
         }
     };
 
@@ -76,7 +77,7 @@ function handleOptimisticBadge(trackId: string): boolean {
     const anchor = dateElement || subjectHeader;
 
     if (anchor && anchor.parentElement) {
-        console.log('EmailTrack: [UI] Optimistically injecting badge for', trackId);
+        logger.log('EmailTrack: [UI] Optimistically injecting badge for', trackId);
         const statsContainer = document.createElement('span');
         statsContainer.style.marginLeft = '10px';
         statsContainer.style.display = 'inline-flex';
@@ -166,6 +167,7 @@ function injectStats() {
         }
     });
 }
+
 
 // Watch for DOM changes to inject Stats
 const observer = new MutationObserver(() => {

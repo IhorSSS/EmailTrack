@@ -6,8 +6,9 @@ import { Header } from './components/Layout/Header';
 import { EmailItem } from './components/activity/EmailItem';
 import { DetailView } from './components/activity/DetailView';
 import { Card } from './components/common/Card';
-
-const API_BASE = 'https://emailtrack.isnode.pp.ua';
+import { API_CONFIG } from './config/api';
+import { theme } from './config/theme';
+import { CONSTANTS } from './config/constants';
 
 interface TrackedEmail {
   id: string;
@@ -76,7 +77,7 @@ function App() {
     setLoading(true);
     try {
       // Increased limit to 1000 to get a good history window
-      let url = `${API_BASE}/dashboard?limit=1000`;
+      let url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}?limit=${API_CONFIG.PARAMS.DASHBOARD_LIMIT}`;
       if (currentUser) {
         url += `&user=${encodeURIComponent(currentUser)}`;
       }
@@ -179,7 +180,7 @@ function App() {
           </div>
         </Card>
         <Card>
-          <div style={{ fontSize: '28px', fontWeight: 800, color: stats.rate > 50 ? '#166534' : 'var(--color-primary)' }}>
+          <div style={{ fontSize: '28px', fontWeight: 800, color: stats.rate > 50 ? theme.colors.successText : theme.colors.primary }}>
             {stats.rate}%
           </div>
           <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
@@ -190,7 +191,7 @@ function App() {
 
       {/* Current User Badge */}
       {currentUser && (
-        <div style={{ marginBottom: '16px', padding: '8px 12px', background: '#eff6ff', borderRadius: '6px', fontSize: '13px', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ marginBottom: '16px', padding: '8px 12px', background: theme.colors.infoLight, borderRadius: '6px', fontSize: '13px', color: theme.colors.infoDark, display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span>👤</span> Logged in as: <strong>{currentUser}</strong>
         </div>
       )}
@@ -200,9 +201,9 @@ function App() {
         <h3 style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>Recent Activity</h3>
         <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
           {processedEmails.length === 0 ? (
-            <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: '#94a3b8' }}>No activity yet.</div>
+            <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: theme.colors.gray400 }}>No activity yet.</div>
           ) : (
-            processedEmails.slice(0, 3).map(email => (
+            processedEmails.slice(0, CONSTANTS.DASHBOARD_RECENT_COUNT).map(email => (
               <EmailItem
                 key={email.id}
                 email={email}
@@ -251,7 +252,7 @@ function App() {
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {displayEmails.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+          <div style={{ padding: '40px', textAlign: 'center', color: theme.colors.gray400 }}>
             {searchQuery ? 'No matches found.' : 'No emails found.'}
           </div>
         ) : (
@@ -282,14 +283,14 @@ function App() {
           <div
             onClick={toggleGlobal}
             style={{
-              width: '44px', height: '24px', background: globalEnabled ? 'var(--color-primary)' : '#e2e8f0',
+              width: '44px', height: '24px', background: globalEnabled ? theme.colors.primary : theme.colors.gray200,
               borderRadius: '20px', position: 'relative', cursor: 'pointer', transition: 'background 0.3s'
             }}
           >
             <div style={{
               width: '20px', height: '20px', background: 'white', borderRadius: '50%',
               position: 'absolute', top: '2px', left: globalEnabled ? '22px' : '2px',
-              transition: 'left 0.3s', boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+              transition: 'left 0.3s', boxShadow: theme.shadows.toggle
             }} />
           </div>
         </div>
@@ -307,7 +308,7 @@ function App() {
                   chrome.storage.local.remove('deletedIds');
                 }
               }}
-              style={{ fontSize: '11px', color: '#dc2626', background: 'none', border: '1px solid #fecaca', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}
+              style={{ fontSize: '11px', color: theme.colors.danger, background: 'none', border: `1px solid ${theme.colors.dangerLight}`, padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}
             >
               Reset
             </button>
@@ -372,8 +373,8 @@ const FilterChip = ({ label, active, onClick }: any) => (
       fontSize: '12px',
       fontWeight: 500,
       cursor: 'pointer',
-      background: active ? 'var(--color-primary)' : '#e2e8f0',
-      color: active ? 'white' : '#64748b',
+      background: active ? theme.colors.primary : theme.colors.gray200,
+      color: active ? 'white' : theme.colors.gray500,
       transition: 'all 0.2s'
     }}
   >

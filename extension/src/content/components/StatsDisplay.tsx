@@ -2,8 +2,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { MapPin, Monitor, Smartphone, Clock, ShieldCheck, RefreshCw } from 'lucide-react';
 import './StatsDisplay.css';
-
 import { format } from 'date-fns';
+import { theme } from '../../config/theme';
+import { CONSTANTS } from '../../config/constants';
 
 interface StatsDisplayProps {
     trackId: string;
@@ -15,6 +16,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
     const [refreshing, setRefreshing] = useState(false); // New state for manual refresh
     const [showDetails, setShowDetails] = useState(false);
     const [popupStyle, setPopupStyle] = useState<React.CSSProperties>({});
+    const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set()); // Track expanded groups
     const badgeRef = useRef<HTMLSpanElement>(null);
 
     const fetchStats = (isRefresh = false) => {
@@ -53,23 +55,28 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
         if (openCount > 0) {
             if (!showDetails && badgeRef.current) {
                 const rect = badgeRef.current.getBoundingClientRect();
-                const POPUP_WIDTH = 320;
-                const POPUP_HEIGHT = 300;
+                const { POPUP } = CONSTANTS;
 
-                let top = rect.bottom + window.scrollY + 8;
-                let left = rect.left + window.scrollX;
+                // Calculate available space in viewport
+                const spaceBelow = window.innerHeight - rect.bottom;
 
-                // Vertical collision
-                if (rect.bottom + POPUP_HEIGHT > window.innerHeight) {
-                    top = rect.top + window.scrollY - POPUP_HEIGHT - 8;
+                let style: React.CSSProperties = { left: rect.left };
+
+                // Simple positioning logic
+                if (spaceBelow >= 200) {
+                    // Enough space below - position below badge
+                    style.top = rect.bottom + POPUP.OFFSET;
+                } else {
+                    // Not enough space below - position above badge using bottom
+                    style.bottom = window.innerHeight - rect.top + POPUP.OFFSET;
                 }
 
                 // Horizontal collision
-                if (rect.left + POPUP_WIDTH > window.innerWidth) {
-                    left = window.innerWidth - POPUP_WIDTH - 20;
+                if (rect.left + POPUP.WIDTH > window.innerWidth) {
+                    style.left = window.innerWidth - POPUP.WIDTH - 20;
                 }
 
-                setPopupStyle({ top, left });
+                setPopupStyle(style);
             }
             setShowDetails(!showDetails);
         }
@@ -79,6 +86,18 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
         e.stopPropagation();
         setShowDetails(false);
     }
+
+    const toggleGroup = (index: number) => {
+        setExpandedGroups(prev => {
+            const next = new Set(prev);
+            if (next.has(index)) {
+                next.delete(index);
+            } else {
+                next.add(index);
+            }
+            return next;
+        });
+    };
 
     if (loading) return <span className="email-track-badge loading">...</span>;
     if (!stats) return <span className="email-track-badge error">Error</span>;
@@ -133,7 +152,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
                     >
                         <div className="et-popup-header">
                             <h4>Read History</h4>
-                            <ShieldCheck size={16} color="#34a853" />
+                            <ShieldCheck size={16} color={theme.colors.success} />
                         </div>
                         <ul className="opens-list">
                             {(() => {
@@ -187,33 +206,77 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
                                     const isSame = last &&
                                         last.deviceStr === current.deviceStr &&
                                         last.location === current.location &&
-                                        (last.timestamp - current.timestamp < 10 * 60 * 1000); // Descending order usually
+                                        (last.timestamp - current.timestamp < CONSTANTS.GROUPING_WINDOW_MS); // Descending order usually
 
                                     if (isSame) {
                                         last.count = (last.count || 1) + 1;
+                                        // Store items for expansion
+                                        if (!last.items) {
+                                            last.items = [{ ...last }]; // Store first item
+                                        }
+                                        last.items.push(current);
                                     } else {
-                                        groupedEvents.push({ ...current, count: 1 });
+                                        groupedEvents.push({ ...current, count: 1, items: [current] });
                                     }
                                 });
 
                                 if (groupedEvents.length === 0) {
-                                    return <li className="et-timeline-item" style={{ justifyContent: 'center', color: '#888' }}>No opens recorded</li>;
+                                    return <li className="et-timeline-item" style={{ justifyContent: 'center', color: theme.colors.text.muted }}>No opens recorded</li>;
                                 }
 
                                 return groupedEvents.map((open: any, index: number) => {
-                                    return (
-                                        <li key={index} className="et-timeline-item">
-                                            <div className="et-row">
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
-                                                    <Clock className="et-icon" size={14} style={{ color: '#1a73e8' }} />
-                                                    <span className="et-time">
-                                                        {format(new Date(open.openedAt), 'MMM d, HH:mm')}
+                                    const isExpanded = expandedGroups.has(index);
+                                    const isGrouped = open.count > 1;
+
+                                    // Single item (not grouped)
+                                    if (!isGrouped) {
+                                        return (
+                                            <li key={index} className="et-timeline-item">
+                                                <div className="et-row">
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
+                                                        <Clock className="et-icon" size={14} style={{ color: theme.colors.info }} />
+                                                        <span className="et-time">
+                                                            {format(new Date(open.openedAt), 'MMM d, HH:mm')}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="et-row">
+                                                    <MapPin className="et-icon" />
+                                                    <span className="et-location">
+                                                        {open.location}
                                                     </span>
                                                 </div>
-                                                {open.count > 1 && (
+                                                <div className="et-row">
+                                                    {getDeviceIcon(open.deviceStr)}
+                                                    <span className="et-device">
+                                                        {open.deviceStr}
+                                                    </span>
+                                                </div>
+                                            </li>
+                                        );
+                                    }
+
+                                    // Grouped item - collapsed
+                                    if (!isExpanded) {
+                                        return (
+                                            <li
+                                                key={index}
+                                                className="et-timeline-item et-grouped"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    toggleGroup(index);
+                                                }}
+                                            >
+                                                <div className="et-row">
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
+                                                        <Clock className="et-icon" size={14} style={{ color: theme.colors.info }} />
+                                                        <span className="et-time">
+                                                            {format(new Date(open.openedAt), 'MMM d, HH:mm')}
+                                                        </span>
+                                                    </div>
                                                     <span style={{
-                                                        background: '#e8f0fe',
-                                                        color: '#1a73e8',
+                                                        background: theme.colors.infoBg,
+                                                        color: theme.colors.info,
                                                         fontSize: '10px',
                                                         padding: '2px 6px',
                                                         borderRadius: '10px',
@@ -221,20 +284,61 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
                                                     }}>
                                                         x{open.count}
                                                     </span>
-                                                )}
+                                                    <span className="et-chevron">▼</span>
+                                                </div>
+                                                <div className="et-row">
+                                                    <MapPin className="et-icon" />
+                                                    <span className="et-location">
+                                                        {open.location}
+                                                    </span>
+                                                </div>
+                                                <div className="et-row">
+                                                    {getDeviceIcon(open.deviceStr)}
+                                                    <span className="et-device">
+                                                        {open.deviceStr}
+                                                    </span>
+                                                </div>
+                                            </li>
+                                        );
+                                    }
+
+                                    // Grouped item - expanded
+                                    return (
+                                        <li key={index} className="et-timeline-group-expanded">
+                                            <div
+                                                className="et-group-header"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    toggleGroup(index);
+                                                }}
+                                            >
+                                                <span>Grouped Opens (x{open.count})</span>
+                                                <span className="et-chevron expanded">▼</span>
                                             </div>
-                                            <div className="et-row">
-                                                <MapPin className="et-icon" />
-                                                <span className="et-location">
-                                                    {open.location}
-                                                </span>
-                                            </div>
-                                            <div className="et-row">
-                                                {getDeviceIcon(open.deviceStr)}
-                                                <span className="et-device">
-                                                    {open.deviceStr}
-                                                </span>
-                                            </div>
+                                            {open.items.map((item: any, itemIdx: number) => (
+                                                <div key={itemIdx} className="et-group-item">
+                                                    <div className="et-row">
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
+                                                            <Clock className="et-icon" size={14} style={{ color: theme.colors.info }} />
+                                                            <span className="et-time">
+                                                                {format(new Date(item.openedAt), 'MMM d, HH:mm')}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="et-row">
+                                                        <MapPin className="et-icon" />
+                                                        <span className="et-location">
+                                                            {item.location}
+                                                        </span>
+                                                    </div>
+                                                    <div className="et-row">
+                                                        {getDeviceIcon(item.deviceStr)}
+                                                        <span className="et-device">
+                                                            {item.deviceStr}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </li>
                                     );
                                 });

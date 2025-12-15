@@ -1,12 +1,13 @@
+// Service Worker Background Script
+import { logger } from '../utils/logger';
+import { API_CONFIG } from '../config/api';
 
-console.log('EmailTrack: Background Script Loaded');
-
-const API_BASE = 'https://emailtrack.isnode.pp.ua';
+logger.log('EmailTrack: Background Script Loaded');
 
 async function handleRegister(data: any) {
-    console.log('Registering email:', data);
+    logger.log('Registering email:', data);
     try {
-        await fetch(`${API_BASE}/register`, {
+        await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.REGISTER}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -25,21 +26,21 @@ async function handleRegister(data: any) {
             chrome.storage.local.set({ currentUser: data.user });
         }
 
-        console.log('Email registered successfully');
+        logger.log('Email registered successfully');
     } catch (err) {
-        console.error('Registration failed:', err);
+        logger.error('Registration failed:', err);
     }
 }
 
 async function handleGetStats(trackId: string) {
-    console.log('Fetching stats for:', trackId);
+    logger.log('Fetching stats for:', trackId);
     try {
-        const res = await fetch(`${API_BASE}/stats/${trackId}`);
+        const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.STATS}/${trackId}`);
         if (!res.ok) throw new Error('Stats fetch failed');
         const data = await res.json();
         return data;
     } catch (err: any) {
-        console.error('Stats fetch error:', err);
+        logger.error('Stats fetch error:', err);
         return { error: err.message || 'Unknown error' };
     }
 }

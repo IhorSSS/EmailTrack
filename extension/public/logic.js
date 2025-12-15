@@ -1,10 +1,22 @@
+/**
+ * Configuration for tracking logic
+ * IMPORTANT: Keep in sync with src/config/api.ts
+ */
 const CONFIG = {
     HOST: 'https://emailtrack.isnode.pp.ua',
     PIXEL_BASE: '/track/track.gif'
 };
 
+// Centralized logger (manually toggle DEBUG for production)
+const DEBUG = true; // Set to false to disable all logs
+const logger = {
+    log: (...args) => DEBUG && console.log(...args),
+    warn: (...args) => DEBUG && console.warn(...args),
+    error: (...args) => console.error(...args) // Always log errors
+};
+
 (function () {
-    console.log("EmailTrack: [Logic] Logic.js initialized (Hybrid Mode).");
+    logger.log("EmailTrack: [Logic] Logic.js initialized (Hybrid Mode).");
 
     let gmail = null;
     let _depsRetry = 0;
@@ -47,7 +59,7 @@ const CONFIG = {
             editable.appendChild(img);
             injectedDrafts.add(editable);
             editable.dataset.etTrackId = trackId;
-            console.log(`EmailTrack: [Logic] DOM Injected (ID: ${trackId})`);
+            logger.log(`EmailTrack: [Logic] DOM Injected (ID: ${trackId})`);
         });
     }
 
@@ -89,7 +101,7 @@ const CONFIG = {
                     const matches = val.match(cleanRegex);
                     if (matches && matches.length > 0) {
                         pixelsCleanedCount += matches.length;
-                        console.log(`EmailTrack: [Logic] [Depth ${depth}] Cleaning ${matches.length} old pixel(s) from key [${key}] (length: ${val.length})`);
+                        logger.log(`EmailTrack: [Logic] [Depth ${depth}] Cleaning ${matches.length} old pixel(s) from key [${key}] (length: ${val.length})`);
                         val = val.replace(cleanRegex, '');
                         target[key] = val; // Apply cleanup
                     }
@@ -111,19 +123,19 @@ const CONFIG = {
         };
 
         // Run Traversal
-        console.log(`EmailTrack: [Logic] Starting deep cleanup & injection...`);
+        logger.log(`EmailTrack: [Logic] Starting deep cleanup & injection...`);
         traverse(obj);
-        console.log(`EmailTrack: [Logic] Cleanup complete: ${pixelsCleanedCount} old pixel(s) removed`);
+        logger.log(`EmailTrack: [Logic] Cleanup complete: ${pixelsCleanedCount} old pixel(s) removed`);
 
         // STAGE 2: INJECTION
         // Add ONE new pixel at the end of the main body
         if (longestBodyParent && longestBodyKey) {
-            console.log(`EmailTrack: [Logic] Injecting NEW pixel into key [${longestBodyKey}] (Length: ${longestBodyVal.length})`);
+            logger.log(`EmailTrack: [Logic] Injecting NEW pixel into key [${longestBodyKey}] (Length: ${longestBodyVal.length})`);
             longestBodyParent[longestBodyKey] += pixelTag;
-            console.log(`EmailTrack: [Logic] ✓ Injection successful - 1 new pixel added`);
+            logger.log(`EmailTrack: [Logic] ✓ Injection successful - 1 new pixel added`);
             return true;
         } else {
-            console.warn(`EmailTrack: [Logic] ✗ No suitable injection target found`);
+            logger.warn(`EmailTrack: [Logic] ✗ No suitable injection target found`);
         }
 
         return false;
@@ -141,17 +153,17 @@ const CONFIG = {
 
         try {
             gmail = new Gmail();
-            console.log("EmailTrack: [Logic] Gmail initialized.");
+            logger.log("EmailTrack: [Logic] Gmail initialized.");
             gmail.observe.before('send_message', interceptSend);
         } catch (e) {
-            console.error('EmailTrack: [Logic] Error:', e);
+            logger.error('EmailTrack: [Logic] Error:', e);
         }
     }
 
     function interceptSend(url, body, data, xhr) {
-        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        console.log("EmailTrack: [Logic] 📧 SEND INTERCEPTED");
-        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        logger.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        logger.log("EmailTrack: [Logic] 📧 SEND INTERCEPTED");
+        logger.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
         // ALWAYS Generate a Fresh ID for the outgoing email
         // This ensures thread hygiene and accurate tracking for THIS specific send.
@@ -162,23 +174,23 @@ const CONFIG = {
 
         // Robust Injection into XHR Params
         if (xhr && xhr.xhrParams && xhr.xhrParams.body_params) {
-            console.log("EmailTrack: [Logic] Target: xhr.xhrParams.body_params");
+            logger.log("EmailTrack: [Logic] Target: xhr.xhrParams.body_params");
             injected = deepModify(xhr.xhrParams.body_params, pixelTag);
 
             if (injected) {
-                console.log("✓ EmailTrack: [Logic] Cleanup & Injection SUCCESSFUL (XHR)");
+                logger.log("✓ EmailTrack: [Logic] Cleanup & Injection SUCCESSFUL (XHR)");
             } else {
-                console.warn("✗ EmailTrack: [Logic] Injection FAILED - No suitable body found");
+                logger.warn("✗ EmailTrack: [Logic] Injection FAILED - No suitable body found");
             }
         } else if (data) {
             // Fallback: Try modifying 'data' if XHR structure is unexpected
-            console.warn("EmailTrack: [Logic] XHR params unavailable, trying legacy 'data' injection");
+            logger.warn("EmailTrack: [Logic] XHR params unavailable, trying legacy 'data' injection");
             injected = deepModify(data, pixelTag);
             if (injected) {
-                console.log("✓ EmailTrack: [Logic] Cleanup & Injection via fallback");
+                logger.log("✓ EmailTrack: [Logic] Cleanup & Injection via fallback");
             }
         } else {
-            console.error("✗ EmailTrack: [Logic] No valid injection target found!");
+            logger.error("✗ EmailTrack: [Logic] No valid injection target found!");
         }
 
         // Notify Extension / UI
@@ -193,10 +205,10 @@ const CONFIG = {
                 detail: eventData
             }));
 
-            console.log("EmailTrack: [Logic] 📤 Event dispatched:", eventData);
+            logger.log("EmailTrack: [Logic] 📤 Event dispatched:", eventData);
         }
 
-        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        logger.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         return true;
     }
 
