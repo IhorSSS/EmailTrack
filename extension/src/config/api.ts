@@ -7,6 +7,8 @@ export const API_CONFIG = {
     BASE_URL: import.meta.env.VITE_API_URL || 'https://emailtrack.isnode.pp.ua',
     ENDPOINTS: {
         REGISTER: '/register',
+        LOGIN: '/auth/login',
+        SYNC: '/auth/sync',
         TRACK: '/track/img.png', // Changed to img.png to avoid blockers
         DASHBOARD: '/dashboard',
         STATS: '/stats'

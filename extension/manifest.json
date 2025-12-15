@@ -7,8 +7,16 @@
         "storage",
         "activeTab",
         "scripting",
-        "declarativeNetRequest"
+        "declarativeNetRequest",
+        "identity"
     ],
+    "oauth2": {
+        "client_id": "YOUR_CLIENT_ID.apps.googleusercontent.com",
+        "scopes": [
+            "email",
+            "profile"
+        ]
+    },
     "host_permissions": [
         "https://mail.google.com/*",
         "https://emailtrack.isnode.pp.ua/*"

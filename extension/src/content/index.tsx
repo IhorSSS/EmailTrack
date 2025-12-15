@@ -3,18 +3,26 @@ import StatsDisplay from './components/StatsDisplay';
 import './components/StatsDisplay.css';
 import { logger } from '../utils/logger';
 import { API_CONFIG } from '../config/api';
+import { LocalStorageService } from '../services/LocalStorageService';
 
 logger.log('EmailTrack: Content Script UI Loaded');
 
 // --- Script Injection for Main World (Tracking) ---
 const injectScript = (fileName: string) => {
-    const script = document.createElement('script');
-    script.src = chrome.runtime.getURL(fileName);
-    script.onload = function () {
-        logger.log(`EmailTrack: Injected ${fileName} `);
-        (this as HTMLScriptElement).remove();
-    };
-    (document.head || document.documentElement).appendChild(script);
+    try {
+        if (!chrome.runtime?.id) return; // Context invalidated
+        const url = chrome.runtime.getURL(fileName);
+        const script = document.createElement('script');
+        script.src = url;
+        script.onload = function () {
+            logger.log(`EmailTrack: Injected ${fileName} `);
+            (this as HTMLScriptElement).remove();
+        };
+        (document.head || document.documentElement).appendChild(script);
+    } catch (e) {
+        // Context invalidated or other runtime error
+        console.warn('EmailTrack: Failed to inject script (context invalidated?)', fileName);
+    }
 };
 
 // Inject dependencies in order
@@ -32,28 +40,35 @@ const STATS_INJECT_CLASS = 'email-track-stats-injected';
 
 // --- Configuration syncing to Main World (DOM-based for Sync Access) ---
 const sendConfigToMainWorld = () => {
-    chrome.storage.sync.get(['bodyPreviewLength'], (res) => {
-        const length = typeof res.bodyPreviewLength === 'number' ? res.bodyPreviewLength : 0;
+    try {
+        if (!chrome.runtime?.id) return;
+        chrome.storage.sync.get(['bodyPreviewLength'], (res) => {
+            if (chrome.runtime.lastError) return; // Ignore errors
 
-        const ensureConfig = () => {
-            let configEl = document.getElementById('emailtrack-config');
-            if (!configEl) {
-                configEl = document.createElement('div');
-                configEl.id = 'emailtrack-config';
-                configEl.style.display = 'none';
-                (document.head || document.documentElement).appendChild(configEl);
-            }
-            if (configEl.getAttribute('data-body-preview-length') !== length.toString()) {
-                configEl.setAttribute('data-body-preview-length', length.toString());
-                // Use console.error to ensure it appears in user logs (bypass filters)
-                logger.log('EmailTrack: [Content] Written config to DOM:', length);
-            }
-        };
+            const length = typeof res.bodyPreviewLength === 'number' ? res.bodyPreviewLength : 0;
 
-        ensureConfig();
-        // Re-check periodically to ensure Gmail didn't wipe it
-        setTimeout(ensureConfig, 1000);
-    });
+            const ensureConfig = () => {
+                let configEl = document.getElementById('emailtrack-config');
+                if (!configEl) {
+                    configEl = document.createElement('div');
+                    configEl.id = 'emailtrack-config';
+                    configEl.style.display = 'none';
+                    (document.head || document.documentElement).appendChild(configEl);
+                }
+                if (configEl.getAttribute('data-body-preview-length') !== length.toString()) {
+                    configEl.setAttribute('data-body-preview-length', length.toString());
+                    // Use console.error to ensure it appears in user logs (bypass filters)
+                    logger.log('EmailTrack: [Content] Written config to DOM:', length);
+                }
+            };
+
+            ensureConfig();
+            // Re-check periodically to ensure Gmail didn't wipe it
+            setTimeout(ensureConfig, 1000);
+        });
+    } catch (e) {
+        // Ignore context errors
+    }
 };
 
 // Initial sync - Aggressive
@@ -63,11 +78,14 @@ setTimeout(sendConfigToMainWorld, 2000);
 setInterval(sendConfigToMainWorld, 5000); // Heartbeat config sync
 
 // Watch for changes
-chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'sync' && changes.bodyPreviewLength) {
-        sendConfigToMainWorld();
-    }
-});
+try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (!chrome.runtime?.id) return;
+        if (area === 'sync' && changes.bodyPreviewLength) {
+            sendConfigToMainWorld();
+        }
+    });
+} catch (e) { }
 
 // --- Helper to extract user email from Gmail UI ---
 function extractUserEmail(): string | null {
@@ -84,7 +102,7 @@ function extractUserEmail(): string | null {
 }
 
 // --- Optimistic UI: Listen for Sent Events from logic.js ---
-window.addEventListener('message', (event) => {
+window.addEventListener('message', async (event) => {
     if (event.source !== window) return;
     if (!event.data || event.data.type !== 'EMAILTRACK_REGISTER') return;
 
@@ -100,11 +118,36 @@ window.addEventListener('message', (event) => {
     const userEmail = extractUserEmail();
     logger.log('[Content] Extracted user email:', userEmail);
 
-    // 1. Register with Backend
+    // Save Current User to Local Storage for Popup usage
+    if (userEmail && chrome.runtime?.id) {
+        chrome.storage.local.set({ currentUser: userEmail }, () => {
+            if (chrome.runtime.lastError) {
+                // ignore
+            }
+        });
+    }
+
+    // 1. Save Metadata to Local Storage (Incognito)
+    try {
+        await LocalStorageService.saveEmail({
+            id,
+            subject: subject || 'No Subject',
+            recipient: recipient || 'Unknown',
+            body: body || '',
+            user: userEmail || 'Unknown',
+            createdAt: new Date().toISOString()
+        });
+        logger.log('[Content] Saved metadata locally.');
+    } catch (e) {
+        logger.error('[Content] Failed to save local metadata:', e);
+    }
+
+    // 2. Register with Backend (Anonymous / ID Only)
+    // Privacy: We do NOT send subject, recipient, body, or user.
     fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.REGISTER}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, subject, recipient, body, user: userEmail }),
+        body: JSON.stringify({ id }), // Only ID
     })
         .then((res) => {
             if (!res.ok) {

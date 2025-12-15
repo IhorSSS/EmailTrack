@@ -11,27 +11,23 @@ import { theme } from './config/theme';
 import { Modal } from './components/common/Modal';
 import { CONSTANTS } from './config/constants';
 
-interface TrackedEmail {
-  id: string;
-  recipient: string;
-  subject: string;
-  body?: string;
-  user?: string;
-  createdAt: string;
-  opens: any[];
-  openCount: number;
-  _count?: { opens: number }; // Backend format
-}
+import { LocalStorageService } from './services/LocalStorageService';
+import type { TrackedEmail } from './types';
+import { AuthService, type UserProfile } from './services/AuthService';
 
-function App() {
+const App = () => {
   const [view, setView] = useState<'dashboard' | 'activity' | 'settings'>('dashboard');
   const [selectedEmail, setSelectedEmail] = useState<TrackedEmail | null>(null);
 
   // Data
   const [emails, setEmails] = useState<TrackedEmail[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<string | null>(null); // Local sender identity
   const [error, setError] = useState<string | null>(null);
+
+  // Auth
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
 
   // Settings
   const [globalEnabled, setGlobalEnabled] = useState(true);
@@ -59,8 +55,74 @@ function App() {
     loadInitialData();
   }, []);
 
+  const handleLogin = async () => {
+    try {
+      const token = await AuthService.getAuthToken(true);
+      setAuthToken(token);
+      const profile = await AuthService.getUserProfile(token);
+      setUserProfile(profile);
+
+      // Sync with Backend
+      await AuthService.syncUser(profile.email, profile.id);
+
+      // Upload Local History if exists
+      try {
+        const localEmails = await LocalStorageService.getEmails();
+        if (localEmails.length > 0) {
+          const count = await AuthService.uploadHistory(localEmails, profile.id, profile.email);
+          if (count > 0) {
+            await LocalStorageService.clearAll();
+            setStatusModal({
+              isOpen: true,
+              title: 'History Synced',
+              message: `Migrated ${count} existing emails to your cloud account.`,
+              type: 'success'
+            });
+          }
+        }
+      } catch (syncErr) {
+        console.warn('History upload failed:', syncErr);
+        // Fail silently for user flow, but keep local data to retry later
+      }
+
+      // Refresh list to include cloud data
+      fetchEmails(profile);
+    } catch (e) {
+      console.error('Login failed', e);
+      setStatusModal({
+        isOpen: true,
+        title: 'Login Failed',
+        message: 'Could not sign in to Google. ' + (e instanceof Error ? e.message : ''),
+        type: 'danger'
+      });
+    }
+  };
+
+  const handleLogout = async () => {
+    if (authToken) {
+      await AuthService.logout(authToken);
+      setAuthToken(null);
+      setUserProfile(null);
+      // Refresh list (revert to incognito only)
+      fetchEmails(null);
+    }
+  };
+
   const loadInitialData = async () => {
     setLoading(true);
+
+    // 0. Check Auth (Silent)
+    let profile: UserProfile | null = null;
+    try {
+      const token = await AuthService.getAuthToken(false);
+      if (token) {
+        setAuthToken(token);
+        try {
+          profile = await AuthService.getUserProfile(token);
+          setUserProfile(profile);
+        } catch (ignored) { }
+      }
+    } catch (e) { }
 
     // 1. Load Local Storage (Current User only)
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
@@ -82,46 +144,112 @@ function App() {
     }
 
     // 2. Fetch Data
-    await fetchEmails();
+    await fetchEmails(profile);
   };
 
-  const fetchEmails = async () => {
+  const fetchEmails = async (overrideProfile?: UserProfile | null) => {
     setLoading(true);
     setError(null);
     try {
-      // Increased limit to 1000 to get a good history window
-      // Force no-cache to get fresh list
-      let url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}?limit=${API_CONFIG.PARAMS.DASHBOARD_LIMIT}&t=${Date.now()}`;
-      if (currentUser) {
-        url += `&user=${encodeURIComponent(currentUser)}`;
+      // Use override profile if provided (during login/logout flow), otherwise current state
+      const effectiveProfile = overrideProfile !== undefined ? overrideProfile : userProfile;
+
+      // 1. Load Local History (Incognito)
+      const localEmails = await LocalStorageService.getEmails();
+      const localIds = localEmails.map(e => e.id);
+
+      // 2. Build Query
+      // We increased limit to 1000 to cover recent history
+
+      const params = new URLSearchParams();
+      params.append('limit', '1000');
+      params.append('t', String(Date.now()));
+
+      if (effectiveProfile) {
+        // Authenticated: Use Owner ID (Cloud Mode)
+        params.append('ownerId', effectiveProfile.id);
+        // Optionally filter by specific sender if currentUser is set?
+        // For now, Cloud Mode shows ALL history for this account.
+      } else if (currentUser) {
+        // Unauthenticated: Filter by Sender Identity (Incognito)
+        params.append('user', currentUser);
       }
-      const res = await fetch(url, {
+
+      // Hybrid: Also ask for stats for our local IDs
+      // This ensures that even if I am logged in, if I have local incognito data that ISN'T owned by me (yet), I see stats?
+      // Or if I am logged out, I see stats for my local data.
+      if (localIds.length > 0) {
+        params.append('ids', localIds.join(','));
+      }
+
+      // If we have neither user nor local IDs, empty state
+      if (!effectiveProfile && !currentUser && localIds.length === 0) {
+        setEmails([]);
+        setStats({ tracked: 0, opened: 0, rate: 0 });
+        setLoading(false);
+        return;
+      }
+
+      const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}?${params.toString()}`, {
         cache: 'no-store'
       });
 
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
 
-      const { data, total } = await res.json();
-      const list: TrackedEmail[] = data || [];
+      const { data } = await res.json();
+      const serverEmails: TrackedEmail[] = data || [];
 
-      // Transform backend response
-      const transformedList = list.map((email: any) => ({
-        ...email,
-        openCount: email._count?.opens ?? email.openCount ?? 0,
-        opens: email.opens || []
-      }));
+      // 3. MERGE STRATEGY
+      const emailMap = new Map<string, TrackedEmail>();
 
-      // No more hidden emails filter
-      setEmails(transformedList);
+      // Priority 1: Server Data (contains updated Stats + Legacy Metadata)
+      serverEmails.forEach(e => {
+        emailMap.set(e.id, {
+          ...e,
+          openCount: (e as any)._count?.opens ?? e.openCount ?? 0,
+          opens: e.opens || []
+        });
+      });
 
-      // Recalculate stats using TOTAL from backend for accuracy
-      const tracked = total || transformedList.length;
-      const opened = transformedList.filter((e: TrackedEmail) => e.openCount > 0).length;
-      const rate = transformedList.length > 0 ? Math.round((opened / transformedList.length) * 100) : 0;
+      // Priority 2: Local Data (Restores Metadata for Incognito items where Server returns nulls)
+      localEmails.forEach(local => {
+        const existing = emailMap.get(local.id);
+        if (existing) {
+          // Hybrid Merge: Keep Server Stats, Restore Local Metadata if Server missing it
+          // If authenticated, Server might have full metadata. If so, don't overwrite with local?
+          // Actually local is usually fresher or source of truth for Incognito.
+          // But if I synced to cloud, Cloud is truth.
+          // For now, if server has body, keep it.
+          emailMap.set(local.id, {
+            ...existing,
+            subject: existing.subject || local.subject,
+            recipient: existing.recipient || local.recipient,
+            body: existing.body || local.body,
+          });
+        } else {
+          // Local-only item
+          emailMap.set(local.id, {
+            ...local,
+            opens: [],
+            openCount: 0,
+            createdAt: local.createdAt || new Date().toISOString()
+          } as TrackedEmail);
+        }
+      });
+
+      const mergedList = Array.from(emailMap.values())
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      setEmails(mergedList);
+
+      // Stats
+      // Use logic-based totals
+      const tracked = mergedList.length;
+      const opened = mergedList.filter(e => e.openCount > 0).length;
+      const rate = tracked > 0 ? Math.round((opened / tracked) * 100) : 0;
 
       setStats({ tracked, opened, rate });
+
     } catch (e) {
       console.error('Failed to fetch emails:', e);
       setError(e instanceof Error ? e.message : 'Failed to load data');
@@ -514,7 +642,13 @@ function App() {
 
   return (
     <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Header onRefresh={loadInitialData} loading={loading} />
+      <Header
+        onRefresh={loadInitialData}
+        loading={loading}
+        userProfile={userProfile}
+        onLogin={handleLogin}
+        onLogout={handleLogout}
+      />
 
       {/* Content Area */}
       <main style={{ flex: 1, overflowY: 'auto', background: 'var(--color-bg)' }}>

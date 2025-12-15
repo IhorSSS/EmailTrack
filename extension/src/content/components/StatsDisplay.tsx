@@ -126,7 +126,8 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
     }
 
     if (loading) return <span className="email-track-badge loading">...</span>;
-    if (!stats) return <span className="email-track-badge error">Error</span>;
+    // If stats failed to load (e.g. 404 deleted), return null to hide the badge
+    if (!stats || (stats as any).error) return null;
 
     const openCount = Array.isArray(stats.opens) ? stats.opens.length : (typeof stats.opens === 'number' ? stats.opens : 0);
     const openText = openCount > 0 ? `${openCount} Open${openCount === 1 ? '' : 's'}` : 'Unopened';

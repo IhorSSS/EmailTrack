@@ -7,16 +7,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        String         @id @default(uuid())
+  email     String         @unique
+  googleId  String?        @unique
+  createdAt DateTime       @default(now())
+  emails    TrackedEmail[]
+
+  @@map("users")
+}
+
 model TrackedEmail {
   id        String      @id @default(uuid())
   subject   String?
   recipient String?
   body      String?     // Email body snippet
-  user      String?     // Sender email (User ID)
+  user      String?     // Sender email address (Source Identity)
+  
+  ownerId   String?     // Master Account ID (Nullable for Incognito/Legacy)
+  owner     User?       @relation(fields: [ownerId], references: [id])
+  
   createdAt DateTime    @default(now())
   opens     OpenEvent[]
 
   @@map("tracked_emails")
+  @@index([ownerId])
 }
 
 model OpenEvent {
