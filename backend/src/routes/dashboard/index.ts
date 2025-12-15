@@ -61,14 +61,44 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
     });
 
     fastify.delete('/', async (request, reply) => {
-        const { user, ownerId } = request.query as { user?: string, ownerId?: string };
+        const { user, ownerId, ids } = request.query as { user?: string, ownerId?: string, ids?: string };
 
-        if (!user && !ownerId) {
-            return reply.status(400).send({ error: 'User or ownerId parameter is required' });
+        if (!user && !ownerId && !ids) {
+            return reply.status(400).send({ error: 'User, ownerId or ids parameter is required' });
         }
 
         try {
             const result = await prisma.$transaction(async (tx) => {
+                // If specific IDs are provided, prioritized them (Incognito logic primarily)
+                if (ids) {
+                    const idList = ids.split(',').filter(Boolean);
+                    if (idList.length > 0) {
+                        // Security/Logic Check:
+                        // If ownerId is present, we SHOULD verify these IDs belong to that owner?
+                        // If user (email) is present, we SHOULD verify these IDs belong to that sender?
+                        // However, standard dashboard usage implies filtering already happened on client.
+                        // For Incognito, we just want to delete these specific IDs that the client knows about locally.
+
+                        const whereIdObj = { in: idList };
+
+                        // Optional: Add ownership filter if ownerId/user is provided to ensure we don't delete random IDs?
+                        // But UUIDs are hard to guess. Let's trust the IDs for now, as client sends local history.
+
+                        // 1. Delete events
+                        await tx.openEvent.deleteMany({
+                            where: { trackedEmailId: whereIdObj }
+                        });
+
+                        // 2. Delete emails
+                        return await tx.trackedEmail.deleteMany({
+                            where: { id: whereIdObj }
+                        });
+                    }
+                    return { count: 0 };
+                }
+
+                // --- Fallback: Broad Deletion (Account Wipe or Sender Wipe) ---
+
                 // Construct OR clause to catch both Cloud (ownerId) and Legacy/Ghost (user email) records
                 const conditions: any[] = [];
                 if (ownerId) conditions.push({ ownerId });

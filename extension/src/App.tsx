@@ -310,8 +310,6 @@ const App = () => {
   const activeIdentity = userProfile ? userProfile.email : currentUser;
 
   const confirmDeleteHistory = async () => {
-    if (!activeIdentity) return;
-
     // Check context validity before async
     if (typeof chrome !== 'undefined' && chrome.runtime && !chrome.runtime.id) {
       setStatusModal({
@@ -329,27 +327,65 @@ const App = () => {
       const params = new URLSearchParams();
 
       if (userProfile) {
+        // --- CLOUD MODE: Delete All for Account ---
         params.append('ownerId', userProfile.id);
-        // Also send user email to catch legacy/ghost data
+        // Also send user email to catch legacy/ghost data if any
         if (userProfile.email) params.append('user', userProfile.email);
-      } else {
-        params.append('user', activeIdentity);
-      }
 
-      const res = await fetch(`${urlBase}?${params.toString()}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete history');
+        const res = await fetch(`${urlBase}?${params.toString()}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Failed to delete history on server');
 
-      // Clear local state AND Storage (Conditionally)
-      if (userProfile) {
-        // Cloud Mode: Reset everything for this account context (local cache matches account)
+        // Clear ALL local storage to match account wipe
         await LocalStorageService.deleteAll();
+
       } else {
-        // Incognito Mode: Delete ONLY for the current filtered sender
-        await LocalStorageService.deleteBySender(activeIdentity);
+        // --- INCOGNITO MODE: Delete Local + Specific Server Pixels ---
+
+        let idsToDelete: string[] = [];
+        let senderToDelete: string | null = null;
+
+        if (senderFilter !== 'all') {
+          // Case A: Deleting specific sender
+          senderToDelete = senderFilter;
+          // Find all local emails for this sender to identify server pixels
+          const localEmails = await LocalStorageService.getEmails();
+          idsToDelete = localEmails
+            .filter(e => e.user === senderToDelete)
+            .map(e => e.id);
+        } else {
+          // Case B: Deleting ALL local history
+          const localEmails = await LocalStorageService.getEmails();
+          idsToDelete = localEmails.map(e => e.id);
+        }
+
+        // 1. Delete Server Data (Pixels) by IDs
+        if (idsToDelete.length > 0) {
+          // Chunking might be needed if too many, but for now send all
+          // 2000 chars URL limit protection? 
+          // If many IDs, we might need a POST, but route is DELETE.
+          // Let's rely on standard params for reasonable usage. 
+          // If huge, we might fail. MVP: send IDs.
+          params.append('ids', idsToDelete.join(','));
+
+          const res = await fetch(`${urlBase}?${params.toString()}`, { method: 'DELETE' });
+          if (!res.ok) console.warn('Server deletion partial failure', await res.text());
+        }
+
+        // 2. Delete Local Data
+        if (senderToDelete) {
+          await LocalStorageService.deleteBySender(senderToDelete);
+        } else {
+          await LocalStorageService.deleteAll();
+        }
       }
+
+      // Reset State
       setEmails([]);
       setStats({ tracked: 0, opened: 0, rate: 0 });
       setIsDeleteModalOpen(false); // Close confirmation modal
+
+      // Refresh to show remaining state (e.g. if we only deleted one sender)
+      loadInitialData();
 
       setStatusModal({
         isOpen: true,

@@ -6,7 +6,15 @@ vi.mock('../../db', () => ({
         trackedEmail: {
             findMany: vi.fn(),
             count: vi.fn(),
+            deleteMany: vi.fn(),
         },
+        openEvent: {
+            deleteMany: vi.fn(),
+        },
+        $transaction: vi.fn((callback) => callback({
+            openEvent: { deleteMany: vi.fn() },
+            trackedEmail: { deleteMany: vi.fn().mockResolvedValue({ count: 2 }) }
+        })),
     },
 }));
 
@@ -61,5 +69,33 @@ describe('Dashboard Route', () => {
         expect(prisma.trackedEmail.count).toHaveBeenCalledWith(expect.objectContaining({
             where: { user: 'test@example.com' }
         }));
+    });
+
+    describe('DELETE /dashboard', () => {
+        it('should delete emails by IDs when ids param is provided', async () => {
+            const mockDeleteOpenEvents = vi.fn();
+            const mockDeleteEmails = vi.fn().mockResolvedValue({ count: 2 });
+
+            (prisma.$transaction as any).mockImplementation(async (callback: any) => {
+                return callback({
+                    openEvent: { deleteMany: mockDeleteOpenEvents },
+                    trackedEmail: { deleteMany: mockDeleteEmails }
+                });
+            });
+
+            const response = await app.inject({
+                method: 'DELETE',
+                url: '/dashboard?ids=id1,id2',
+            });
+
+            expect(response.statusCode).toBe(200);
+            expect(response.json()).toEqual({ success: true, count: 2 });
+            expect(mockDeleteOpenEvents).toHaveBeenCalledWith({
+                where: { trackedEmailId: { in: ['id1', 'id2'] } }
+            });
+            expect(mockDeleteEmails).toHaveBeenCalledWith({
+                where: { id: { in: ['id1', 'id2'] } }
+            });
+        });
     });
 });
