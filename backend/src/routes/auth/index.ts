@@ -10,8 +10,13 @@ const authRoutes: FastifyPluginAsync = async (fastify, opts) => {
         }
 
         try {
-            // In a real app, verify the token here using google-auth-library
-            // For MVP, we trust the extension sent valid googleId/email from chrome.identity
+            // TODO: SECURITY - Verify Google OAuth token before production!
+            // Current MVP trusts chrome.identity, but this allows account takeover.
+            // Required for production:
+            // 1. npm install google-auth-library
+            // 2. Verify idToken from request.body.token
+            // 3. Extract googleId from verified payload
+            // See: https://developers.google.com/identity/sign-in/web/backend-auth
 
             const user = await UserService.createOrUpdate(email, googleId);
             return reply.send({ user });
@@ -26,6 +31,11 @@ const authRoutes: FastifyPluginAsync = async (fastify, opts) => {
 
         if (!googleId || !email || !Array.isArray(emails)) {
             return reply.status(400).send({ error: 'Missing required fields' });
+        }
+
+        // SECURITY: Limit batch size to prevent DoS
+        if (emails.length > 1000) {
+            return reply.status(400).send({ error: 'Batch too large. Maximum 1000 emails per sync.' });
         }
 
         try {

@@ -13,14 +13,23 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
         };
         console.log(`[REGISTER] Attempting to register email. ID: ${id}, User: ${user}, OwnerId: ${ownerId}`);
 
-        const email = await prisma.trackedEmail.create({
-            data: {
+        // Use upsert to handle duplicate IDs gracefully
+        const email = await prisma.trackedEmail.upsert({
+            where: { id: id || 'never-exists' }, // Fallback for auto-generated IDs
+            update: {
+                subject,
+                recipient,
+                body,
+                user,
+                ownerId
+            },
+            create: {
                 id,
                 subject,
                 recipient,
                 body,
                 user,
-                ownerId // Link to Cloud account if provided
+                ownerId
             }
         });
 

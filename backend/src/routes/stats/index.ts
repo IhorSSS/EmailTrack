@@ -18,7 +18,18 @@ const statsRoutes: FastifyPluginAsync = async (fastify, opts) => {
             return reply.status(404).send({ error: 'Not Found' });
         }
 
-        reply.send(email);
+        // SECURITY: Don't expose sensitive data (subject, body, recipient, ownerId)
+        // Only return anonymized tracking stats
+        reply.send({
+            id: email.id,
+            tracked: true,
+            openCount: email.opens.length,
+            opens: email.opens.map(open => ({
+                openedAt: open.openedAt,
+                device: open.device, // Already anonymized by tracker
+                location: open.location // City/Country only
+            }))
+        });
     });
 };
 

@@ -123,13 +123,14 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
                             });
 
                             if (unauthorized.length > 0) {
-                                throw new Error('Unauthorized: Cannot delete items belonging to another user');
+                                // SECURITY: Don't reveal which specific IDs are unauthorized
+                                return reply.status(403).send({ error: 'Forbidden' });
                             }
                         } else {
                             // No ownerId/user provided - only allow deletion of unowned items
                             const ownedItems = existingEmails.filter(e => e.ownerId !== null);
                             if (ownedItems.length > 0) {
-                                throw new Error('Unauthorized: Cannot delete owned items without authentication');
+                                return reply.status(403).send({ error: 'Forbidden' });
                             }
                         }
 
