@@ -35,6 +35,7 @@ function App() {
 
   // Settings
   const [globalEnabled, setGlobalEnabled] = useState(true);
+  const [bodyPreviewLength, setBodyPreviewLength] = useState(0); // 0 = disabled
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -64,10 +65,13 @@ function App() {
     }
 
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
-      chrome.storage.sync.get(['trackingEnabled'], (res) => {
+      chrome.storage.sync.get(['trackingEnabled', 'bodyPreviewLength'], (res) => {
         if (res.trackingEnabled !== undefined) {
           setGlobalEnabled(!!res.trackingEnabled);
         }
+        // Default to 0 if not set (GDPR: privacy by default)
+        const previewLength = typeof res.bodyPreviewLength === 'number' ? res.bodyPreviewLength : 0;
+        setBodyPreviewLength(previewLength);
       });
     }
 
@@ -101,6 +105,12 @@ function App() {
       }));
 
       setEmails(transformedList);
+
+      // Recalculate stats (Issue #3 fix: refresh now updates stats)
+      const tracked = transformedList.length;
+      const opened = transformedList.filter(e => e.openCount > 0).length;
+      const rate = tracked > 0 ? Math.round((opened / tracked) * 100) : 0;
+      setStats({ tracked, opened, rate });
     } catch (e) {
       console.error('Failed to fetch emails:', e);
       setError(e instanceof Error ? e.message : 'Failed to load data');
@@ -114,6 +124,13 @@ function App() {
     setGlobalEnabled(newState);
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
       chrome.storage.sync.set({ trackingEnabled: newState });
+    }
+  };
+
+  const handleBodyPreviewChange = (value: number) => {
+    setBodyPreviewLength(value);
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
+      chrome.storage.sync.set({ bodyPreviewLength: value });
     }
   };
 
@@ -234,7 +251,7 @@ function App() {
       {/* Recent Activity Preview */}
       <div style={{ marginBottom: '16px' }}>
         <h3 style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>Recent Activity</h3>
-        <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+        <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
           {processedEmails.length === 0 ? (
             <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: theme.colors.gray400 }}>No activity yet.</div>
           ) : (
@@ -332,10 +349,70 @@ function App() {
       </Card>
 
       <div style={{ marginTop: '20px' }}>
-        <h4 style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '8px', textTransform: 'uppercase' }}>Data & Storage</h4>
+        <h4 style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '8px', textTransform: 'uppercase' }}>Email Body Preview</h4>
+        <Card>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+              <div style={{ flex: 1 }}>
+                <h4 style={{ fontSize: '14px', fontWeight: 500, marginBottom: '4px' }}>Save Content Preview</h4>
+                <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: 0 }}>
+                  Store email content for easier identification in tracking history
+                </p>
+              </div>
+            </div>
+
+            <select
+              value={bodyPreviewLength}
+              onChange={(e) => handleBodyPreviewChange(Number(e.target.value))}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--color-border)',
+                fontSize: '13px',
+                background: 'var(--color-bg-card)',
+                color: 'var(--color-text-main)',
+                cursor: 'pointer'
+              }}
+            >
+              <option value={0}>Disabled (Recommended for privacy)</option>
+              <option value={50}>50 characters</option>
+              <option value={100}>100 characters</option>
+              <option value={150}>150 characters</option>
+              <option value={200}>200 characters</option>
+              <option value={-1}>Full email</option>
+            </select>
+
+            {bodyPreviewLength > 0 && (
+              <div style={{
+                marginTop: '12px',
+                padding: '8px 12px',
+                background: theme.colors.infoLight,
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '11px',
+                color: theme.colors.infoDark,
+                display: 'flex',
+                gap: '6px',
+                alignItems: 'flex-start'
+              }}>
+                <span>ℹ️</span>
+                <span>Email content will be stored on your tracking server. We recommend keeping this disabled for sensitive communications.</span>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      <div style={{ marginTop: '20px' }}>
+        <h4 style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '8px', textTransform: 'uppercase' }}>Hidden Emails</h4>
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '13px' }}>Clear Hidden History</span>
+            <div>
+              <span style={{ fontSize: '13px', fontWeight: 500 }}>{deletedIds.size} hidden</span>
+              <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px', margin: 0 }}>
+                Emails you've hidden from this view
+              </p>
+            </div>
             <button
               onClick={() => {
                 setDeletedIds(new Set());
@@ -343,9 +420,19 @@ function App() {
                   chrome.storage.local.remove('deletedIds');
                 }
               }}
-              style={{ fontSize: '11px', color: theme.colors.danger, background: 'none', border: `1px solid ${theme.colors.dangerLight}`, padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }}
+              disabled={deletedIds.size === 0}
+              style={{
+                fontSize: '11px',
+                color: deletedIds.size === 0 ? theme.colors.gray400 : theme.colors.primary,
+                background: 'none',
+                border: `1px solid ${deletedIds.size === 0 ? theme.colors.gray300 : theme.colors.primary}`,
+                padding: '6px 12px',
+                borderRadius: '4px',
+                cursor: deletedIds.size === 0 ? 'not-allowed' : 'pointer',
+                opacity: deletedIds.size === 0 ? 0.5 : 1
+              }}
             >
-              Reset
+              Show All
             </button>
           </div>
         </Card>

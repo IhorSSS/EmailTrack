@@ -1,8 +1,8 @@
-
 import { createRoot } from 'react-dom/client';
 import StatsDisplay from './components/StatsDisplay';
 import './components/StatsDisplay.css';
 import { logger } from '../utils/logger';
+import { API_CONFIG } from '../config/api';
 
 logger.log('EmailTrack: Content Script UI Loaded');
 
@@ -11,7 +11,7 @@ const injectScript = (fileName: string) => {
     const script = document.createElement('script');
     script.src = chrome.runtime.getURL(fileName);
     script.onload = function () {
-        logger.log(`EmailTrack: Injected ${fileName}`);
+        logger.log(`EmailTrack: Injected ${fileName} `);
         (this as HTMLScriptElement).remove();
     };
     (document.head || document.documentElement).appendChild(script);
@@ -30,27 +30,61 @@ setTimeout(() => {
 
 const STATS_INJECT_CLASS = 'email-track-stats-injected';
 
+// --- Helper to extract user email from Gmail UI ---
+function extractUserEmail(): string | null {
+    // Try Gmail's user email element
+    const emailElement = document.querySelector('.gb_Ha.gb_i, [aria-label*="@"]');
+    if (emailElement && emailElement.getAttribute('aria-label')) {
+        const label = emailElement.getAttribute('aria-label');
+        const match = label?.match(/\(([^)]+)\)/);
+        if (match && match[1]) {
+            return match[1];
+        }
+    }
+    return null;
+}
+
 // --- Optimistic UI: Listen for Sent Events from logic.js ---
 window.addEventListener('EMAILTRACK_REGISTER', (event: any) => {
-    const data = event.detail;
-    if (!data || !data.id) return;
+    logger.log('[Content] EMAILTRACK_REGISTER event received:', event.detail);
+    const { id, subject, recipient, body } = event.detail;
 
-    const { id } = data;
-    logger.log('EmailTrack: [UI] Received REGISTER CustomEvent for ID:', id);
+    if (!id) {
+        logger.warn('[Content] EMAILTRACK_REGISTER event missing ID.');
+        return;
+    }
 
-    // 1. Forward to Background Script
-    chrome.runtime.sendMessage({
-        type: 'REGISTER_EMAIL',
-        data: data
-    }, (response) => {
-        logger.log('EmailTrack: [UI] Registration forwarded to background:', response);
-    });
+    const userEmail = extractUserEmail();
+    logger.log('[Content] Extracted user email:', userEmail);
+
+    // 1. Register with Backend
+    fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.REGISTER} `, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, subject, recipient, body, user: userEmail }),
+    })
+        .then((res) => {
+            if (!res.ok) {
+                logger.error('[Content] Register failed:', res.status, res.statusText);
+                return res.text().then((text) => {
+                    logger.error('[Content] Error response:', text);
+                    throw new Error(`HTTP ${res.status} `);
+                });
+            }
+            return res.json();
+        })
+        .then((data) => {
+            logger.log('[Content] Successfully registered email:', data);
+        })
+        .catch((err) => {
+            logger.error('[Content] Error registering email:', err);
+        });
 
     // 2. Optimistic UI Update (With Retries)
     const attemptInject = (attempt = 1) => {
         const success = handleOptimisticBadge(id);
         if (success) {
-            logger.log(`EmailTrack: [UI] Badge Injected on attempt ${attempt}`);
+            logger.log(`EmailTrack: [UI] Badge Injected on attempt ${attempt} `);
         } else if (attempt < 5) {
             // Retry with backoff (500ms, 1000ms... 2500ms)
             setTimeout(() => attemptInject(attempt + 1), 500 * attempt);

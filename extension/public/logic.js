@@ -22,6 +22,34 @@ const logger = {
     let _depsRetry = 0;
     const injectedDrafts = new WeakSet();
 
+    // Body preview setting (0 = disabled, 50/100/150/200, -1 = full)
+    let BODY_PREVIEW_LENGTH = 0; // Default: disabled (GDPR: privacy by default)
+
+
+    // Load body preview setting from storage
+    function loadBodyPreviewSetting() {
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
+            chrome.storage.sync.get(['bodyPreviewLength'], (res) => {
+                BODY_PREVIEW_LENGTH = typeof res.bodyPreviewLength === 'number' ? res.bodyPreviewLength : 0;
+                logger.log('[Logic] Body preview length loaded:', BODY_PREVIEW_LENGTH);
+            });
+        }
+    }
+
+    // Listen for setting changes
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+        chrome.storage.onChanged.addListener((changes, area) => {
+            if (area === 'sync' && changes.bodyPreviewLength) {
+                BODY_PREVIEW_LENGTH = typeof changes.bodyPreviewLength.newValue === 'number'
+                    ? changes.bodyPreviewLength.newValue : 0;
+                logger.log('[Logic] Body preview length updated:', BODY_PREVIEW_LENGTH);
+            }
+        });
+    }
+
+    // Load setting on init
+    loadBodyPreviewSetting();
+
     // --- HELPER: Generate Pixel HTML ---
     function createPixel(trackId) {
         // Use a standard, hardcoded pixel tag to ensure consistency
@@ -195,10 +223,40 @@ const logger = {
 
         // Notify Extension / UI
         if (trackId) {
+            // Extract body text based on user preference
+            let bodyPreview = null;
+            if (BODY_PREVIEW_LENGTH !== 0) {
+                try {
+                    // Gmail stores body in various places, try common locations
+                    const bodyField = data.body || data.msgbody || data.ct || '';
+                    if (bodyField) {
+                        // Strip HTML tags and get plain text
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = bodyField;
+                        const plainText = tempDiv.textContent || tempDiv.innerText || '';
+
+                        if (BODY_PREVIEW_LENGTH === -1) {
+                            // Full email
+                            bodyPreview = plainText.trim();
+                            logger.log('[Logic] Extracting FULL email body');
+                        } else {
+                            // Limited length
+                            bodyPreview = plainText.trim().substring(0, BODY_PREVIEW_LENGTH);
+                            logger.log(`[Logic] Extracting ${BODY_PREVIEW_LENGTH} chars from body`);
+                        }
+                    }
+                } catch (e) {
+                    logger.warn('[Logic] Could not extract body preview:', e);
+                }
+            } else {
+                logger.log('[Logic] Body preview disabled (privacy mode)');
+            }
+
             const eventData = {
                 id: trackId,
                 subject: data.subject || "No Subject",
-                recipient: JSON.stringify(data.to || [])
+                recipient: JSON.stringify(data.to || []),
+                body: bodyPreview || null
             };
 
             window.dispatchEvent(new CustomEvent('EMAILTRACK_REGISTER', {

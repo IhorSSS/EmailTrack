@@ -16,6 +16,9 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
                 take,
                 orderBy: { createdAt: 'desc' },
                 include: {
+                    opens: {
+                        orderBy: { openedAt: 'desc' }
+                    },
                     _count: {
                         select: { opens: true }
                     }
