@@ -5,7 +5,7 @@ interface ModalProps {
     isOpen: boolean;
     title: string;
     message: React.ReactNode;
-    type?: 'danger' | 'info' | 'success';
+    type?: 'danger' | 'info' | 'success' | 'warning';
     confirmLabel?: string;
     cancelLabel?: string;
     onConfirm: () => void;

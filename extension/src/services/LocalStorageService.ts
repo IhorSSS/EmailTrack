@@ -103,6 +103,35 @@ export class LocalStorageService {
     }
 
     /**
-     * Clean up storage (e.g. remove very old items - optional)
+     * Clean up storage
      */
+    static async cleanup(): Promise<void> {
+        // No-op for now
+    }
+
+    // --- RETRY QUEUE FOR FAILED DELETIONS ---
+
+    static async queuePendingDelete(ids: string[], user?: string): Promise<void> {
+        return new Promise((resolve) => {
+            chrome.storage.local.get(['pending_deletes'], (result) => {
+                const queue = (result['pending_deletes'] || []) as { ids: string[], user?: string }[];
+                queue.push({ ids, user });
+                chrome.storage.local.set({ 'pending_deletes': queue }, resolve);
+            });
+        });
+    }
+
+    static async getPendingDeletes(): Promise<{ ids: string[], user?: string }[]> {
+        return new Promise((resolve) => {
+            chrome.storage.local.get(['pending_deletes'], (result) => {
+                resolve((result['pending_deletes'] || []) as { ids: string[], user?: string }[]);
+            });
+        });
+    }
+
+    static async clearPendingDeletes(): Promise<void> {
+        return new Promise((resolve) => {
+            chrome.storage.local.remove(['pending_deletes'], resolve);
+        });
+    }
 }

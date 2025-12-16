@@ -3,17 +3,18 @@ import { useEffect, useState, useMemo } from 'react';
 import './index.css'; // Global Reset
 import { Header } from './components/Layout/Header';
 // formatRecipient removed
-import { EmailItem } from './components/activity/EmailItem';
 import { DetailView } from './components/activity/DetailView';
-import { Card } from './components/common/Card';
 import { API_CONFIG } from './config/api';
-import { theme } from './config/theme';
 import { Modal } from './components/common/Modal';
-import { CONSTANTS } from './config/constants';
 
 import { LocalStorageService } from './services/LocalStorageService';
 import type { TrackedEmail } from './types';
 import { AuthService, type UserProfile } from './services/AuthService';
+
+import { DashboardView } from './views/DashboardView';
+import { ActivityView } from './views/ActivityView';
+import { SettingsView } from './views/SettingsView';
+import { TabButton } from './components/common/TabButton';
 
 const App = () => {
   const [view, setView] = useState<'dashboard' | 'activity' | 'settings'>('dashboard');
@@ -41,9 +42,8 @@ const App = () => {
   // Stats
   const [stats, setStats] = useState({ tracked: 0, opened: 0, rate: 0 });
 
-  // Modal State
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [statusModal, setStatusModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'danger' | 'info' }>({
+  // Modal State (Status only - Delete modal is now in SettingsView)
+  const [statusModal, setStatusModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'danger' | 'info' | 'warning' }>({
     isOpen: false,
     title: '',
     message: '',
@@ -149,43 +149,65 @@ const App = () => {
 
   const loadInitialData = async () => {
     setLoading(true);
-
-    // 0. Check Auth (Silent)
-    let profile: UserProfile | null = null;
     try {
-      const token = await AuthService.getAuthToken(false);
+      // 1. Process Pending Deletion Queue (Retry)
+      const pending = await LocalStorageService.getPendingDeletes();
+      if (pending.length > 0) {
+        console.log(`[SYNC] Processing ${pending.length} pending delete requests...`);
+        const urlBase = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}`;
+
+        // Try to process all, filter out successful ones
+        const remaining: { ids: string[], user?: string }[] = [];
+
+        for (const task of pending) {
+          try {
+            const params = new URLSearchParams();
+            params.append('ids', task.ids.join(','));
+            if (task.user) params.append('user', task.user);
+
+            const res = await fetch(`${urlBase}?${params.toString()}`, { method: 'DELETE' });
+            if (!res.ok) {
+              console.warn('[SYNC] Retry delete failed, keeping in queue', res.status);
+              remaining.push(task);
+            }
+          } catch (e) {
+            remaining.push(task); // Keep network errors in queue
+          }
+        }
+
+        // Update queue
+        await LocalStorageService.clearPendingDeletes();
+        if (remaining.length > 0) {
+          // Re-queue failed ones
+          for (const task of remaining) {
+            await LocalStorageService.queuePendingDelete(task.ids, task.user);
+          }
+        } else {
+          console.log('[SYNC] All pending deletions processed.');
+        }
+      }
+
+      const token = await AuthService.getAuthToken(false).catch(() => null);
       if (token) {
         setAuthToken(token);
-        try {
-          profile = await AuthService.getUserProfile(token);
-          setUserProfile(profile);
-          // CRITICAL: Ensure persistence even on silent load
+        const profile = await AuthService.getUserProfile(token);
+        setUserProfile(profile);
+
+        // Persistence: Save profile to LOCAL storage for Background Script access
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
           chrome.storage.local.set({ userProfile: profile });
-        } catch (ignored) { }
-      }
-    } catch (e) { }
-
-    // 1. Load Local Storage (Current User only)
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      const local = await chrome.storage.local.get(['currentUser']);
-      if (local.currentUser && typeof local.currentUser === 'string') {
-        setCurrentUser(local.currentUser);
-      }
-    }
-
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
-      chrome.storage.sync.get(['trackingEnabled', 'bodyPreviewLength'], (res) => {
-        if (res.trackingEnabled !== undefined) {
-          setGlobalEnabled(!!res.trackingEnabled);
         }
-        // Default to 0 if not set (GDPR: privacy by default)
-        const previewLength = typeof res.bodyPreviewLength === 'number' ? res.bodyPreviewLength : 0;
-        setBodyPreviewLength(previewLength);
-      });
-    }
 
-    // 2. Fetch Data
-    await fetchEmails(profile);
+        fetchEmails(profile);
+      } else {
+        fetchEmails(null);
+      }
+    } catch (e) {
+      console.log('Auto-login failed / Not logged in', e);
+      fetchEmails(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchEmails = async (overrideProfile?: UserProfile | null) => {
@@ -243,11 +265,25 @@ const App = () => {
       const emailMap = new Map<string, TrackedEmail>();
 
       // Priority 1: Server Data (contains updated Stats + Legacy Metadata)
+      // Priority 1: Server Data (contains updated Stats + Legacy Metadata)
       serverEmails.forEach(e => {
-        emailMap.set(e.id, {
+        const enriched = {
           ...e,
           openCount: (e as any)._count?.opens ?? e.openCount ?? 0,
           opens: e.opens || []
+        };
+        emailMap.set(e.id, enriched);
+
+        // HYDRATION: Ensure server data availability in Local Storage for offline/logout access
+        // This fixes the "Disappearing emails on logout after reinstall" issue
+        LocalStorageService.saveEmail({
+          id: enriched.id,
+          subject: enriched.subject || '',
+          recipient: enriched.recipient || '',
+          body: enriched.body || '',
+          user: enriched.user || '',
+          createdAt: enriched.createdAt,
+          // We don't save stats/opens locally as those are dynamic, but we save the core record
         });
       });
 
@@ -347,11 +383,11 @@ const App = () => {
 
         let idsToDelete: string[] = [];
         let senderToDelete: string | null = null;
+        let serverDeleteSuccess = true;
 
         if (senderFilter !== 'all') {
           // Case A: Deleting specific sender
           senderToDelete = senderFilter;
-          // Find all local emails for this sender to identify server pixels
           const localEmails = await LocalStorageService.getEmails();
           idsToDelete = localEmails
             .filter(e => e.user === senderToDelete)
@@ -365,22 +401,24 @@ const App = () => {
         // 1. Delete Server Data (Pixels) by IDs
         if (idsToDelete.length > 0) {
           params.append('ids', idsToDelete.join(','));
+          if (senderToDelete) params.append('user', senderToDelete);
 
-          // IMPORTANT: Also send 'user' for authorization
-          // If these IDs were synced to cloud, backend needs to verify ownership
-          if (senderToDelete) {
-            params.append('user', senderToDelete);
+          try {
+            const res = await fetch(`${urlBase}?${params.toString()}`, { method: 'DELETE' });
+            if (!res.ok) {
+              serverDeleteSuccess = false;
+              await LocalStorageService.queuePendingDelete(idsToDelete, senderToDelete || undefined);
+            }
+          } catch (serverErr) {
+            serverDeleteSuccess = false;
+            console.warn('Server deletion request failed (network), queuing for retry:', serverErr);
+            await LocalStorageService.queuePendingDelete(idsToDelete, senderToDelete || undefined);
           }
-
-          const res = await fetch(`${urlBase}?${params.toString()}`, { method: 'DELETE' });
-          if (!res.ok) console.warn('Server deletion partial failure', await res.text());
         }
 
         // 2. Delete Local Data
         if (senderToDelete) {
           await LocalStorageService.deleteBySender(senderToDelete);
-          // If we deleted the history of the current "active" ghost user, we should reset that identity
-          // so the UI doesn't claim we are still managing that user's data (which is now empty).
           if (currentUser === senderToDelete) {
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
               await chrome.storage.local.remove(['currentUser']);
@@ -389,30 +427,28 @@ const App = () => {
           }
         } else {
           await LocalStorageService.deleteAll();
-          // Delete All -> Definitely clear current user identity
           if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
             await chrome.storage.local.remove(['currentUser']);
           }
           setCurrentUser(null);
         }
+
+        // Reset State
+        setEmails([]);
+        setStats({ tracked: 0, opened: 0, rate: 0 });
+        // NOTE: We do not manage Delete Modal state here anymore, it is managed by SettingsView
+        loadInitialData();
+
+        setStatusModal({
+          isOpen: true,
+          title: serverDeleteSuccess ? 'History Deleted' : 'Deleted Locally Only',
+          message: serverDeleteSuccess
+            ? 'Tracking history has been cleared successfully.'
+            : 'History cleared from device. Server was unreachable, so deletion has been QUEUED for automatic retry later.',
+          type: serverDeleteSuccess ? 'success' : 'warning'
+        });
       }
-
-      // Reset State
-      setEmails([]);
-      setStats({ tracked: 0, opened: 0, rate: 0 });
-      setIsDeleteModalOpen(false); // Close confirmation modal
-
-      // Refresh to show remaining state (e.g. if we only deleted one sender)
-      loadInitialData();
-
-      setStatusModal({
-        isOpen: true,
-        title: 'History Deleted',
-        message: 'Tracking history has been cleared successfully.',
-        type: 'success'
-      });
     } catch (e) {
-      setIsDeleteModalOpen(false);
       setStatusModal({
         isOpen: true,
         title: 'Error',
@@ -483,326 +519,6 @@ const App = () => {
 
 
 
-  // -- RENDERERS --
-
-  // 1. Dashboard View
-  const renderDashboard = () => (
-    <div style={{ padding: '12px' }}>
-      {/* Sender Filter for Dashboard Scope - show only if multiple senders */}
-      {uniqueSenders.length > 1 && (
-        <div style={{ marginBottom: '12px' }}>
-          <select
-            value={senderFilter}
-            onChange={(e) => setSenderFilter(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--color-border)',
-              background: 'var(--color-bg-card)',
-              color: 'var(--color-text-main)',
-              fontSize: '13px'
-            }}
-          >
-            <option value="all">All Senders</option>
-            {uniqueSenders.map(sender => (
-              <option key={sender} value={sender}>{sender}</option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {/* Stats Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-        <Card>
-          <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--color-primary)' }}>{stats.tracked}</div>
-          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-            Emails Tracked
-          </div>
-        </Card>
-        <Card>
-          <div style={{ fontSize: '24px', fontWeight: 800, color: stats.rate > 50 ? theme.colors.successText : theme.colors.primary }}>
-            {stats.rate}%
-          </div>
-          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-            Open Rate
-          </div>
-        </Card>
-      </div>
-
-      {/* Error Display */}
-      {error && (
-        <div style={{
-          marginBottom: '16px',
-          padding: '12px',
-          background: theme.colors.dangerLight,
-          borderRadius: 'var(--radius-md)',
-          fontSize: '13px',
-          color: theme.colors.danger,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          border: `1px solid ${theme.colors.danger}`
-        }}>
-          <span>⚠️</span> {error}
-        </div>
-      )}
-
-
-
-      {/* Recent Activity Preview */}
-      <div style={{ marginBottom: '12px' }}>
-        <h3 style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '6px' }}>Recent Activity</h3>
-        <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-          {processedEmails.length === 0 ? (
-            <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: theme.colors.gray400 }}>No activity yet.</div>
-          ) : (
-            processedEmails.slice(0, CONSTANTS.DASHBOARD_RECENT_COUNT).map(email => (
-              <EmailItem
-                key={email.id}
-                email={email}
-                onClick={() => { setSelectedEmail(email); }}
-              />
-            ))
-          )}
-        </div>
-      </div>
-
-      <button
-        onClick={() => setView('activity')}
-        style={{
-          width: '100%', padding: '12px', background: 'var(--color-bg-card)',
-          border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
-          fontWeight: 500, cursor: 'pointer', color: 'var(--color-primary)'
-        }}
-      >
-        View All Activity
-      </button>
-    </div>
-  );
-
-  // 2. Activity View
-  const renderActivity = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Search & Filter - Clean Container */}
-      <div style={{
-        padding: '12px',
-        background: 'var(--color-bg)',
-        borderBottom: '1px solid var(--color-border)' // Explicit separator below header ONLY
-      }}>
-        {/* Sender Filter - show only if multiple senders */}
-        {uniqueSenders.length > 1 && (
-          <select
-            value={senderFilter}
-            onChange={(e) => setSenderFilter(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px',
-              marginBottom: '10px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--color-border)',
-              background: 'var(--color-bg-card)',
-              color: 'var(--color-text-main)',
-              fontSize: '13px'
-            }}
-          >
-            <option value="all">All Senders</option>
-            {uniqueSenders.map(sender => (
-              <option key={sender} value={sender}>{sender}</option>
-            ))}
-          </select>
-        )}
-
-        <input
-          type="text"
-          placeholder="Search subject, body, recipient..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="search-input" // Use CSS class for styling
-          style={{ marginBottom: '10px' }}
-        />
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <FilterChip label="All" active={filterType === 'all'} onClick={() => setFilterType('all')} />
-          <FilterChip label="Opened" active={filterType === 'opened'} onClick={() => setFilterType('opened')} />
-          <FilterChip label="Sent" active={filterType === 'sent'} onClick={() => setFilterType('sent')} />
-        </div>
-      </div>
-
-      {/* List Container - No extra borders */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0' }}>
-        {processedEmails.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: theme.colors.gray400 }}>
-            {searchQuery || senderFilter !== 'all' ? 'No matches found.' : 'No emails found.'}
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {processedEmails.map((email, index) => (
-              <div key={email.id} style={{
-                borderBottom: index === processedEmails.length - 1 ? 'none' : '1px solid var(--color-border)'
-              }}>
-                <EmailItem
-                  email={email}
-                  onClick={() => setSelectedEmail(email)}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  // 3. Settings View
-  const renderSettings = () => (
-    <div style={{ padding: 'var(--spacing-md)' }}>
-      <Card>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h4 style={{ fontSize: '15px', fontWeight: 500 }}>Global Tracking</h4>
-            <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-              Auto-inject pixel into new emails
-            </p>
-          </div>
-          <div
-            onClick={toggleGlobal}
-            style={{
-              width: '44px', height: '24px', background: globalEnabled ? theme.colors.primary : theme.colors.gray200,
-              borderRadius: '20px', position: 'relative', cursor: 'pointer', transition: 'background 0.3s'
-            }}
-          >
-            <div style={{
-              width: '20px', height: '20px', background: 'white', borderRadius: '50%',
-              position: 'absolute', top: '2px', left: globalEnabled ? '22px' : '2px',
-              transition: 'left 0.3s', boxShadow: theme.shadows.toggle
-            }} />
-          </div>
-        </div>
-      </Card>
-
-      <div style={{ marginTop: '20px' }}>
-        <h4 style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '8px', textTransform: 'uppercase' }}>Email Body Preview</h4>
-        <Card>
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-              <div style={{ flex: 1 }}>
-                <h4 style={{ fontSize: '14px', fontWeight: 500, marginBottom: '4px' }}>Save Content Preview</h4>
-                <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: 0 }}>
-                  Store email content for easier identification in tracking history
-                </p>
-              </div>
-            </div>
-
-            <select
-              value={bodyPreviewLength}
-              onChange={(e) => handleBodyPreviewChange(Number(e.target.value))}
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--color-border)',
-                fontSize: '13px',
-                background: 'var(--color-bg-card)',
-                color: 'var(--color-text-main)',
-                cursor: 'pointer'
-              }}
-            >
-              <option value={0}>Disabled (Recommended for privacy)</option>
-              <option value={50}>50 characters</option>
-              <option value={100}>100 characters</option>
-              <option value={150}>150 characters</option>
-              <option value={200}>200 characters</option>
-              <option value={-1}>Full email</option>
-            </select>
-
-            {bodyPreviewLength !== 0 && (
-              <div style={{
-                marginTop: '12px',
-                padding: '8px 12px',
-                background: theme.colors.infoLight,
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '11px',
-                color: theme.colors.infoDark,
-                display: 'flex',
-                gap: '6px',
-                alignItems: 'flex-start'
-              }}>
-                <span>ℹ️</span>
-                <span>Email content will be stored on your tracking server. We recommend keeping this disabled for sensitive communications.</span>
-              </div>
-            )}
-          </div>
-        </Card>
-      </div>
-
-      <div style={{ marginTop: '20px' }}>
-        <h4 style={{ fontSize: '12px', color: '#ef4444', marginBottom: '8px', textTransform: 'uppercase' }}>Danger Zone</h4>
-        <Card>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <span style={{ fontSize: '13px', fontWeight: 500, color: '#ef4444' }}>Delete History</span>
-              <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px', margin: 0 }}>
-                {userProfile
-                  ? `Permanently delete all tracking data for account ${userProfile.email}`
-                  : senderFilter !== 'all'
-                    ? `Delete tracking data for sender: ${senderFilter}`
-                    : 'Delete all local tracking history'
-                }
-              </p>
-            </div>
-            <button
-              onClick={() => setIsDeleteModalOpen(true)}
-              disabled={loading || (!userProfile && !activeIdentity && senderFilter === 'all')}
-              style={{
-                fontSize: '11px',
-                color: theme.colors.danger,
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: `1px solid ${theme.colors.danger}`,
-                padding: '6px 12px',
-                borderRadius: '4px',
-                cursor: (loading || (!userProfile && !activeIdentity && senderFilter === 'all')) ? 'not-allowed' : 'pointer',
-                fontWeight: 600
-              }}
-            >
-              Delete {senderFilter !== 'all' && !userProfile ? 'Sender' : 'All'}
-            </button>
-          </div>
-        </Card>
-      </div>
-
-      <Modal
-        isOpen={isDeleteModalOpen}
-        title="Delete Tracking History"
-        message={
-          <span>
-            {userProfile ? (
-              <>
-                Are you sure you want to <b>DELETE ALL</b> tracking history for cloud account <b>{userProfile.email}</b>?
-              </>
-            ) : senderFilter !== 'all' ? (
-              <>
-                Are you sure you want to delete all tracking history for sender <b>{senderFilter}</b>?
-                <br /><br />
-                <i style={{ fontSize: '10px' }}>Other senders' history will remain intact.</i>
-              </>
-            ) : (
-              <>
-                Are you sure you want to <b>DELETE ALL</b> local tracking history?
-              </>
-            )}
-            <br /><br />
-            This action cannot be undone.
-          </span>
-        }
-        type="danger"
-        confirmLabel="Delete Forever"
-        onConfirm={confirmDeleteHistory}
-        onCancel={() => setIsDeleteModalOpen(false)}
-        loading={loading}
-      />
-
-    </div>
-  );
-
   // -- MAIN RENDER --
 
   // If Detail View is active, overlay it
@@ -822,9 +538,44 @@ const App = () => {
 
       {/* Content Area */}
       <main style={{ flex: 1, overflowY: 'auto', background: 'var(--color-bg)' }}>
-        {view === 'dashboard' && renderDashboard()}
-        {view === 'activity' && renderActivity()}
-        {view === 'settings' && renderSettings()}
+        {view === 'dashboard' && (
+          <DashboardView
+            stats={stats}
+            error={error}
+            uniqueSenders={uniqueSenders}
+            senderFilter={senderFilter}
+            setSenderFilter={setSenderFilter}
+            processedEmails={processedEmails}
+            onEmailClick={setSelectedEmail}
+            onViewAllClick={() => setView('activity')}
+          />
+        )}
+        {view === 'activity' && (
+          <ActivityView
+            uniqueSenders={uniqueSenders}
+            senderFilter={senderFilter}
+            setSenderFilter={setSenderFilter}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            filterType={filterType}
+            setFilterType={setFilterType}
+            processedEmails={processedEmails}
+            onEmailClick={setSelectedEmail}
+          />
+        )}
+        {view === 'settings' && (
+          <SettingsView
+            globalEnabled={globalEnabled}
+            toggleGlobal={toggleGlobal}
+            bodyPreviewLength={bodyPreviewLength}
+            handleBodyPreviewChange={handleBodyPreviewChange}
+            userProfile={userProfile}
+            senderFilter={senderFilter}
+            loading={loading}
+            activeIdentity={activeIdentity}
+            onDeleteHistory={confirmDeleteHistory}
+          />
+        )}
       </main>
 
       {/* Bottom Tabs */}
@@ -849,38 +600,5 @@ const App = () => {
     </div>
   );
 }
-
-const TabButton = ({ label, icon, active, onClick }: any) => (
-  <button
-    onClick={onClick}
-    style={{
-      background: 'none', border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center',
-      gap: '4px', cursor: 'pointer', color: active ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-      flex: 1, padding: '8px'
-    }}
-  >
-    <span style={{ fontSize: '18px' }}>{icon === 'list' ? '📋' : icon}</span>
-    <span style={{ fontSize: '10px', fontWeight: 500 }}>{label}</span>
-  </button>
-);
-
-const FilterChip = ({ label, active, onClick }: any) => (
-  <button
-    onClick={onClick}
-    style={{
-      padding: '4px 12px',
-      borderRadius: '16px',
-      border: 'none',
-      fontSize: '12px',
-      fontWeight: 500,
-      cursor: 'pointer',
-      background: active ? theme.colors.primary : theme.colors.gray200,
-      color: active ? 'white' : theme.colors.gray500,
-      transition: 'all 0.2s'
-    }}
-  >
-    {label}
-  </button>
-);
 
 export default App;

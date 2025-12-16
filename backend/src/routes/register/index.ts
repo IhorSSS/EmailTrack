@@ -74,6 +74,13 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
             }
         });
 
+        console.log('[REGISTER] FINAL DB SAVE:', {
+            id: email.id,
+            ownerId_input: validOwnerUuid,
+            ownerId_saved: email.ownerId,
+            user_field: email.user
+        });
+
         const protocol = request.protocol;
         const host = request.headers.host;
         const pixelUrl = `${protocol}://${host}/track/${email.id}`;
