@@ -79,15 +79,14 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
             params.append('t', String(Date.now()));
 
             if (effectiveProfile) {
+                // Cloud mode: fetch by owner
                 params.append('ownerId', effectiveProfile.id);
-            } else if (currentUser) {
-                params.append('user', currentUser);
-            }
-
-            // Hybrid: Ask for stats for local IDs ONLY if we receive no specific profile/owner
-            // If we are logged in (Cloud Mode), we want the full server list (Pagination), invalidating local cache restriction.
-            if (localIds.length > 0 && !effectiveProfile) {
+            } else if (localIds.length > 0) {
+                // Offline mode with local IDs: fetch by IDs only (user= is redundant)
                 params.append('ids', localIds.join(','));
+            } else if (currentUser) {
+                // Fallback: no local IDs, try by user (legacy/initial state)
+                params.append('user', currentUser);
             }
 
             if (!effectiveProfile && !currentUser && localIds.length === 0) {
@@ -265,14 +264,11 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
         }
     }, [userProfile, fetchEmails]);
 
-    // Initial load
+    // Initial load - run ONCE on mount
     useEffect(() => {
-        // Trigger fetch when profile or user changes
-        // But we want to avoid double-fetch if App handles it. 
-        // Let's provide the method and let App (or the component using it) trigger it on mount/change.
-        // Actually, typical useEmails hook should auto-fetch.
         fetchEmails();
-    }, [fetchEmails]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Empty deps = run once
 
     return {
         emails,

@@ -13,7 +13,7 @@ export const useAppController = () => {
     const [selectedEmail, setSelectedEmail] = useState<TrackedEmail | null>(null);
 
     // -- HOOKS --
-    const { userProfile, authLoading, login, logout, authError } = useAuth();
+    const { userProfile, authLoading, login, logout, authError, authToken } = useAuth();
     const {
         currentUser, setCurrentUser,
         globalEnabled, toggleGlobal,
@@ -21,7 +21,7 @@ export const useAppController = () => {
     } = useExtensionSettings();
     const { statusModal, showStatus, closeStatus } = useStatusModal();
 
-    const { emails, stats, loading: dataLoading, error: dataError, fetchEmails, deleteEmails } = useEmails(userProfile, currentUser, useAuth().authToken);
+    const { emails, stats, loading: dataLoading, error: dataError, fetchEmails, deleteEmails } = useEmails(userProfile, currentUser, authToken);
 
     const {
         searchQuery, setSearchQuery,

@@ -50,11 +50,20 @@ export function handleSendInterceptor(
 
         const senderEmail = extractSenderEmail();
 
-        // Parse recipient properly
+        // Parse recipient - data.to can be array of objects {email, name} or strings
         const recipients = data.to || [];
-        const recipientStr = Array.isArray(recipients) && recipients.length > 0
-            ? recipients.join(', ')
-            : 'Unknown';
+        let recipientStr = 'Unknown';
+
+        if (Array.isArray(recipients) && recipients.length > 0) {
+            recipientStr = recipients.map((r: any) => {
+                if (typeof r === 'string') return r;
+                if (r && typeof r === 'object') {
+                    // Gmail format: {email: "...", name: "..."}
+                    return r.email || r.address || r.name || JSON.stringify(r);
+                }
+                return String(r);
+            }).join(', ');
+        }
 
         const eventData = {
             id: trackId,
