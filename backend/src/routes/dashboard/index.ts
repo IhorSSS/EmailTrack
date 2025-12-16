@@ -14,18 +14,36 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
         const take = Number(limit);
 
         const whereClause: any = {};
+
+        // CORRECTION: 'ownerId' from query is Google ID. DB expects UUID.
+        let resolvedOwnerUuid: string | null = null;
         if (ownerId) {
+            const userRecord = await prisma.user.findUnique({ where: { googleId: ownerId } });
+            console.log(`[DASHBOARD] Resolving ownerId (GoogleID) ${ownerId} -> User found: ${!!userRecord}, UUID: ${userRecord?.id}`);
+            if (userRecord) {
+                resolvedOwnerUuid = userRecord.id;
+            } else {
+                // If user doesn't exist for this Google ID, they effectively own nothing.
+                // We should probably return empty, or handle gracefully.
+                // For now, let's set a dummy UUID to ensure empty result rather than null (all).
+                resolvedOwnerUuid = '00000000-0000-0000-0000-000000000000';
+            }
+        }
+
+        if (resolvedOwnerUuid) {
             if (user) {
                 // Filter specific sender within owner
-                whereClause.ownerId = ownerId;
+                whereClause.ownerId = resolvedOwnerUuid;
                 whereClause.user = user;
             } else {
                 // ownerId only (handled in ids section if ids present)
-                whereClause.ownerId = ownerId;
+                whereClause.ownerId = resolvedOwnerUuid;
             }
         } else if (user) {
             whereClause.user = user; // Legacy/Incognito strict filter
         }
+
+        console.log('[DASHBOARD] ID Filtering:', { ids, resolvedOwnerUuid, whereClause });
 
         // Support ID list fetching for Incognito mode hydration
         if (ids) {
@@ -36,12 +54,12 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
                 // If user provided, ensure IDs belong to that sender
                 // If neither, only return unowned (incognito) items
 
-                if (ownerId) {
+                if (resolvedOwnerUuid) {
                     // Cloud mode: Return only items owned by this account OR unowned items
                     // Clear previous whereClause and use OR logic
                     whereClause.id = { in: idList };
                     whereClause.OR = [
-                        { ownerId: ownerId },
+                        { ownerId: resolvedOwnerUuid },
                         { ownerId: null }
                     ];
                     // Remove individual ownerId to avoid conflict with OR
@@ -109,11 +127,18 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
                         // For owned items, we need to verify they match the requester
 
                         // If ownerId or user is provided with ids, verify all items match
-                        if (ownerId || user) {
+                        // CORRECTION: Resolve Google ID to UUID for ownership verification
+                        let verifyOwnerUuid: string | null = null;
+                        if (ownerId) {
+                            const u = await prisma.user.findUnique({ where: { googleId: ownerId } });
+                            if (u) verifyOwnerUuid = u.id;
+                        }
+
+                        if (verifyOwnerUuid || user) {
                             const unauthorized = existingEmails.filter(email => {
                                 // If email is owned, verify it matches requester
                                 if (email.ownerId) {
-                                    return email.ownerId !== ownerId;
+                                    return email.ownerId !== verifyOwnerUuid;
                                 }
                                 // If email has user field, verify it matches
                                 if (email.user && user) {
@@ -151,9 +176,18 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
 
                 // --- Fallback: Broad Deletion (Account Wipe or Sender Wipe) ---
 
+                // --- Fallback: Broad Deletion (Account Wipe or Sender Wipe) ---
+
+                // CORRECTION: Resolve Google ID to UUID for deletion too
+                let deleteOwnerUuid: string | null = null;
+                if (ownerId) {
+                    const u = await prisma.user.findUnique({ where: { googleId: ownerId } });
+                    if (u) deleteOwnerUuid = u.id;
+                }
+
                 // Construct OR clause to catch both Cloud (ownerId) and Legacy/Ghost (user email) records
                 const conditions: any[] = [];
-                if (ownerId) conditions.push({ ownerId });
+                if (deleteOwnerUuid) conditions.push({ ownerId: deleteOwnerUuid });
                 if (user) conditions.push({ user });
 
                 const whereClause = {

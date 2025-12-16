@@ -21,19 +21,36 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
 
         if (ownerId && user) {
             try {
-                // Upsert User by GOOGLE ID (not ID)
-                const dbUser = await prisma.user.upsert({
-                    where: { googleId: ownerId },
-                    update: { email: user },
-                    create: {
-                        email: user,
-                        googleId: ownerId
+                // 1. Try to find/create by Google ID
+                let dbUser = await prisma.user.findUnique({ where: { googleId: ownerId } });
+
+                if (!dbUser) {
+                    // 2. If not found by Google ID, try to find by Email (Legacy/Social mismatch)
+                    const existingByEmail = await prisma.user.findUnique({ where: { email: user } });
+
+                    if (existingByEmail) {
+                        // MERGE: User exists by email, but hasn't linked Google ID. Link it now.
+                        dbUser = await prisma.user.update({
+                            where: { id: existingByEmail.id },
+                            data: { googleId: ownerId }
+                        });
+                        console.log(`[REGISTER] Merged existing user ${user} with Google ID ${ownerId}`);
+                    } else {
+                        // CREATE: User doesn't exist at all. Create new.
+                        dbUser = await prisma.user.create({
+                            data: {
+                                email: user,
+                                googleId: ownerId
+                            }
+                        });
+                        console.log(`[REGISTER] Created new user ${user} for Google ID ${ownerId}`);
                     }
-                });
+                }
+
                 validOwnerUuid = dbUser.id;
-                console.log(`[REGISTER] Resolved GoogleId ${ownerId} -> User UUID ${validOwnerUuid}`);
-            } catch (userErr) {
-                console.warn('[REGISTER] Failed to resolve user from Google ID:', userErr);
+            } catch (err) {
+                console.error('[REGISTER] User resolution failed completely:', err);
+                // validOwnerUuid remains null, email will be incognito
             }
         }
 
