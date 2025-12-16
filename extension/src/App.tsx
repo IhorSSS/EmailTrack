@@ -64,6 +64,11 @@ const App = () => {
       try {
         profile = await AuthService.getUserProfile(token);
         setUserProfile(profile);
+
+        // CRITICAL: Save profile to local storage (more reliable for background access)
+        chrome.storage.local.set({ userProfile: profile }, () => {
+          console.log('App: Saved userProfile to local storage:', profile);
+        });
       } catch (err) {
         throw new Error('Failed to fetch user profile');
       }
@@ -154,6 +159,8 @@ const App = () => {
         try {
           profile = await AuthService.getUserProfile(token);
           setUserProfile(profile);
+          // CRITICAL: Ensure persistence even on silent load
+          chrome.storage.local.set({ userProfile: profile });
         } catch (ignored) { }
       }
     } catch (e) { }

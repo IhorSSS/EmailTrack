@@ -2,7 +2,6 @@ import { createRoot } from 'react-dom/client';
 import StatsDisplay from './components/StatsDisplay';
 import './components/StatsDisplay.css';
 import { logger } from '../utils/logger';
-import { API_CONFIG } from '../config/api';
 import { LocalStorageService } from '../services/LocalStorageService';
 
 logger.log('EmailTrack: Content Script UI Loaded');
@@ -142,29 +141,33 @@ window.addEventListener('message', async (event) => {
         logger.error('[Content] Failed to save local metadata:', e);
     }
 
-    // 2. Register with Backend (Anonymous / ID Only)
-    // Privacy: We do NOT send subject, recipient, body, or user.
-    fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.REGISTER}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }), // Only ID
-    })
-        .then((res) => {
-            if (!res.ok) {
-                logger.error('[Content] Register failed:', res.status, res.statusText);
-                return res.text().then((text) => {
-                    logger.error('[Content] Error response:', text);
-                    throw new Error(`HTTP ${res.status}`);
-                });
+    // 2. Register with Backend via Background Script (Delegation)
+    // This allows the Background Script to securely attach ownerId (Cloud Mode)
+    // and handle the API request centrally.
+    try {
+        chrome.runtime.sendMessage({
+            type: 'REGISTER_EMAIL',
+            data: {
+                id,
+                subject: subject || 'No Subject',
+                recipient: recipient || 'Unknown',
+                body: body || '',
+                user: userEmail || 'Unknown' // Pass extracted sender
             }
-            return res.json();
-        })
-        .then((data) => {
-            logger.log('[Content] Successfully registered email:', data);
-        })
-        .catch((err) => {
-            logger.error('[Content] Error registering email:', err);
+        }, (response) => {
+            if (chrome.runtime.lastError) {
+                logger.error('[Content] Background registration error:', chrome.runtime.lastError);
+                return;
+            }
+            if (response && response.success) {
+                logger.log('[Content] Successfully registered email via background');
+            } else {
+                logger.warn('[Content] Background registration returned failure:', response);
+            }
         });
+    } catch (err) {
+        logger.error('[Content] Failed to send message to background:', err);
+    }
 
     // 2. Optimistic UI Update (With Retries)
     const attemptInject = (attempt = 1) => {
