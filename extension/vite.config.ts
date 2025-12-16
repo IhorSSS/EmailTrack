@@ -15,7 +15,7 @@ export default defineConfig({
         logic: 'src/injected/logic.ts'
       },
       output: {
-        entryFileNames: '[name].js'
+        entryFileNames: '[name].js',
       }
     }
   }

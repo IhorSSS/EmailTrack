@@ -21,7 +21,7 @@ export const useAppController = () => {
     } = useExtensionSettings();
     const { statusModal, showStatus, closeStatus } = useStatusModal();
 
-    const { emails, stats, loading: dataLoading, error: dataError, fetchEmails, deleteEmails } = useEmails(userProfile, currentUser);
+    const { emails, stats, loading: dataLoading, error: dataError, fetchEmails, deleteEmails } = useEmails(userProfile, currentUser, useAuth().authToken);
 
     const {
         searchQuery, setSearchQuery,

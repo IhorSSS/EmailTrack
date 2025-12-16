@@ -47,7 +47,8 @@ export function handleOptimisticBadge(trackId: string): boolean {
 
 export function injectStats() {
     // PRIVACY: Only show badges if user has access rights
-    chrome.storage.sync.get(['userProfile'], async (syncResult) => {
+    // Fix: Read from 'local' because useAuth saves to 'local'
+    chrome.storage.local.get(['userProfile'], async (syncResult) => {
         const hasCloudAccess = !!syncResult.userProfile;
 
         // If not logged in, check for local history

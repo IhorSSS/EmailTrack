@@ -1,8 +1,36 @@
-import type { LocalEmailMetadata } from '../types';
+import type { LocalEmailMetadata, TrackedEmail } from '../types';
 
 const STORAGE_KEY = 'emailtrack_local_history';
 
 export class LocalStorageService {
+    /**
+     * Save multiple tracked emails (Batch)
+     */
+    static async saveEmails(emailsToSave: TrackedEmail[]): Promise<void> {
+        const local = await this.getEmails();
+        const map = new Map(local.map(e => [e.id, e]));
+
+        emailsToSave.forEach(email => {
+            // Actually, if we just store full objects, we might pollute types?
+            // LocalEmailMetadata is a subset.
+            // Let's just cast or ensure fields.
+            map.set(email.id, {
+                id: email.id,
+                recipient: email.recipient,
+                subject: email.subject,
+                body: email.body, // Now optional
+                user: email.user || '',
+                createdAt: email.createdAt,
+                synced: true
+            });
+        });
+
+        const updated = Array.from(map.values())
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        await this.setEmails(updated);
+    }
+
     /**
      * Save email metadata to local storage
      */
@@ -49,6 +77,17 @@ export class LocalStorageService {
                 chrome.storage.local.set({ [STORAGE_KEY]: updated }, () => {
                     resolve();
                 });
+            });
+        });
+    }
+
+    /**
+     * Overwrite all emails (Internal)
+     */
+    private static async setEmails(emails: LocalEmailMetadata[]): Promise<void> {
+        return new Promise((resolve) => {
+            chrome.storage.local.set({ [STORAGE_KEY]: emails }, () => {
+                resolve();
             });
         });
     }

@@ -14,7 +14,7 @@ export interface LocalEmailMetadata {
     id: string;
     recipient: string;
     subject: string;
-    body: string;
+    body?: string;
     user: string; // The sender email
     createdAt: string;
     synced?: boolean;

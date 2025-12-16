@@ -8,7 +8,7 @@ import { scanComposeWindows } from './utils/dom';
 import { GmailWrapper } from './utils/gmail';
 import { handleSendInterceptor } from './utils/interceptor';
 
-const DEBUG = import.meta.env.DEV;
+const DEBUG = import.meta.env.DEV || import.meta.env.VITE_DEBUG === 'true';
 
 const logger = {
     log: (...args: any[]) => DEBUG && console.log(...args),

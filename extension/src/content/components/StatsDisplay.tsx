@@ -126,10 +126,12 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
     }
 
     if (loading) return <span className="email-track-badge loading">...</span>;
-    // If stats failed to load (e.g. 404 deleted), return null to hide the badge
-    if (!stats || (stats as any).error) return null;
 
-    const openCount = Array.isArray(stats.opens) ? stats.opens.length : (typeof stats.opens === 'number' ? stats.opens : 0);
+    // OFFLINE FIX: If request fails, showing "Unopened/Sent" is better than nothing.
+    // The component is only mounted if we detected a pixel, so "Sent" is a safe default.
+    const effectiveStats = (!stats || (stats as any).error) ? { opens: [] } : stats;
+
+    const openCount = Array.isArray(effectiveStats.opens) ? effectiveStats.opens.length : (typeof effectiveStats.opens === 'number' ? effectiveStats.opens : 0);
     const openText = openCount > 0 ? `${openCount} Open${openCount === 1 ? '' : 's'}` : 'Unopened';
     const statusClass = openCount > 0 ? 'opened' : 'sent';
 

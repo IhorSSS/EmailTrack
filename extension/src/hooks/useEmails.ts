@@ -11,10 +11,11 @@ export interface EmailStats {
     rate: number;
 }
 
-export const useEmails = (userProfile: UserProfile | null, currentUser: string | null) => {
+export const useEmails = (userProfile: UserProfile | null, currentUser: string | null, authToken: string | null) => {
     const [emails, setEmails] = useState<TrackedEmail[]>([]);
     const [stats, setStats] = useState<EmailStats>({ tracked: 0, opened: 0, rate: 0 });
     const [loading, setLoading] = useState(true);
+    const [syncing, setSyncing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const processPendingDeletes = async () => {
@@ -64,7 +65,9 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
             const effectiveProfile = overrideProfile !== undefined ? overrideProfile : userProfile;
 
             // 1. Process Pending Deletes (Ensure consistency before fetch)
+            setSyncing(true);
             await processPendingDeletes();
+            setSyncing(false);
 
             // 2. Load Local History
             const localEmails = await LocalStorageService.getEmails();
@@ -81,8 +84,9 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 params.append('user', currentUser);
             }
 
-            // Hybrid: Ask for stats for local IDs even if logged out or mixed
-            if (localIds.length > 0) {
+            // Hybrid: Ask for stats for local IDs ONLY if we receive no specific profile/owner
+            // If we are logged in (Cloud Mode), we want the full server list (Pagination), invalidating local cache restriction.
+            if (localIds.length > 0 && !effectiveProfile) {
                 params.append('ids', localIds.join(','));
             }
 
@@ -93,10 +97,11 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 return;
             }
 
-            const serverEmails = await DashboardService.fetchEmails(params);
+            const serverEmails = await DashboardService.fetchEmails(params, authToken);
 
             // 4. Merge Strategy
             const emailMap = new Map<string, TrackedEmail>();
+            const emailsToSave: TrackedEmail[] = [];
 
             // Priority 1: Server Data
             serverEmails.forEach((e: any) => {
@@ -107,16 +112,24 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 };
                 emailMap.set(e.id, enriched);
 
-                // Hydration: Save core record locally
-                LocalStorageService.saveEmail({
+                // Hydration: Prepare for batch save
+                emailsToSave.push({
                     id: enriched.id,
-                    subject: enriched.subject || '',
+                    subject: (enriched.subject && !enriched.subject.includes('Subject Unavailable')) ? enriched.subject : '',
                     recipient: enriched.recipient || '',
                     body: enriched.body || '',
                     user: enriched.user || '',
                     createdAt: enriched.createdAt,
-                });
+                    // Hydrate full object to conform to TrackedEmail if LocalStorage supports it
+                    opens: e.opens || [],
+                    openCount: e.openCount || 0
+                } as TrackedEmail);
             });
+
+            // Batch save to prevent async race conditions
+            if (emailsToSave.length > 0) {
+                await LocalStorageService.saveEmails(emailsToSave);
+            }
 
             // Priority 2: Local Data
             localEmails.forEach(local => {
@@ -124,12 +137,19 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 if (existing) {
                     emailMap.set(local.id, {
                         ...existing,
-                        subject: existing.subject || local.subject,
+                        // Fix: Ignore placeholder subject from server lazy-registration
+                        subject: (existing.subject && !existing.subject.includes('Subject Unavailable'))
+                            ? existing.subject
+                            : local.subject,
                         recipient: existing.recipient || local.recipient,
                         body: existing.body || local.body,
                         user: existing.user || local.user,
                     });
                 } else {
+                    // Only keep local if we are NOT in strict Cloud Mode or if we prefer merging?
+                    // If we are in Cloud Mode, and local item is NOT in server list (e.g. page 1),
+                    // we show it anyway?
+                    // Better to show what we have.
                     emailMap.set(local.id, {
                         ...local,
                         opens: [],
@@ -156,7 +176,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
         } finally {
             setLoading(false);
         }
-    }, [userProfile, currentUser]);
+    }, [userProfile, currentUser, authToken]);
 
     const deleteEmails = useCallback(async (
         filterSender: string = 'all',
@@ -174,7 +194,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 // Maintain legacy behavior for safety
                 if (userProfile.email) params.append('user', userProfile.email);
 
-                await DashboardService.deleteEmails(params);
+                await DashboardService.deleteEmails(params, authToken);
                 await LocalStorageService.deleteAll();
             } else {
                 // Incognito Mode
@@ -198,7 +218,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                     if (targetSender) params.append('user', targetSender);
 
                     try {
-                        await DashboardService.deleteEmails(params);
+                        await DashboardService.deleteEmails(params, authToken);
                     } catch (e) {
                         isServerSuccess = false;
                         await LocalStorageService.queuePendingDelete(targetIds, targetSender || undefined);
@@ -245,7 +265,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
     return {
         emails,
         stats,
-        loading,
+        loading: loading || syncing,
         error,
         fetchEmails,
         deleteEmails,

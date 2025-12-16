@@ -70,11 +70,16 @@ async function handleRegister(data: any) {
             logger.log('[Background] Incognito mode: failed to find ownerId or not logged in');
         }
 
-        await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.REGISTER}`, {
+        const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.REGISTER}`, {
             method: 'POST',
             headers: headers,
             body: JSON.stringify(payload)
         });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Registration API failed: ${response.status} ${errorText}`);
+        }
 
         // Cache the current user for the Popup to use
         if (data.user) {

@@ -11,9 +11,18 @@ export const DashboardService = {
     /**
      * Fetch tracked emails from the server.
      */
-    async fetchEmails(params: URLSearchParams): Promise<TrackedEmail[]> {
+    /**
+     * Fetch tracked emails from the server.
+     */
+    async fetchEmails(params: URLSearchParams, token?: string | null): Promise<TrackedEmail[]> {
+        const headers: HeadersInit = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}?${params.toString()}`, {
-            cache: 'no-store'
+            cache: 'no-store',
+            headers
         });
 
         if (!res.ok) {
@@ -27,9 +36,17 @@ export const DashboardService = {
     /**
      * Delete emails or clear history.
      */
-    async deleteEmails(params: URLSearchParams): Promise<void> {
+    async deleteEmails(params: URLSearchParams, token?: string | null): Promise<void> {
         const urlBase = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}`;
-        const res = await fetch(`${urlBase}?${params.toString()}`, { method: 'DELETE' });
+        const headers: HeadersInit = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const res = await fetch(`${urlBase}?${params.toString()}`, {
+            method: 'DELETE',
+            headers
+        });
 
         if (!res.ok) {
             throw new Error('Failed to delete history on server');
