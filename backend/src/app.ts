@@ -2,6 +2,8 @@ import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 
+import { CONFIG } from './config';
+
 import trackRoutes from './routes/track';
 import registerRoutes from './routes/register';
 import statsRoutes from './routes/stats';
@@ -15,12 +17,7 @@ export function buildApp(): FastifyInstance {
 
     app.register(cors, {
         origin: (origin, cb) => {
-            const allowedOrigins = [
-                'http://localhost:3000',
-                'http://localhost:5173',
-                // Chrome Extension Protocol
-                /^chrome-extension:\/\/.*$/
-            ];
+            const allowedOrigins = CONFIG.CORS_ORIGINS;
 
             if (!origin || allowedOrigins.some(allowed => allowed instanceof RegExp ? allowed.test(origin) : allowed === origin)) {
                 cb(null, true);
@@ -34,10 +31,10 @@ export function buildApp(): FastifyInstance {
 
     // Rate limiting - 100 requests per minute per IP
     app.register(rateLimit, {
-        max: 100,
-        timeWindow: '1 minute',
-        cache: 10000,
-        allowList: ['127.0.0.1'],
+        max: CONFIG.RATE_LIMIT.MAX,
+        timeWindow: CONFIG.RATE_LIMIT.WINDOW,
+        cache: CONFIG.RATE_LIMIT.CACHE,
+        allowList: CONFIG.RATE_LIMIT.ALLOW_LIST,
         // Skip rate limiting for auth/dashboard (trusted endpoints)
         skipOnError: true,
     });

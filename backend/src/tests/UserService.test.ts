@@ -7,6 +7,7 @@ vi.mock('../db', () => ({
     prisma: {
         user: {
             create: vi.fn(),
+            upsert: vi.fn(),
             findUnique: vi.fn(),
         },
         trackedEmail: {
@@ -28,12 +29,14 @@ describe('UserService', () => {
             createdAt: new Date()
         };
 
-        (prisma.user.create as any).mockResolvedValue(mockUser);
+        (prisma.user.upsert as any).mockResolvedValue(mockUser);
 
-        const result = await UserService.createUser('test@example.com', 'google-123');
+        const result = await UserService.createOrUpdate('test@example.com', 'google-123');
 
-        expect(prisma.user.create).toHaveBeenCalledWith({
-            data: {
+        expect(prisma.user.upsert).toHaveBeenCalledWith({
+            where: { googleId: 'google-123' },
+            update: { email: 'test@example.com' },
+            create: {
                 email: 'test@example.com',
                 googleId: 'google-123'
             }

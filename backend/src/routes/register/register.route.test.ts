@@ -6,7 +6,13 @@ vi.mock('../../db', () => ({
     prisma: {
         trackedEmail: {
             create: vi.fn(),
+            upsert: vi.fn(),
         },
+        user: {
+            findUnique: vi.fn(),
+            update: vi.fn(),
+            create: vi.fn()
+        }
     },
 }));
 
@@ -30,7 +36,8 @@ describe('Register Route', () => {
             user: 'sender@example.com',
         };
 
-        (prisma.trackedEmail.create as any).mockResolvedValue(mockEmail);
+        (prisma.trackedEmail.upsert as any).mockResolvedValue(mockEmail);
+        (prisma.user.findUnique as any).mockResolvedValue({ id: 'sender-uuid' }); // Mock existing user
 
         const response = await app.inject({
             method: 'POST',
@@ -49,8 +56,8 @@ describe('Register Route', () => {
         expect(body.id).toBe('123');
         expect(body.pixelUrl).toContain('/track/123');
 
-        expect(prisma.trackedEmail.create).toHaveBeenCalledWith(expect.objectContaining({
-            data: expect.objectContaining({
+        expect(prisma.trackedEmail.upsert).toHaveBeenCalledWith(expect.objectContaining({
+            create: expect.objectContaining({
                 id: '123',
                 subject: 'Test Subject',
                 recipient: 'test@example.com',

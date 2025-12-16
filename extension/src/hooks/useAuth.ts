@@ -70,7 +70,7 @@ export const useAuth = () => {
             }
 
             // 2. Sync User
-            await AuthService.syncUser(profile.email, profile.id);
+            await AuthService.syncUser(profile.email, profile.id, token);
 
             // 3. Upload Local History (Merge)
             const unsynced = localEmails.filter(e => !e.synced);

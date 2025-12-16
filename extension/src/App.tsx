@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import './index.css';
 import { MainLayout } from './components/Layout/MainLayout';
 import { DetailView } from './components/activity/DetailView';
@@ -10,6 +10,7 @@ import { SettingsView } from './views/SettingsView';
 import type { TrackedEmail } from './types';
 import { useAuth } from './hooks/useAuth';
 import { useEmails } from './hooks/useEmails';
+import { useFilteredEmails } from './hooks/useFilteredEmails';
 
 const App = () => {
   const [view, setView] = useState<'dashboard' | 'activity' | 'settings'>('dashboard');
@@ -25,17 +26,20 @@ const App = () => {
   const { userProfile, authLoading, login, logout, authError } = useAuth();
   const { emails, stats, loading: dataLoading, error: dataError, fetchEmails, deleteEmails } = useEmails(userProfile, currentUser);
 
+  // -- FILTER LOGIC (Extracted) --
+  const {
+    searchQuery, setSearchQuery,
+    filterType, setFilterType,
+    senderFilter, setSenderFilter,
+    uniqueSenders, processedEmails
+  } = useFilteredEmails(emails);
+
   const loading = authLoading || dataLoading;
   const error = authError || dataError;
 
   // -- LOCAL SETTINGS STATE --
   const [globalEnabled, setGlobalEnabled] = useState(true);
   const [bodyPreviewLength, setBodyPreviewLength] = useState(0);
-
-  // -- FILTER STATE --
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'opened' | 'sent'>('all');
-  const [senderFilter, setSenderFilter] = useState<string>('all');
 
   // -- EFFECTS --
 
@@ -49,40 +53,6 @@ const App = () => {
       });
     }
   }, []);
-
-  // -- COMPUTED DATA --
-
-  const uniqueSenders = useMemo(() => {
-    const senders = new Set<string>();
-    emails.forEach(e => {
-      if (e.user) senders.add(e.user);
-    });
-    return Array.from(senders).sort();
-  }, [emails]);
-
-  const processedEmails = useMemo(() => {
-    let filtered = emails;
-    // Filter by Sender
-    if (senderFilter !== 'all') {
-      filtered = filtered.filter(e => e.user === senderFilter);
-    }
-    // Search
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(e =>
-        (e.subject && e.subject.toLowerCase().includes(q)) ||
-        (e.recipient && e.recipient.toLowerCase().includes(q)) ||
-        (e.body && e.body.toLowerCase().includes(q))
-      );
-    }
-    // Status Filter
-    if (filterType === 'opened') {
-      filtered = filtered.filter(e => e.openCount > 0);
-    } else if (filterType === 'sent') {
-      filtered = filtered.filter(e => e.openCount === 0);
-    }
-    return filtered;
-  }, [emails, senderFilter, searchQuery, filterType]);
 
   // -- HANDLERS --
 

@@ -20,7 +20,13 @@ const DeleteDashboardQuerySchema = z.object({
 
 const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
     fastify.get('/', async (request, reply) => {
-        const query = GetDashboardQuerySchema.parse(request.query);
+        let query;
+        try {
+            query = GetDashboardQuerySchema.parse(request.query);
+        } catch (e) {
+            return reply.status(400).send({ error: 'Invalid query parameters' });
+        }
+
         const { page, limit, user, ownerId, ids } = query;
         const skip = (page - 1) * limit;
         const take = limit;
@@ -115,7 +121,13 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
     });
 
     fastify.delete('/', async (request, reply) => {
-        const { user, ownerId, ids } = DeleteDashboardQuerySchema.parse(request.query);
+        let query;
+        try {
+            query = DeleteDashboardQuerySchema.parse(request.query);
+        } catch (e) {
+            return reply.status(400).send({ error: 'At least one filter (user, ownerId, or ids) is required' });
+        }
+        const { user, ownerId, ids } = query;
 
         try {
             const result = await prisma.$transaction(async (tx) => {

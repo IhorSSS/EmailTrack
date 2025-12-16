@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { prisma } from '../../db';
+import { prisma } from '../db';
 import dashboardRoutes from '../routes/dashboard';
 import Fastify from 'fastify';
 
@@ -21,6 +21,9 @@ vi.mock('../db', () => ({
         },
         openEvent: {
             deleteMany: vi.fn()
+        },
+        user: {
+            findUnique: vi.fn(), // Mock finding user by googleId
         },
         $transaction: mockTransaction
     }
@@ -54,6 +57,7 @@ describe('Dashboard Routes', () => {
         it('should filter by ownerId (Cloud Mode)', async () => {
             mockFindMany.mockResolvedValue([]);
             mockCount.mockResolvedValue(0);
+            (prisma.user.findUnique as any).mockResolvedValue({ id: 'master-uuid', googleId: 'master-uuid' });
 
             const response = await app.inject({
                 method: 'GET',
@@ -68,6 +72,7 @@ describe('Dashboard Routes', () => {
         it('should filter by ownerId AND user (Multi-sender filtering)', async () => {
             mockFindMany.mockResolvedValue([]);
             mockCount.mockResolvedValue(0);
+            (prisma.user.findUnique as any).mockResolvedValue({ id: 'master-uuid', googleId: 'master-uuid' });
 
             const response = await app.inject({
                 method: 'GET',

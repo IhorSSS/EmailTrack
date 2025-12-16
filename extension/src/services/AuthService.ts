@@ -96,11 +96,11 @@ export class AuthService {
     /**
      * Sync user with backend (Create or Update)
      */
-    static async syncUser(email: string, googleId: string): Promise<void> {
+    static async syncUser(email: string, googleId: string, token: string): Promise<void> {
         const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.LOGIN}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, googleId })
+            body: JSON.stringify({ email, googleId, token })
         });
         if (!response.ok) {
             // We don't want to block login if sync fails (e.g. offline), but good to know
