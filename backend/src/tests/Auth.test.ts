@@ -98,8 +98,8 @@ describe('Auth Routes', () => {
                 }
             });
 
-            // We now expect 401 because token is strictly required
-            expect(response.statusCode).toBe(401);
+            // We now expect 400 because token is strictly required by Zod schema (validation error)
+            expect(response.statusCode).toBe(400);
             expect(verifyGoogleToken).not.toHaveBeenCalled();
         });
 
@@ -112,8 +112,8 @@ describe('Auth Routes', () => {
                 }
             });
 
-            // Missing token => 401
-            expect(response.statusCode).toBe(401);
+            // Missing token => 400 (Zod validation error)
+            expect(response.statusCode).toBe(400);
         });
     });
 });

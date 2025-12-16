@@ -1,28 +1,59 @@
 import { FastifyPluginAsync } from 'fastify';
+import { z } from 'zod';
 import { prisma } from '../../db';
+import { getAuthenticatedUser } from '../../middleware/authMiddleware';
 
 const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
+    const RegisterBodySchema = z.object({
+        id: z.string().optional(),
+        subject: z.string().optional(),
+        recipient: z.string().optional(), // In V2 this might handle arrays, keeping string for now as per original type
+        body: z.string().optional(),
+        user: z.string().optional(),
+        ownerId: z.string().optional()
+    });
+
     fastify.post('/', async (request, reply) => {
-        const { id, subject, recipient, body, user, ownerId } = request.body as {
-            id?: string,
-            subject?: string,
-            recipient?: string,
-            body?: string,
-            user?: string,
-            ownerId?: string
-        };
+        const parseResult = RegisterBodySchema.safeParse(request.body);
+        if (!parseResult.success) {
+            return reply.status(400).send({ error: 'Invalid request body', details: parseResult.error.format() });
+        }
+
+        const { id, subject, recipient, body, user, ownerId } = parseResult.data;
         console.log(`[REGISTER] Attempting to register email. ID: ${id}, User: ${user}`);
 
-        // CORRECTION: The 'ownerId' sent from Frontend is actually the GOOGLE ID.
-        // But the DB 'TrackedEmail.ownerId' expects a USER UUID (Foreign Key).
-        // We must resolve the User UUID from the Google ID.
+        // SECURITY: Verify the claimed ownerId against the actual Auth Token
+        const authenticatedGoogleId = await getAuthenticatedUser(request);
+        let verifiedGoogleId: string | null = null;
 
+        if (ownerId) {
+            if (ownerId === authenticatedGoogleId) {
+                verifiedGoogleId = ownerId;
+            } else {
+                if (authenticatedGoogleId) {
+                    console.warn(`[REGISTER] OwnerId mismatch! Claimed: ${ownerId}, Verified: ${authenticatedGoogleId}. Using Verified.`);
+                    verifiedGoogleId = authenticatedGoogleId;
+                } else {
+                    console.warn(`[REGISTER] Unauthenticated attempt to set ownerId ${ownerId}. Ignoring.`);
+                    verifiedGoogleId = null;
+                }
+            }
+        } else if (authenticatedGoogleId) {
+            // If they didn't claim an ownerId but ARE logged in, verify/link them anyway?
+            // Usually the frontend sends the ID if it knows it.
+            // But let's rely on explicit sending for now to avoid accidental linking if logic differs.
+            // Actually, safe default: if you're authed, you probably own this.
+            verifiedGoogleId = authenticatedGoogleId;
+        }
+
+        // CORRECTION: The 'ownerId' sent from Frontend (and verified now) is the GOOGLE ID.
+        // We must resolve the User UUID from the Google ID.
         let validOwnerUuid: string | null = null;
 
-        if (ownerId && user) {
+        if (verifiedGoogleId && user) {
             try {
                 // 1. Try to find/create by Google ID
-                let dbUser = await prisma.user.findUnique({ where: { googleId: ownerId } });
+                let dbUser = await prisma.user.findUnique({ where: { googleId: verifiedGoogleId } });
 
                 if (!dbUser) {
                     // 2. If not found by Google ID, try to find by Email (Legacy/Social mismatch)
@@ -32,18 +63,18 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
                         // MERGE: User exists by email, but hasn't linked Google ID. Link it now.
                         dbUser = await prisma.user.update({
                             where: { id: existingByEmail.id },
-                            data: { googleId: ownerId }
+                            data: { googleId: verifiedGoogleId }
                         });
-                        console.log(`[REGISTER] Merged existing user ${user} with Google ID ${ownerId}`);
+                        console.log(`[REGISTER] Merged existing user ${user} with Google ID ${verifiedGoogleId}`);
                     } else {
                         // CREATE: User doesn't exist at all. Create new.
                         dbUser = await prisma.user.create({
                             data: {
                                 email: user,
-                                googleId: ownerId
+                                googleId: verifiedGoogleId
                             }
                         });
-                        console.log(`[REGISTER] Created new user ${user} for Google ID ${ownerId}`);
+                        console.log(`[REGISTER] Created new user ${user} for Google ID ${verifiedGoogleId}`);
                     }
                 }
 

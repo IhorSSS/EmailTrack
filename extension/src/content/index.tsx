@@ -2,6 +2,7 @@ import { logger } from '../utils/logger';
 import { injectScript, sendConfigToMainWorld } from './modules/infrastructure';
 import { setupRegistrationListener } from './modules/registration';
 import { injectStats } from './modules/stats';
+import { CONSTANTS } from '../config/constants';
 import './components/StatsDisplay.css';
 
 logger.log('EmailTrack: Content Script UI Loaded');
@@ -29,7 +30,7 @@ const injectCoreScripts = async () => {
 // Start injection when DOM is ready
 const init = () => {
     // Small delay to let Gmail's initial scripts run
-    setTimeout(injectCoreScripts, 200);
+    setTimeout(injectCoreScripts, CONSTANTS.CONTENT.INJECTION_DELAY_MS);
 };
 
 if (document.readyState === 'loading') {
@@ -39,8 +40,8 @@ if (document.readyState === 'loading') {
 }
 
 // 2. Setup Config Sync (Body Preview Length) - Keep a heartbeat for dynamic updates
-setTimeout(sendConfigToMainWorld, 2000);
-setInterval(sendConfigToMainWorld, 5000); // Heartbeat
+setTimeout(sendConfigToMainWorld, CONSTANTS.CONTENT.CONFIG_SYNC_DELAY_MS);
+setInterval(sendConfigToMainWorld, CONSTANTS.CONTENT.CONFIG_HEARTBEAT_MS); // Heartbeat
 
 // Watch for Config Changes
 try {

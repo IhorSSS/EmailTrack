@@ -23,19 +23,56 @@ async function handleRegister(data: any) {
             user: data.user
         };
 
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json'
+        };
+
         // If logged in, link email to account
         if (userProfile && userProfile.id) {
             payload.ownerId = userProfile.id;
             logger.log('[Background] Cloud mode: adding ownerId', userProfile.id);
+
+            // SECURITY: Get Sync Token to prove identity
+            try {
+                // We use non-interactive to check if we have a valid session
+                const token = await new Promise<string | undefined>((resolve) => {
+                    chrome.identity.getAuthToken({ interactive: false }, (token: any) => {
+                        if (chrome.runtime.lastError || !token) {
+                            logger.warn('[Background] Auth Token retrieval failed:', chrome.runtime.lastError?.message);
+                            resolve(undefined);
+                        } else {
+                            resolve(token);
+                        }
+                    });
+                });
+
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                    logger.log('[Background] Attached Auth Token to request');
+                } else {
+                    logger.error('[Background] CRITICAL: User is logged in but no token available. Aborting Cloud Registration to prevent data mismatch.');
+                    // Option: Throw error or Fallback to Incognito? 
+                    // decided: Throw error to alert user (via UI eventually) that sync is broken.
+                    throw new Error("AUTH_TOKEN_MISSING");
+                }
+            } catch (e) {
+                logger.error('[Background] Failed to get auth token:', e);
+                // If strictly cloud mode, we might want to stop here. 
+                // However, preserving data is important. 
+                // Let's NOT send ownerId if auth failed, so it saves as incognito (safe fallback) or fail?
+                // Logic decision: If we send with ownerId but NO token, backend might reject or warn.
+                // Let's remove ownerId to be safe and save as Local/Incognito so data isn't lost.
+                delete payload.ownerId;
+                logger.log('[Background] Falling back to Incognito registration due to Auth failure.');
+            }
+
         } else {
             logger.log('[Background] Incognito mode: failed to find ownerId or not logged in');
         }
 
         await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.REGISTER}`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: headers,
             body: JSON.stringify(payload)
         });
 

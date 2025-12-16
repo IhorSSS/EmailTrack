@@ -10,9 +10,20 @@ export interface ExtensionSettings {
 }
 
 export function useExtensionSettings(): ExtensionSettings {
-    const [currentUser, setCurrentUser] = useState<string | null>(null);
+    const [currentUser, setLocalCurrentUser] = useState<string | null>(null);
     const [globalEnabled, setGlobalEnabled] = useState(true);
     const [bodyPreviewLength, setBodyPreviewLength] = useState(0);
+
+    const setCurrentUser = (user: string | null) => {
+        setLocalCurrentUser(user);
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+            if (user) {
+                chrome.storage.local.set({ currentUser: user });
+            } else {
+                chrome.storage.local.remove('currentUser');
+            }
+        }
+    };
 
     // Initial Load
     useEffect(() => {

@@ -4,7 +4,13 @@
  */
 
 export const API_CONFIG = {
-    BASE_URL: import.meta.env.VITE_API_URL || 'http://localhost:3000', // Default to local for safety, override via ENV
+    BASE_URL: import.meta.env.VITE_API_URL || (() => {
+        if (import.meta.env.PROD) {
+            console.error('CRITICAL: VITE_API_URL is missing in production build!');
+            return ''; // Fail secure/silent
+        }
+        return 'http://localhost:3000';
+    })(),
     ENDPOINTS: {
         REGISTER: '/register',
         LOGIN: '/auth/login', // Google OAuth Login

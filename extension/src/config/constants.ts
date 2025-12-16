@@ -21,5 +21,12 @@ export const CONSTANTS = {
     RETRY: {
         ATTEMPTS: 5,
         DELAY_MS: 500
+    },
+
+    // Content Script
+    CONTENT: {
+        CONFIG_SYNC_DELAY_MS: 2000,
+        CONFIG_HEARTBEAT_MS: 5000,
+        INJECTION_DELAY_MS: 200
     }
 } as const;

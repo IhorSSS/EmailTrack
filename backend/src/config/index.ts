@@ -2,21 +2,26 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+const getEnv = (key: string, required: boolean = false): string => {
+    const value = process.env[key];
+    if (required && !value) {
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error(`MISSING_ENV: ${key} is required in production`);
+        }
+        console.warn(`WARNING: Missing ${key} in ${process.env.NODE_ENV} environment.`);
+    }
+    return value || '';
+};
+
 export const CONFIG = {
     PORT: Number(process.env.PORT) || 3000,
     CORS_ORIGINS: process.env.CORS_ORIGINS
         ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
-        : (() => {
-            if (process.env.NODE_ENV === 'production') {
-                console.warn('WARNING: CORS_ORIGINS not set in production. Defaulting to strict.');
-                return []; // Strict default in production
-            }
-            return [
-                'http://localhost:3000',
-                'http://localhost:5173',
-                /^chrome-extension:\/\/.*$/
-            ];
-        })(),
+        : (process.env.NODE_ENV === 'production' ? [] : [
+            'http://localhost:3000',
+            'http://localhost:5173',
+            /^chrome-extension:\/\/.*$/
+        ]),
     RATE_LIMIT: {
         MAX: 100,
         WINDOW: '1 minute',
@@ -24,13 +29,8 @@ export const CONFIG = {
         ALLOW_LIST: ['127.0.0.1']
     },
     GOOGLE: {
-        CLIENT_ID: process.env.GOOGLE_CLIENT_ID || (() => {
-            if (process.env.NODE_ENV === 'production') {
-                console.error('CRITICAL: GOOGLE_CLIENT_ID is missing in production!');
-                throw new Error('MISSING_ENV: GOOGLE_CLIENT_ID is required in production');
-            }
-            console.warn('WARNING: GOOGLE_CLIENT_ID missing, using mock/dummy ID for dev.');
-            return 'MOCK_CLIENT_ID';
-        })(),
-    }
+        CLIENT_ID: getEnv('GOOGLE_CLIENT_ID', true),
+    },
+    // Add other secrets here as needed
+    JWT_SECRET: getEnv('JWT_SECRET', process.env.NODE_ENV === 'production'),
 };

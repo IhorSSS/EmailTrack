@@ -18,8 +18,14 @@ vi.mock('../../db', () => ({
     },
 }));
 
+vi.mock('../../middleware/authMiddleware', () => ({
+    authenticate: vi.fn(),
+    getAuthenticatedUser: vi.fn().mockResolvedValue(null)
+}));
+
 import { buildApp } from '../../app';
 import { prisma } from '../../db';
+import { getAuthenticatedUser } from '../../middleware/authMiddleware';
 
 describe('Dashboard Route', () => {
     let app: FastifyInstance;
@@ -42,7 +48,7 @@ describe('Dashboard Route', () => {
 
         const response = await app.inject({
             method: 'GET',
-            url: '/dashboard?page=1&limit=10',
+            url: '/dashboard?page=1&limit=10&user=test@example.com',
         });
 
         expect(response.statusCode).toBe(200);
@@ -64,10 +70,16 @@ describe('Dashboard Route', () => {
 
         expect(response.statusCode).toBe(200);
         expect(prisma.trackedEmail.findMany).toHaveBeenCalledWith(expect.objectContaining({
-            where: { user: 'test@example.com' }
+            where: {
+                user: 'test@example.com',
+                ownerId: null
+            }
         }));
         expect(prisma.trackedEmail.count).toHaveBeenCalledWith(expect.objectContaining({
-            where: { user: 'test@example.com' }
+            where: {
+                user: 'test@example.com',
+                ownerId: null
+            }
         }));
     });
 

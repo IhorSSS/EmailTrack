@@ -1,4 +1,4 @@
-import { useState } from 'react';
+
 import './index.css';
 import { MainLayout } from './components/Layout/MainLayout';
 import { DetailView } from './components/activity/DetailView';
@@ -7,81 +7,28 @@ import { DashboardView } from './views/DashboardView';
 import { ActivityView } from './views/ActivityView';
 import { SettingsView } from './views/SettingsView';
 
-import type { TrackedEmail } from './types';
-import { useAuth } from './hooks/useAuth';
-import { useEmails } from './hooks/useEmails';
-import { useFilteredEmails } from './hooks/useFilteredEmails';
-import { useExtensionSettings } from './hooks/useExtensionSettings';
-import { useStatusModal } from './hooks/useStatusModal';
-import { useHistoryManager } from './hooks/useHistoryManager';
+import { useAppController } from './hooks/useAppController';
 
 const App = () => {
-  const [view, setView] = useState<'dashboard' | 'activity' | 'settings'>('dashboard');
-  const [selectedEmail, setSelectedEmail] = useState<TrackedEmail | null>(null);
-
-  // -- HOOKS --
-  const { userProfile, authLoading, login, logout, authError } = useAuth();
-
-  // -- SETTINGS HOOK --
-  const {
-    currentUser, setCurrentUser,
-    globalEnabled, toggleGlobal,
-    bodyPreviewLength, setBodyPreviewLength
-  } = useExtensionSettings();
-
-  // -- UI STATE --
-  const { statusModal, showStatus, closeStatus } = useStatusModal();
-
-  const { emails, stats, loading: dataLoading, error: dataError, fetchEmails, deleteEmails } = useEmails(userProfile, currentUser);
-
-  // -- FILTER LOGIC --
-  const {
-    searchQuery, setSearchQuery,
-    filterType, setFilterType,
-    senderFilter, setSenderFilter,
-    uniqueSenders, processedEmails
-  } = useFilteredEmails(emails);
-
-  // -- HISTORY MANAGER --
-  const { handleDeleteHistory } = useHistoryManager(
-    deleteEmails,
-    senderFilter,
-    userProfile,
-    showStatus,
-    setCurrentUser
-  );
-
-  const loading = authLoading || dataLoading;
-  const error = authError || dataError;
-
-  // -- HANDLERS --
-
-  const handleLogin = async () => {
-    try {
-      await login();
-    } catch (e: any) {
-      showStatus('Login Failed', e.message || 'Could not sign in.', 'danger');
-    }
-  };
+  const { state, actions } = useAppController();
+  const { view, selectedEmail, userProfile, loading, error, activeIdentity, stats, uniqueSenders, senderFilter, searchQuery, filterType, processedEmails, statusModal, globalEnabled, bodyPreviewLength } = state;
 
   // -- VIEW --
 
   if (selectedEmail) {
-    return <DetailView email={selectedEmail} onBack={() => setSelectedEmail(null)} />;
+    return <DetailView email={selectedEmail} onBack={() => actions.setSelectedEmail(null)} />;
   }
-
-  const activeIdentity = userProfile ? userProfile.email : currentUser;
 
   return (
     <>
       <MainLayout
         userProfile={userProfile}
         loading={loading}
-        onLogin={handleLogin}
-        onLogout={logout}
-        onRefresh={() => fetchEmails()}
+        onLogin={actions.handleLogin}
+        onLogout={actions.logout}
+        onRefresh={() => actions.fetchEmails()}
         currentView={view}
-        onViewChange={setView}
+        onViewChange={actions.setView}
       >
         {view === 'dashboard' && (
           <DashboardView
@@ -89,36 +36,36 @@ const App = () => {
             error={error}
             uniqueSenders={uniqueSenders}
             senderFilter={senderFilter}
-            setSenderFilter={setSenderFilter}
+            setSenderFilter={actions.setSenderFilter}
             processedEmails={processedEmails}
-            onEmailClick={setSelectedEmail}
-            onViewAllClick={() => setView('activity')}
+            onEmailClick={actions.setSelectedEmail}
+            onViewAllClick={() => actions.setView('activity')}
           />
         )}
         {view === 'activity' && (
           <ActivityView
             uniqueSenders={uniqueSenders}
             senderFilter={senderFilter}
-            setSenderFilter={setSenderFilter}
+            setSenderFilter={actions.setSenderFilter}
             searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
+            setSearchQuery={actions.setSearchQuery}
             filterType={filterType}
-            setFilterType={setFilterType}
+            setFilterType={actions.setFilterType}
             processedEmails={processedEmails}
-            onEmailClick={setSelectedEmail}
+            onEmailClick={actions.setSelectedEmail}
           />
         )}
         {view === 'settings' && (
           <SettingsView
             globalEnabled={globalEnabled}
-            toggleGlobal={toggleGlobal}
+            toggleGlobal={actions.toggleGlobal}
             bodyPreviewLength={bodyPreviewLength}
-            handleBodyPreviewChange={setBodyPreviewLength}
+            handleBodyPreviewChange={actions.setBodyPreviewLength}
             userProfile={userProfile}
             senderFilter={senderFilter}
             loading={loading}
             activeIdentity={activeIdentity}
-            onDeleteHistory={handleDeleteHistory}
+            onDeleteHistory={actions.handleDeleteHistory}
           />
         )}
       </MainLayout>
@@ -130,8 +77,8 @@ const App = () => {
         type={statusModal.type}
         confirmLabel="Close"
         showCancel={false}
-        onConfirm={closeStatus}
-        onCancel={closeStatus}
+        onConfirm={actions.closeStatus}
+        onCancel={actions.closeStatus}
       />
     </>
   );

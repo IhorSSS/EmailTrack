@@ -29,6 +29,13 @@ vi.mock('../db', () => ({
     }
 }));
 
+vi.mock('../middleware/authMiddleware', () => ({
+    authenticate: vi.fn(),
+    getAuthenticatedUser: vi.fn().mockResolvedValue(null) // Default to unauthed
+}));
+
+import { getAuthenticatedUser } from '../middleware/authMiddleware';
+
 describe('Dashboard Routes', () => {
     let app: any;
 
@@ -50,7 +57,10 @@ describe('Dashboard Routes', () => {
             });
 
             expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-                where: { user: 'test@example.com' }
+                where: {
+                    user: 'test@example.com',
+                    ownerId: null
+                }
             }));
         });
 
@@ -58,6 +68,7 @@ describe('Dashboard Routes', () => {
             mockFindMany.mockResolvedValue([]);
             mockCount.mockResolvedValue(0);
             (prisma.user.findUnique as any).mockResolvedValue({ id: 'master-uuid', googleId: 'master-uuid' });
+            (getAuthenticatedUser as any).mockResolvedValue('master-uuid');
 
             const response = await app.inject({
                 method: 'GET',
@@ -73,6 +84,7 @@ describe('Dashboard Routes', () => {
             mockFindMany.mockResolvedValue([]);
             mockCount.mockResolvedValue(0);
             (prisma.user.findUnique as any).mockResolvedValue({ id: 'master-uuid', googleId: 'master-uuid' });
+            (getAuthenticatedUser as any).mockResolvedValue('master-uuid');
 
             const response = await app.inject({
                 method: 'GET',

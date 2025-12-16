@@ -41,7 +41,7 @@ export function buildApp(): FastifyInstance {
         cache: CONFIG.RATE_LIMIT.CACHE,
         allowList: CONFIG.RATE_LIMIT.ALLOW_LIST,
         // Skip rate limiting for auth/dashboard (trusted endpoints)
-        skipOnError: true,
+        skipOnError: false, // FAIL SAFE: If rate limit store fails, do NOT allow unlimited requests.
     });
 
     app.register(trackRoutes, { prefix: '/track' });

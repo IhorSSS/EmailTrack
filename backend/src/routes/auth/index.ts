@@ -1,44 +1,37 @@
 import { FastifyPluginAsync } from 'fastify';
+import { z } from 'zod';
 import { UserService } from '../../services/UserService';
 import { verifyGoogleToken } from '../../utils/auth';
+import { authenticate } from '../../middleware/authMiddleware';
 
 const authRoutes: FastifyPluginAsync = async (fastify, opts) => {
 
-    // Helper to extract and verify token
-    const authenticate = async (request: any, reply: any) => {
-        const authHeader = request.headers.authorization;
-        if (!authHeader) {
-            reply.status(401).send({ error: 'Missing Authorization header' });
-            return null;
-        }
+    // --- Schemas ---
+    const LoginSchema = z.object({
+        googleId: z.string().optional(),
+        email: z.string().email(),
+        token: z.string().min(1, 'Authentication token is required')
+    });
 
-        const token = authHeader.split(' ')[1];
-        if (!token) {
-            reply.status(401).send({ error: 'Invalid Authorization header format' });
-            return null;
-        }
+    const SyncSchema = z.object({
+        email: z.string().email(),
+        emails: z.array(z.any()).max(1000, 'Batch too large')
+    });
 
-        try {
-            const googleId = await verifyGoogleToken(token);
-            return googleId;
-        } catch (e) {
-            request.log.warn(`[Auth] Token verification failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
-            reply.status(401).send({ error: 'Invalid or expired token' });
-            return null;
-        }
-    };
+    const ConflictCheckSchema = z.object({
+        emailIds: z.array(z.string())
+    });
 
     fastify.post('/login', async (request, reply) => {
-        const { googleId, email, token } = request.body as { googleId?: string, email: string, token?: string };
-
-        if (!email) {
-            return reply.status(400).send({ error: 'Missing email' });
+        const parseResult = LoginSchema.safeParse(request.body);
+        if (!parseResult.success) {
+            return reply.status(400).send({ error: 'Invalid login request', details: parseResult.error.format() });
         }
 
-        // Security Enforcement: Token is now REQUIRED.
-        if (!token) {
-            return reply.status(401).send({ error: 'Authentication token is required.' });
-        }
+        const { googleId, email, token } = parseResult.data;
+
+        // Note: Missing email check is handled by Zod .email() above
+        // Note: Missing token check is handled by Zod .min(1) above
 
         let verifiedGoogleId: string | null = null;
         try {
@@ -68,16 +61,14 @@ const authRoutes: FastifyPluginAsync = async (fastify, opts) => {
         const verifiedGoogleId = await authenticate(request, reply);
         if (!verifiedGoogleId) return; // Reply already sent
 
-        const { email, emails } = request.body as { email: string, emails: any[] };
-
-        if (!email || !Array.isArray(emails)) {
-            return reply.status(400).send({ error: 'Missing required fields' });
+        const parseResult = SyncSchema.safeParse(request.body);
+        if (!parseResult.success) {
+            return reply.status(400).send({ error: 'Invalid sync request', details: parseResult.error.format() });
         }
 
-        // SECURITY: Limit batch size
-        if (emails.length > 1000) {
-            return reply.status(400).send({ error: 'Batch too large. Maximum 1000 emails per sync.' });
-        }
+        const { email, emails } = parseResult.data;
+
+        // Length limit handled by Zod .max(1000)
 
         try {
             // Ensure we are syncing to the correct user
@@ -98,11 +89,12 @@ const authRoutes: FastifyPluginAsync = async (fastify, opts) => {
         const verifiedGoogleId = await authenticate(request, reply);
         if (!verifiedGoogleId) return; // Reply already sent
 
-        const { emailIds } = request.body as { emailIds: string[] };
-
-        if (!Array.isArray(emailIds)) {
-            return reply.status(400).send({ error: 'Missing required fields' });
+        const parseResult = ConflictCheckSchema.safeParse(request.body);
+        if (!parseResult.success) {
+            return reply.status(400).send({ error: 'Invalid conflict check request', details: parseResult.error.format() });
         }
+
+        const { emailIds } = parseResult.data;
 
         try {
             const conflict = await UserService.hasOwnershipConflict(emailIds, verifiedGoogleId);

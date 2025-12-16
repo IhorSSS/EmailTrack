@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify';
 import { prisma } from '../../db';
 import { z } from 'zod';
+import { authenticate, getAuthenticatedUser } from '../../middleware/authMiddleware';
 
 const GetDashboardQuerySchema = z.object({
     page: z.coerce.number().min(1).default(1),
@@ -31,19 +32,29 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
         const skip = (page - 1) * limit;
         const take = limit;
 
-        const whereClause: any = {};
+        // AUTHENTICATION CHECK
+        const authGoogleId = await getAuthenticatedUser(request);
 
-        // CORRECTION: 'ownerId' from query is Google ID. DB expects UUID.
-        let resolvedOwnerUuid: string | null = null;
+        // Security: If ownerId is requested, it MUST match the authenticated user.
         if (ownerId) {
+            if (!authGoogleId) {
+                return reply.status(401).send({ error: 'Authentication required to access cloud data.' });
+            }
+            if (ownerId !== authGoogleId) {
+                return reply.status(403).send({ error: 'Forbidden: You can only access your own data.' });
+            }
+        }
+
+        const whereClause: any = {};
+        let resolvedOwnerUuid: string | null = null;
+
+        // Resolve Google ID to User UUID if permitted
+        if (ownerId) { // We already verified ownerId === authGoogleId
             const userRecord = await prisma.user.findUnique({ where: { googleId: ownerId } });
-            console.log(`[DASHBOARD] Resolving ownerId (GoogleID) ${ownerId} -> User found: ${!!userRecord}, UUID: ${userRecord?.id}`);
             if (userRecord) {
                 resolvedOwnerUuid = userRecord.id;
             } else {
-                // If user doesn't exist for this Google ID, they effectively own nothing.
-                // We should probably return empty, or handle gracefully.
-                // For now, let's set a dummy UUID to ensure empty result rather than null (all).
+                // Authenticated but user record missing? Strange, but safe to return empty.
                 resolvedOwnerUuid = '00000000-0000-0000-0000-000000000000';
             }
         }
@@ -54,44 +65,61 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
                 whereClause.ownerId = resolvedOwnerUuid;
                 whereClause.user = user;
             } else {
-                // ownerId only (handled in ids section if ids present)
+                // ownerId only (handled in ids section if ids present, otherwise here)
                 whereClause.ownerId = resolvedOwnerUuid;
             }
         } else if (user) {
             whereClause.user = user; // Legacy/Incognito strict filter
+            // Enforce that we only return UNOWNED items if asking by 'user' (email) without 'ownerId'
+            // effectively "Incognito View"
+            whereClause.ownerId = null;
         }
 
-        console.log('[DASHBOARD] ID Filtering:', { ids, resolvedOwnerUuid, whereClause });
-
-        // Support ID list fetching for Incognito mode hydration
+        // Support ID list fetching for Incognito mode hydration (or fast cache sync)
         if (ids) {
-            const idList = ids.split(',');
+            const idList = ids.split(',').filter(Boolean);
             if (idList.length > 0) {
-                // SECURITY: When fetching by IDs, verify ownership
-                // If ownerId provided, ensure IDs belong to that owner
-                // If user provided, ensure IDs belong to that sender
-                // If neither, only return unowned (incognito) items
-
                 if (resolvedOwnerUuid) {
-                    // Cloud mode: Return only items owned by this account OR unowned items
-                    // Clear previous whereClause and use OR logic
+                    // Cloud mode: Return items owned by this account OR unowned items (if we want to allow claiming? No, just view)
+                    // Actually, if I'm logged in, I should see my items.
+                    // If I also have local items that are unowned, maybe I should see them too?
+                    // Let's stick to: If ownerId is present, we are in Cloud Mode.
+
                     whereClause.id = { in: idList };
-                    whereClause.OR = [
-                        { ownerId: resolvedOwnerUuid },
-                        { ownerId: null }
-                    ];
-                    // Remove individual ownerId to avoid conflict with OR
-                    delete whereClause.ownerId;
-                } else if (user) {
-                    // Incognito with user filter: Return items for this sender
-                    whereClause.id = { in: idList };
-                    whereClause.user = user;
+                    // Only show items I own. If I want to see unowned, I wouldn't pass ownerId.
+                    whereClause.ownerId = resolvedOwnerUuid;
+
+                    // Note: If the frontend wants to "merge" views, it handles it. 
+                    // Backend strictness: ownerId param = strict ownership.
                 } else {
-                    // No auth provided: Only return unowned items
+                    // No ownerId param.
+                    // STRICT: Only return items that are UNOWNED. (Incognito)
+                    // This prevents Incognito users from snooping on valid IDs that strictly belong to someone else.
                     whereClause.id = { in: idList };
                     whereClause.ownerId = null;
+
+                    // If 'user' was also provided, we already set whereClause.user = user AND ownerId = null above.
+                    // This creates a safe intersection.
                 }
             }
+        } else {
+            // No IDs provided.
+            // If we are not in Cloud Mode (no ownerId), and assuming 'user' (email) is provided...
+            if (!ownerId && !ids && !user) {
+                // Warning: Dumping everything? No.
+                return reply.status(400).send({ error: 'Query too broad. Specify user, ownerId, or ids.' });
+            }
+        }
+
+        // Final Security Sanity Check
+        if (!whereClause.ownerId && whereClause.ownerId !== null) {
+            // Implicitly, if ownerId is not set in whereClause, it means we MIGHT be querying global?
+            // But we have checks above.
+            // if (user) -> OK.
+            // if (ids) -> OK.
+            // If neither -> 400 caught above.
+            // Just ensure we default to unowned if explicit owner verification failed? 
+            // We did that with `whereClause.ownerId = null` in the `user` block.
         }
 
         const [data, total] = await Promise.all([
@@ -129,120 +157,125 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
         }
         const { user, ownerId, ids } = query;
 
+        // AUTHENTICATION REQUIRED FOR DELETE
+        // Unless we are doing pure incognito deletion by ID (unowned only)
+        const authGoogleId = await getAuthenticatedUser(request);
+
+        if (ownerId) {
+            if (!authGoogleId || ownerId !== authGoogleId) {
+                return reply.status(403).send({ error: 'Forbidden' });
+            }
+        }
+
         try {
             const result = await prisma.$transaction(async (tx) => {
-                // If specific IDs are provided, prioritized them (Incognito logic primarily)
+                let resolvedOwnerUuid: string | null = null;
+                if (ownerId) { // Verified above
+                    const u = await prisma.user.findUnique({ where: { googleId: ownerId } });
+                    if (u) resolvedOwnerUuid = u.id;
+                }
+
                 if (ids) {
                     const idList = ids.split(',').filter(Boolean);
                     if (idList.length > 0) {
-                        // SECURITY: Verify ownership before deletion
                         // Fetch existing emails to check ownership
                         const existingEmails = await tx.trackedEmail.findMany({
                             where: { id: { in: idList } },
                             select: { id: true, ownerId: true, user: true }
                         });
 
-                        // IMPORTANT: For Incognito mode (ownerId=null), we allow deletion
-                        // These are local-only pixels that haven't been claimed by any account
-                        // For owned items, we need to verify they match the requester
-
-                        // If ownerId or user is provided with ids, verify all items match
-                        // CORRECTION: Resolve Google ID to UUID for ownership verification
-                        let verifyOwnerUuid: string | null = null;
-                        if (ownerId) {
-                            const u = await prisma.user.findUnique({ where: { googleId: ownerId } });
-                            if (u) verifyOwnerUuid = u.id;
-                        }
-
-                        if (verifyOwnerUuid || user) {
-                            const unauthorized = existingEmails.filter(email => {
-                                // If email is owned, verify it matches requester
-                                if (email.ownerId) {
-                                    return email.ownerId !== verifyOwnerUuid;
-                                }
-                                // If email has user field, verify it matches
-                                if (email.user && user) {
-                                    return email.user !== user;
-                                }
-                                return false; // Unowned items are OK
-                            });
-
-                            if (unauthorized.length > 0) {
-                                // SECURITY: Don't reveal which specific IDs are unauthorized
-                                return reply.status(403).send({ error: 'Forbidden' });
+                        const unauthorized = existingEmails.filter(email => {
+                            if (email.ownerId) {
+                                // Owned item. Must match resolvedOwnerUuid
+                                return email.ownerId !== resolvedOwnerUuid;
                             }
-                        } else {
-                            // No ownerId/user provided - only allow deletion of unowned items
-                            const ownedItems = existingEmails.filter(e => e.ownerId !== null);
-                            if (ownedItems.length > 0) {
-                                return reply.status(403).send({ error: 'Forbidden' });
-                            }
+                            // Unowned item. Allow deletion if NO ownerId context (Incognito) 
+                            // OR if ownerId context is provided (claiming/managing)? 
+                            // Safe bet: Unowned items can be deleted by anyone who knows the ID? 
+                            // Ideally, yes, for "Delete History" in incognito.
+                            return false;
+                        });
+
+                        if (unauthorized.length > 0) {
+                            return reply.status(403).send({ error: 'Forbidden: Cannot delete items you do not own.' });
                         }
 
                         const whereIdObj = { in: idList };
-
-                        // 1. Delete events
-                        await tx.openEvent.deleteMany({
-                            where: { trackedEmailId: whereIdObj }
-                        });
-
-                        // 2. Delete emails
-                        return await tx.trackedEmail.deleteMany({
-                            where: { id: whereIdObj }
-                        });
+                        await tx.openEvent.deleteMany({ where: { trackedEmailId: whereIdObj } });
+                        return await tx.trackedEmail.deleteMany({ where: { id: whereIdObj } });
                     }
                     return { count: 0 };
                 }
 
-                // --- Fallback: Broad Deletion (Account Wipe or Sender Wipe) ---
+                // BULK DELETION
+                const conditions: any[] = [];
 
-                // --- Fallback: Broad Deletion (Account Wipe or Sender Wipe) ---
-
-                // CORRECTION: Resolve Google ID to UUID for deletion too
-                let deleteOwnerUuid: string | null = null;
-                if (ownerId) {
-                    const u = await prisma.user.findUnique({ where: { googleId: ownerId } });
-                    if (u) deleteOwnerUuid = u.id;
+                if (resolvedOwnerUuid) {
+                    // Delete all my cloud data
+                    conditions.push({ ownerId: resolvedOwnerUuid });
                 }
 
-                // Construct OR clause to catch both Cloud (ownerId) and Legacy/Ghost (user email) records
-                const conditions: any[] = [];
-                if (deleteOwnerUuid) conditions.push({ ownerId: deleteOwnerUuid });
-                if (user) conditions.push({ user });
+                if (user) {
+                    // Delete by sender email
+                    // If authed, delete MY data with this sender email
+                    if (resolvedOwnerUuid) {
+                        conditions.push({
+                            ownerId: resolvedOwnerUuid,
+                            user: user
+                        });
+                    } else {
+                        // Not authed / Incognito
+                        // Delete UNOWNED data with this sender email
+                        conditions.push({
+                            ownerId: null,
+                            user: user
+                        });
+                    }
+                }
 
-                const whereClause = {
-                    OR: conditions
-                };
+                if (conditions.length === 0) {
+                    return { count: 0 };
+                }
 
-                // 1. Find all emails for this user to get their IDs
-                const userEmails = await tx.trackedEmail.findMany({
-                    where: whereClause,
+                // If multiple conditions? (e.g. ownerId AND user)
+                // We constructed it such that we probably want OR? or specific logic?
+                // Logic above: 
+                // if ownerId -> delete all mine. 
+                // if ownerId + user -> delete all mine matching user?
+                // The current array push implication is OR or AND?
+                // Let's be precise.
+
+                const deleteWhere: any = {};
+                if (resolvedOwnerUuid) {
+                    deleteWhere.ownerId = resolvedOwnerUuid;
+                    if (user) deleteWhere.user = user;
+                } else {
+                    // Incognito
+                    deleteWhere.ownerId = null;
+                    if (user) deleteWhere.user = user;
+                    else {
+                        // Dangerous! Deleting all unowned?
+                        // Schema validation requires user or ids if no ownerId?
+                        // Check schema: user || ownerId || ids.
+                        // So if only ownerId=null (implied) and no user/ids -> validation should fail?
+                        // Schema says "at least one filter".
+                        // If I passed nothing, it fails.
+                        // If I pass user, I'm here.
+                        // If I pass ONLY user: deleteWhere = { ownerId: null, user: user }. Safe.
+                    }
+                }
+
+                // 1. Find IDs
+                const targets = await tx.trackedEmail.findMany({
+                    where: deleteWhere,
                     select: { id: true }
                 });
 
-                if (userEmails.length === 0) {
-                    return { count: 0 };
-                }
+                if (targets.length === 0) return { count: 0 };
+                const targetIds = targets.map(t => t.id);
 
-                const emailIds = userEmails.map(e => e.id);
-
-                // 2. Explicitly delete all open events for these specific Email IDs
-                await tx.openEvent.deleteMany({
-                    where: {
-                        trackedEmailId: {
-                            in: emailIds
-                        }
-                    }
-                });
-
-                // 3. Now it is safe to delete the emails themselves
-                return await tx.trackedEmail.deleteMany({
-                    where: {
-                        id: {
-                            in: emailIds
-                        }
-                    }
-                });
+                await tx.openEvent.deleteMany({ where: { trackedEmailId: { in: targetIds } } });
+                return await tx.trackedEmail.deleteMany({ where: { id: { in: targetIds } } });
             });
 
             reply.send({ success: true, count: result.count });
