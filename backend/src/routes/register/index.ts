@@ -13,26 +13,27 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
         };
         console.log(`[REGISTER] Attempting to register email. ID: ${id}, User: ${user}, OwnerId: ${ownerId}`);
 
-        // Robustness: If ownerId is provided, ensure the user exists!
-        // This fixes the "Foreign key constraint violated" (P2003) error if syncUser failed or hasn't run.
+        // CORRECTION: The 'ownerId' sent from Frontend is actually the GOOGLE ID.
+        // But the DB 'TrackedEmail.ownerId' expects a USER UUID (Foreign Key).
+        // We must resolve the User UUID from the Google ID.
+
+        let validOwnerUuid: string | null = null;
+
         if (ownerId && user) {
             try {
-                await prisma.user.upsert({
-                    where: { id: ownerId },
-                    update: { email: user }, // Ensure email is fresh
+                // Upsert User by GOOGLE ID (not ID)
+                const dbUser = await prisma.user.upsert({
+                    where: { googleId: ownerId },
+                    update: { email: user },
                     create: {
-                        id: ownerId,
                         email: user,
                         googleId: ownerId
                     }
                 });
-                console.log(`[REGISTER] Ensured user exists: ${ownerId} (${user})`);
+                validOwnerUuid = dbUser.id;
+                console.log(`[REGISTER] Resolved GoogleId ${ownerId} -> User UUID ${validOwnerUuid}`);
             } catch (userErr) {
-                console.warn('[REGISTER] Failed to auto-create user, proceeding without ownership linking if possible:', userErr);
-                // If this fails, the next step (TrackedEmail creation) might fail with FK error,
-                // or we could fallback to setting ownerId = null? 
-                // Let's let it fail or wrap it?
-                // Actually, if this fails, likely something is really wrong.
+                console.warn('[REGISTER] Failed to resolve user from Google ID:', userErr);
             }
         }
 
@@ -44,7 +45,7 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
                 recipient,
                 body,
                 user,
-                ownerId
+                ownerId: validOwnerUuid // Use resolved UUID
             },
             create: {
                 id,
@@ -52,7 +53,7 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
                 recipient,
                 body,
                 user,
-                ownerId
+                ownerId: validOwnerUuid // Use resolved UUID
             }
         });
 
