@@ -5,7 +5,7 @@ import { authenticate, getAuthenticatedUser } from '../../middleware/authMiddlew
 
 const GetDashboardQuerySchema = z.object({
     page: z.coerce.number().min(1).default(1),
-    limit: z.coerce.number().min(1).max(100).default(20), // Cap limit at 100 for safety
+    limit: z.coerce.number().min(1).max(1000).default(20), // Cap limit at 1000 for safety
     user: z.string().optional(),
     ownerId: z.string().optional(),
     ids: z.string().optional()
