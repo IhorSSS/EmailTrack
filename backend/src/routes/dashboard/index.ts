@@ -1,17 +1,29 @@
 import { FastifyPluginAsync } from 'fastify';
 import { prisma } from '../../db';
+import { z } from 'zod';
+
+const GetDashboardQuerySchema = z.object({
+    page: z.coerce.number().min(1).default(1),
+    limit: z.coerce.number().min(1).max(100).default(20), // Cap limit at 100 for safety
+    user: z.string().optional(),
+    ownerId: z.string().optional(),
+    ids: z.string().optional()
+});
+
+const DeleteDashboardQuerySchema = z.object({
+    user: z.string().optional(),
+    ownerId: z.string().optional(),
+    ids: z.string().optional()
+}).refine(data => data.user || data.ownerId || data.ids, {
+    message: "At least one filter (user, ownerId, or ids) is required"
+});
 
 const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
     fastify.get('/', async (request, reply) => {
-        const { page = 1, limit = 20, user, ownerId, ids } = request.query as {
-            page?: any,
-            limit?: any,
-            user?: string,
-            ownerId?: string,
-            ids?: string
-        };
-        const skip = (Number(page) - 1) * Number(limit);
-        const take = Number(limit);
+        const query = GetDashboardQuerySchema.parse(request.query);
+        const { page, limit, user, ownerId, ids } = query;
+        const skip = (page - 1) * limit;
+        const take = limit;
 
         const whereClause: any = {};
 
@@ -103,11 +115,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
     });
 
     fastify.delete('/', async (request, reply) => {
-        const { user, ownerId, ids } = request.query as { user?: string, ownerId?: string, ids?: string };
-
-        if (!user && !ownerId && !ids) {
-            return reply.status(400).send({ error: 'User, ownerId or ids parameter is required' });
-        }
+        const { user, ownerId, ids } = DeleteDashboardQuerySchema.parse(request.query);
 
         try {
             const result = await prisma.$transaction(async (tx) => {

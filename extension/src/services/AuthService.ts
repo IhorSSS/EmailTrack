@@ -39,7 +39,7 @@ export class AuthService {
      * Fetch User Profile from Google using Access Token
      */
     static async getUserProfile(token: string): Promise<UserProfile> {
-        const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        const response = await fetch(API_CONFIG.OAUTH.USER_INFO, {
             headers: {
                 Authorization: `Bearer ${token}`
             }
@@ -53,9 +53,6 @@ export class AuthService {
     /**
      * Logout: Remove cached token and clear local state
      */
-    /**
-     * Logout: Revoke token and remove from cache
-     */
     static async logout(token: string): Promise<void> {
         return new Promise((resolve) => {
             if (!chrome.identity) {
@@ -65,7 +62,7 @@ export class AuthService {
 
             // 1. Revoke token to force account selection next time
             // Using POST is more standard for newer endpoints
-            const revokeUrl = 'https://oauth2.googleapis.com/revoke';
+            const revokeUrl = API_CONFIG.OAUTH.REVOKE;
 
             fetch(revokeUrl, {
                 method: 'POST',

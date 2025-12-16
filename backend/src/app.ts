@@ -14,7 +14,20 @@ export function buildApp(): FastifyInstance {
     });
 
     app.register(cors, {
-        origin: '*', // Allow all for now, lock down later
+        origin: (origin, cb) => {
+            const allowedOrigins = [
+                'http://localhost:3000',
+                'http://localhost:5173',
+                // Chrome Extension Protocol
+                /^chrome-extension:\/\/.*$/
+            ];
+
+            if (!origin || allowedOrigins.some(allowed => allowed instanceof RegExp ? allowed.test(origin) : allowed === origin)) {
+                cb(null, true);
+                return;
+            }
+            cb(new Error("Not allowed"), false);
+        },
         allowedHeaders: ['Content-Type', 'Authorization', 'Bypass-Tunnel-Reminder'],
         methods: ['GET', 'POST', 'OPTIONS', 'DELETE']
     });

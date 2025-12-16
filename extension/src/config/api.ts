@@ -15,6 +15,13 @@ export const API_CONFIG = {
         STATS: '/stats'
     },
     PARAMS: {
-        DASHBOARD_LIMIT: 1000  // High limit to get all emails
+        DASHBOARD_LIMIT: 1000
+    },
+    OAUTH: {
+        USER_INFO: 'https://www.googleapis.com/oauth2/v2/userinfo',
+        REVOKE: 'https://oauth2.googleapis.com/revoke'
+    },
+    TIMEOUTS: {
+        DEFAULT: 10000
     }
 } as const;
