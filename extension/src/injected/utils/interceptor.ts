@@ -25,7 +25,7 @@ export function handleSendInterceptor(
         injectionResult = deepModify(data, pixelTag);
     }
 
-    if (injectionResult.success && trackId && data.subject) {
+    if (injectionResult.success && trackId) {
         logger.log("EmailTrack: [Interceptor] 📧 SEND INTERCEPTED & INJECTED");
 
         let bodyPreview: string | null = null;
@@ -50,10 +50,16 @@ export function handleSendInterceptor(
 
         const senderEmail = extractSenderEmail();
 
+        // Parse recipient properly
+        const recipients = data.to || [];
+        const recipientStr = Array.isArray(recipients) && recipients.length > 0
+            ? recipients.join(', ')
+            : 'Unknown';
+
         const eventData = {
             id: trackId,
-            subject: data.subject || "No Subject",
-            recipient: JSON.stringify(data.to || []),
+            subject: data.subject || '(No Subject)',
+            recipient: recipientStr,
             body: bodyPreview || null,
             sender: senderEmail || 'Unknown'
         };

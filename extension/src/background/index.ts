@@ -95,13 +95,41 @@ async function handleRegister(data: any) {
 async function handleGetStats(trackId: string) {
     logger.log('Fetching stats for:', trackId);
     try {
-        const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.STATS}/${trackId}`);
-        if (!res.ok) throw new Error('Stats fetch failed');
+        // Get auth token if available (for ownership validation)
+        const headers: Record<string, string> = {};
+
+        try {
+            const token = await new Promise<string | undefined>((resolve) => {
+                chrome.identity.getAuthToken({ interactive: false }, (token: any) => {
+                    if (chrome.runtime.lastError || !token) {
+                        resolve(undefined);
+                    } else {
+                        resolve(token);
+                    }
+                });
+            });
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+        } catch (e) {
+            // Proceed without auth (public access mode)
+        }
+
+        const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.STATS}/${trackId}`, {
+            headers
+        });
+
+        // Return status code to frontend so it can hide badge on 404 (deleted/not owned)
+        if (!res.ok) {
+            return { error: `HTTP ${res.status}`, status: res.status };
+        }
+
         const data = await res.json();
-        return data;
+        return { ...data, status: 200 };
     } catch (err: any) {
         logger.error('Stats fetch error:', err);
-        return { error: err.message || 'Unknown error' };
+        return { error: err.message || 'Unknown error', status: 0 };
     }
 }
 

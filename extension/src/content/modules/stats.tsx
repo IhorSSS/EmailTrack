@@ -51,16 +51,18 @@ export function injectStats() {
     chrome.storage.local.get(['userProfile'], async (syncResult) => {
         const hasCloudAccess = !!syncResult.userProfile;
 
-        // If not logged in, check for local history
-        if (!hasCloudAccess) {
-            try {
-                const localEmails = await LocalStorageService.getEmails();
-                if (localEmails.length === 0) {
-                    return; // No access
-                }
-            } catch (e) {
-                return; // Fail-safe
+        // Load local emails for ownership validation
+        let localEmailIds: Set<string> = new Set();
+        try {
+            const localEmails = await LocalStorageService.getEmails();
+            localEmailIds = new Set(localEmails.map(e => e.id));
+
+            // If not logged in and no local history -> no access
+            if (!hasCloudAccess && localEmailIds.size === 0) {
+                return;
             }
+        } catch (e) {
+            return; // Fail-safe
         }
 
         // User has access - proceed
@@ -101,6 +103,15 @@ export function injectStats() {
             }
 
             if (trackId) {
+                // OWNERSHIP VALIDATION
+                // Cloud mode: Show badge, let StatsDisplay + backend validate ownership (returns 404 if not owned)
+                // Offline mode: Check local storage (synced from cloud or created locally)
+                if (!hasCloudAccess && !localEmailIds.has(trackId)) {
+                    logger.log(`[Stats] Skipping badge for ${trackId} - not in local storage (offline mode)`);
+                    return; // Skip - not owned in offline mode
+                }
+                // In cloud mode: localEmailIds might be empty before popup sync, so we let backend decide
+
                 // Find Injection Point: .gH (Date/Header) prioritized
                 const dateElement = row.querySelector('.gH');
                 const subjectHeader = row.closest('.gs')?.parentElement?.querySelector('h2.hP');

@@ -101,32 +101,44 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
 
             // 4. Merge Strategy
             const emailMap = new Map<string, TrackedEmail>();
+            const localEmailMap = new Map(localEmails.map(e => [e.id, e]));
             const emailsToSave: TrackedEmail[] = [];
 
-            // Priority 1: Server Data
+            // Priority 1: Server Data (with local fallback for placeholders)
             serverEmails.forEach((e: any) => {
+                const localEmail = localEmailMap.get(e.id);
+                const serverSubject = e.subject || '';
+                const serverRecipient = e.recipient || '';
+
+                // Detect placeholder values from server
+                const isPlaceholderSubject = !serverSubject || serverSubject.includes('Subject Unavailable');
+                const isPlaceholderRecipient = !serverRecipient || serverRecipient === 'Unknown';
+
                 const enriched = {
                     ...e,
+                    // Preserve local metadata if server has placeholder
+                    subject: isPlaceholderSubject && localEmail?.subject ? localEmail.subject : serverSubject,
+                    recipient: isPlaceholderRecipient && localEmail?.recipient ? localEmail.recipient : serverRecipient,
+                    body: e.body || localEmail?.body || '',
                     openCount: e._count?.opens ?? e.openCount ?? 0,
                     opens: e.opens || []
                 };
                 emailMap.set(e.id, enriched);
 
-                // Hydration: Prepare for batch save
+                // Hydration: Save merged data (local metadata preserved)
                 emailsToSave.push({
                     id: enriched.id,
-                    subject: (enriched.subject && !enriched.subject.includes('Subject Unavailable')) ? enriched.subject : '',
-                    recipient: enriched.recipient || '',
-                    body: enriched.body || '',
-                    user: enriched.user || '',
+                    subject: enriched.subject,
+                    recipient: enriched.recipient,
+                    body: enriched.body,
+                    user: enriched.user || localEmail?.user || '',
                     createdAt: enriched.createdAt,
-                    // Hydrate full object to conform to TrackedEmail if LocalStorage supports it
                     opens: e.opens || [],
                     openCount: e.openCount || 0
                 } as TrackedEmail);
             });
 
-            // Batch save to prevent async race conditions
+            // Batch save (now with local metadata preserved)
             if (emailsToSave.length > 0) {
                 await LocalStorageService.saveEmails(emailsToSave);
             }

@@ -24,9 +24,9 @@ export function setupRegistrationListener() {
         logger.log('[Content] EMAILTRACK_REGISTER event received:', event.data.detail);
         const { id, subject, recipient, body } = event.data.detail;
 
-        // Strict Validation to prevent "Unknown" ghosts
-        if (!id || !subject || subject === 'No Subject') {
-            logger.warn('[Content] Ignoring invalid registration event:', event.data.detail);
+        // Validation: Only require ID (subject can be empty in Gmail)
+        if (!id) {
+            logger.warn('[Content] Ignoring registration event without ID:', event.data.detail);
             return;
         }
 
