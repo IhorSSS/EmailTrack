@@ -62,7 +62,7 @@ export const useAuth = () => {
             const localIds = localEmails.map(e => e.id);
 
             if (localIds.length > 0) {
-                const hasConflict = await AuthService.checkOwnershipConflict(localIds, profile.id);
+                const hasConflict = await AuthService.checkOwnershipConflict(localIds, profile.id, token);
                 if (hasConflict) {
                     await logout(); // Abort
                     throw new Error(`Account Conflict: Local history belongs to another account. Please clear history first.`);
@@ -76,7 +76,7 @@ export const useAuth = () => {
             const unsynced = localEmails.filter(e => !e.synced);
             if (unsynced.length > 0) {
                 try {
-                    const count = await AuthService.uploadHistory(unsynced, profile.id, profile.email);
+                    const count = await AuthService.uploadHistory(unsynced, profile.id, profile.email, token);
                     if (count > 0) {
                         await LocalStorageService.markAsSynced(unsynced.map(e => e.id));
                     }

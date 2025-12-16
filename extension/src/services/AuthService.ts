@@ -99,11 +99,13 @@ export class AuthService {
     static async syncUser(email: string, googleId: string, token: string): Promise<void> {
         const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.LOGIN}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, googleId, token })
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ email, googleId, token }) // We still send token in body for legacy/backup, but header is primary
         });
         if (!response.ok) {
-            // We don't want to block login if sync fails (e.g. offline), but good to know
             console.warn('Failed to sync user with backend');
         }
     }
@@ -111,18 +113,18 @@ export class AuthService {
     /**
      * Check if local email IDs are owned by another user
      */
-    static async checkOwnershipConflict(emailIds: string[], googleId: string): Promise<boolean> {
+    static async checkOwnershipConflict(emailIds: string[], googleId: string, token: string): Promise<boolean> {
         const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/check-conflicts`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify({ googleId, emailIds })
         });
 
         if (!response.ok) {
-            // If check fails technically, we might want to block or allow?
-            // Safer to allow (fail open) or block (fail closed)? 
-            // Let's assume fail open for now but log error, or fail closed to be safe?
-            console.error('Failed to check ownership conflicts');
+            console.error('Failed to check ownership conflicts (API Error)');
             return false;
         }
 
@@ -133,10 +135,13 @@ export class AuthService {
     /**
      * Upload local history to backend (Batch Sync)
      */
-    static async uploadHistory(emails: any[], googleId: string, email: string): Promise<number> {
+    static async uploadHistory(emails: any[], googleId: string, email: string, token: string): Promise<number> {
         const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.SYNC}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify({ googleId, email, emails })
         });
 

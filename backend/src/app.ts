@@ -1,5 +1,6 @@
 import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
+import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 
 import { CONFIG } from './config';
@@ -13,6 +14,10 @@ import authRoutes from './routes/auth';
 export function buildApp(): FastifyInstance {
     const app = Fastify({
         logger: true
+    });
+
+    app.register(helmet, {
+        // Customize contentSecurityPolicy if needed, currently using defaults suitable for APIs
     });
 
     app.register(cors, {

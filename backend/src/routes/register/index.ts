@@ -11,7 +11,7 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
             user?: string,
             ownerId?: string
         };
-        console.log(`[REGISTER] Attempting to register email. ID: ${id}, User: ${user}, OwnerId: ${ownerId}`);
+        console.log(`[REGISTER] Attempting to register email. ID: ${id}, User: ${user}`);
 
         // CORRECTION: The 'ownerId' sent from Frontend is actually the GOOGLE ID.
         // But the DB 'TrackedEmail.ownerId' expects a USER UUID (Foreign Key).
@@ -74,12 +74,7 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
             }
         });
 
-        console.log('[REGISTER] FINAL DB SAVE:', {
-            id: email.id,
-            ownerId_input: validOwnerUuid,
-            ownerId_saved: email.ownerId,
-            user_field: email.user
-        });
+        request.log.info(`[REGISTER] Registering email. ID: ${id}, User: ${user}, Owner: ${email.ownerId || 'None'}`);
 
         const protocol = request.protocol;
         const host = request.headers.host;

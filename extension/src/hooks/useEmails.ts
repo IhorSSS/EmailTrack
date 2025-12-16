@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { API_CONFIG } from '../config/api';
 import { LocalStorageService } from '../services/LocalStorageService';
+import { DashboardService } from '../services/DashboardService';
 import type { TrackedEmail } from '../types';
 import type { UserProfile } from '../services/AuthService';
 
@@ -92,14 +93,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 return;
             }
 
-            const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}?${params.toString()}`, {
-                cache: 'no-store'
-            });
-
-            if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-
-            const { data } = await res.json();
-            const serverEmails: TrackedEmail[] = data || [];
+            const serverEmails = await DashboardService.fetchEmails(params);
 
             // 4. Merge Strategy
             const emailMap = new Map<string, TrackedEmail>();
@@ -170,7 +164,6 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
     ): Promise<{ success: boolean, message: string }> => {
         setLoading(true);
         try {
-            const urlBase = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}`;
             const params = new URLSearchParams();
             let isServerSuccess = true;
 
@@ -178,17 +171,10 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 // Cloud Mode: Delete All or Specific
                 params.append('ownerId', userProfile.id);
                 if (filterSender !== 'all') params.append('user', filterSender);
-                // If idsToDelete provided? The original logic prioritized "deleteAll" conceptual flow for userProfile
-                // but if we want to delete specific items?
-                // Original App.tsx handle "confirmDeleteHistory" only did "Delete All" for cloud user.
-                // But "Delete All" button was in Settings.
-                // DetailView had delete? No, DetailView only viewed.
-                // OK, we stick to "Clear History" logic.
-                if (userProfile.email) params.append('user', userProfile.email); // Legacy/Ghost safety
+                // Maintain legacy behavior for safety
+                if (userProfile.email) params.append('user', userProfile.email);
 
-                const res = await fetch(`${urlBase}?${params.toString()}`, { method: 'DELETE' });
-                if (!res.ok) throw new Error('Failed to delete history on server');
-
+                await DashboardService.deleteEmails(params);
                 await LocalStorageService.deleteAll();
             } else {
                 // Incognito Mode
@@ -212,11 +198,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                     if (targetSender) params.append('user', targetSender);
 
                     try {
-                        const res = await fetch(`${urlBase}?${params.toString()}`, { method: 'DELETE' });
-                        if (!res.ok) {
-                            isServerSuccess = false;
-                            await LocalStorageService.queuePendingDelete(targetIds, targetSender || undefined);
-                        }
+                        await DashboardService.deleteEmails(params);
                     } catch (e) {
                         isServerSuccess = false;
                         await LocalStorageService.queuePendingDelete(targetIds, targetSender || undefined);
@@ -226,7 +208,6 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 // 3. Local Delete
                 if (targetSender) {
                     await LocalStorageService.deleteBySender(targetSender);
-                    // Handle currentUser reset in UI (App.tsx)
                 } else {
                     await LocalStorageService.deleteAll();
                 }
@@ -235,7 +216,6 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
             // Refresh
             setEmails([]);
             setStats({ tracked: 0, opened: 0, rate: 0 });
-            // re-fetch done by caller or effect?
             fetchEmails();
 
             return {

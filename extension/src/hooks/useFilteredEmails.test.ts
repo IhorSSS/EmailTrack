@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 const mockEmails = [
     {
         id: '1',
-        createdAt: new Date('2023-01-01'),
+        createdAt: new Date('2023-01-01').toISOString(),
         recipient: 'recipient1@example.com',
         subject: 'Subject 1',
         opens: [], // Unopened
@@ -16,7 +16,7 @@ const mockEmails = [
     },
     {
         id: '2',
-        createdAt: new Date('2023-01-02'),
+        createdAt: new Date('2023-01-02').toISOString(),
         recipient: 'recipient2@example.com',
         subject: 'Project Update',
         opens: [{ openedAt: new Date(), ip: '127.0.0.1', userAgent: 'Chrome' }], // Opened
@@ -27,7 +27,7 @@ const mockEmails = [
     },
     {
         id: '3',
-        createdAt: new Date('2023-01-03'),
+        createdAt: new Date('2023-01-03').toISOString(),
         recipient: 'recipient3@example.com',
         subject: 'Subject 3',
         opens: [],

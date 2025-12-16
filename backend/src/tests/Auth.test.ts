@@ -81,7 +81,7 @@ describe('Auth Routes', () => {
             expect(response.statusCode).toBeGreaterThanOrEqual(400);
         });
 
-        it('should fallback to legacy googleId if token is missing (Transition Period)', async () => {
+        it('should FAIL if token is missing (Secure Mode - Legacy Disabled)', async () => {
             (prisma.user.findUnique as any).mockResolvedValue({
                 id: 'user-uuid',
                 email: 'legacy@example.com',
@@ -98,10 +98,9 @@ describe('Auth Routes', () => {
                 }
             });
 
-            expect(response.statusCode).toBe(200);
+            // We now expect 401 because token is strictly required
+            expect(response.statusCode).toBe(401);
             expect(verifyGoogleToken).not.toHaveBeenCalled();
-            const body = response.json();
-            expect(body.user.id).toBe('user-uuid');
         });
 
         it('should reject if neither token nor googleId is provided', async () => {
@@ -113,7 +112,8 @@ describe('Auth Routes', () => {
                 }
             });
 
-            expect(response.statusCode).toBe(400);
+            // Missing token => 401
+            expect(response.statusCode).toBe(401);
         });
     });
 });

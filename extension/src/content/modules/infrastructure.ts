@@ -1,3 +1,4 @@
+import { API_CONFIG } from '../../config/api';
 import { logger } from '../../utils/logger';
 
 // --- Script Injection for Main World (Tracking) ---
@@ -26,6 +27,7 @@ export const sendConfigToMainWorld = () => {
             if (chrome.runtime.lastError) return; // Ignore errors
 
             const length = typeof res.bodyPreviewLength === 'number' ? res.bodyPreviewLength : 0;
+            const apiUrl = API_CONFIG.BASE_URL;
 
             const ensureConfig = () => {
                 let configEl = document.getElementById('emailtrack-config');
@@ -35,10 +37,14 @@ export const sendConfigToMainWorld = () => {
                     configEl.style.display = 'none';
                     (document.head || document.documentElement).appendChild(configEl);
                 }
+
                 if (configEl.getAttribute('data-body-preview-length') !== length.toString()) {
                     configEl.setAttribute('data-body-preview-length', length.toString());
-                    // Use console.error to ensure it appears in user logs (bypass filters)
-                    logger.log('EmailTrack: [Content] Written config to DOM:', length);
+                }
+
+                if (configEl.getAttribute('data-api-url') !== apiUrl) {
+                    configEl.setAttribute('data-api-url', apiUrl);
+                    logger.log('EmailTrack: [Content] synced config. API:', apiUrl);
                 }
             };
 

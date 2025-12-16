@@ -9,4 +9,14 @@ export default defineConfig({
     react(),
     crx({ manifest }),
   ],
+  build: {
+    rollupOptions: {
+      input: {
+        logic: 'src/injected/logic.ts'
+      },
+      output: {
+        entryFileNames: '[name].js'
+      }
+    }
+  }
 })
