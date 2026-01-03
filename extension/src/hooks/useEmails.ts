@@ -59,6 +59,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
     };
 
     const fetchEmails = useCallback(async (overrideProfile?: UserProfile | null) => {
+        console.log('[useEmails] fetchEmails started', { profile: !!overrideProfile, currentUser, authToken: !!authToken });
         setLoading(true);
         setError(null);
         try {
@@ -119,7 +120,9 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                     subject: isPlaceholderSubject && localEmail?.subject ? localEmail.subject : serverSubject,
                     recipient: isPlaceholderRecipient && localEmail?.recipient ? localEmail.recipient : serverRecipient,
                     body: e.body || localEmail?.body || '',
-                    openCount: e._count?.opens ?? e.openCount ?? 0,
+                    // FIX: Prevent overwriting local open count with 0 from server (sync lag)
+                    // Priority: 1. Server Count (if > 0), 2. Server Opens Array Length, 3. Local Count
+                    openCount: Math.max(e._count?.opens ?? e.opens?.length ?? e.openCount ?? 0, localEmail?.openCount ?? 0),
                     opens: e.opens || []
                 };
                 emailMap.set(e.id, enriched);
@@ -133,7 +136,8 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                     user: enriched.user || localEmail?.user || '',
                     createdAt: enriched.createdAt,
                     opens: e.opens || [],
-                    openCount: e.openCount || 0
+                    // FIX: Use enriched.openCount (calculated max) instead of raw e.openCount
+                    openCount: enriched.openCount
                 } as TrackedEmail);
             });
 
@@ -266,12 +270,10 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
 
     // Fetch when userProfile or currentUser changes (NOT on mount to avoid race)
     // This ensures we use ownerId in cloud mode after login completes
+    // Fetch data whenever auth context changes
     useEffect(() => {
-        // Only fetch if we have some identity context
-        if (userProfile || currentUser) {
-            fetchEmails();
-        }
-    }, [userProfile, currentUser]); // Re-fetch when auth state changes
+        fetchEmails();
+    }, [userProfile, currentUser]);
 
     return {
         emails,
