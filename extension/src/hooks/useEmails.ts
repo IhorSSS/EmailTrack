@@ -264,11 +264,14 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
         }
     }, [userProfile, fetchEmails]);
 
-    // Initial load - run ONCE on mount
+    // Fetch when userProfile or currentUser changes (NOT on mount to avoid race)
+    // This ensures we use ownerId in cloud mode after login completes
     useEffect(() => {
-        fetchEmails();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Empty deps = run once
+        // Only fetch if we have some identity context
+        if (userProfile || currentUser) {
+            fetchEmails();
+        }
+    }, [userProfile, currentUser]); // Re-fetch when auth state changes
 
     return {
         emails,

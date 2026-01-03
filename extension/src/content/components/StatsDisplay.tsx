@@ -31,7 +31,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
                 type: 'GET_STATS',
                 trackId
             }, (response) => {
-                const lastError = chrome.runtime.lastError;
+                const lastError = chrome.runtime?.lastError;
                 if (lastError) {
                     const msg = lastError.message || '';
                     if (msg.includes('context invalidated')) {

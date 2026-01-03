@@ -36,7 +36,7 @@ export function setupRegistrationListener() {
         // Save Current User to Local Storage for Popup usage
         if (userEmail && chrome.runtime?.id) {
             chrome.storage.local.set({ currentUser: userEmail }, () => {
-                if (chrome.runtime.lastError) {
+                if (chrome.runtime?.lastError) {
                     // ignore
                 }
             });
@@ -69,12 +69,18 @@ export function setupRegistrationListener() {
                     user: userEmail || 'Unknown' // Pass extracted sender
                 }
             }, (response) => {
-                if (chrome.runtime.lastError) {
+                if (chrome.runtime?.lastError) {
                     logger.error('[Content] Background registration error:', chrome.runtime.lastError);
                     return;
                 }
                 if (response && response.success) {
                     logger.log('[Content] Successfully registered email via background');
+                    // FIX: Close the sync loop immediately
+                    if (response.synced) {
+                        LocalStorageService.markAsSynced([id]).then(() => {
+                            logger.log('[Content] Marked email as synced locally.');
+                        });
+                    }
                 } else {
                     logger.warn('[Content] Background registration returned failure:', response);
                 }
@@ -84,15 +90,23 @@ export function setupRegistrationListener() {
         }
 
         // 2. Optimistic UI Update (With Retries)
+        // 2. Optimistic UI Update (With Retries)
         const attemptInject = (attempt = 1) => {
-            const success = handleOptimisticBadge(id);
+            const success = handleOptimisticBadge(id, userEmail);
             if (success) {
                 logger.log(`EmailTrack: [UI] Badge Injected on attempt ${attempt}`);
             } else if (attempt < 5) {
                 // Retry with backoff (500ms, 1000ms... 2500ms)
                 setTimeout(() => attemptInject(attempt + 1), 500 * attempt);
             } else {
-                logger.warn('EmailTrack: [UI] Failed to inject optimistic badge after 5 attempts');
+                // Determine if we are even in a message view
+                const isMessageView = document.querySelectorAll('div.adn').length > 0;
+
+                if (isMessageView) {
+                    logger.warn('EmailTrack: [UI] Failed to inject optimistic badge after 5 attempts');
+                } else {
+                    logger.log('EmailTrack: [UI] Stopped retrying badge injection - user likely navigated away or view changed.');
+                }
             }
         };
 

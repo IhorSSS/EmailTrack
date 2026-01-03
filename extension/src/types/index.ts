@@ -18,4 +18,5 @@ export interface LocalEmailMetadata {
     user: string; // The sender email
     createdAt: string;
     synced?: boolean;
+    openCount?: number;
 }

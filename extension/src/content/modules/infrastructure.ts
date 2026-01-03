@@ -24,7 +24,7 @@ export const sendConfigToMainWorld = () => {
     try {
         if (!chrome.runtime?.id) return;
         chrome.storage.sync.get(['bodyPreviewLength'], (res) => {
-            if (chrome.runtime.lastError) return; // Ignore errors
+            if (chrome.runtime?.lastError) return; // Ignore errors
 
             const length = typeof res.bodyPreviewLength === 'number' ? res.bodyPreviewLength : 0;
             const apiUrl = API_CONFIG.BASE_URL;

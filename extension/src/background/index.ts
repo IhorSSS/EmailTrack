@@ -81,14 +81,18 @@ async function handleRegister(data: any) {
             throw new Error(`Registration API failed: ${response.status} ${errorText}`);
         }
 
-        // Cache the current user for the Popup to use
         if (data.user) {
             chrome.storage.local.set({ currentUser: data.user });
         }
 
         logger.log('Email registered successfully');
-    } catch (err) {
+        // Return whether we successfully claimed it (synced) or just registered anonymously (unsynced/incognito)
+        // If we attached ownerId, it's synced.
+        const isSynced = !!payload.ownerId;
+        return { success: true, synced: isSynced };
+    } catch (err: any) {
         logger.error('Registration failed:', err);
+        return { success: false, error: err.message };
     }
 }
 
@@ -135,7 +139,7 @@ async function handleGetStats(trackId: string) {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'REGISTER_EMAIL') {
-        handleRegister(message.data).then(() => sendResponse({ success: true }));
+        handleRegister(message.data).then((result) => sendResponse(result));
         return true; // Keep channel open
     } else if (message.type === 'GET_STATS') {
         handleGetStats(message.trackId).then(sendResponse);

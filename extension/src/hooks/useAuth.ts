@@ -46,16 +46,33 @@ export const useAuth = () => {
     const login = useCallback(async () => {
         setAuthError(null);
         try {
-            const token = await AuthService.getAuthToken(true);
+            // Step 1: Get Token (Potentially Cached)
+            let token = await AuthService.getAuthToken(true);
             setAuthToken(token);
             let profile: UserProfile;
+
+            // Step 2: Try to Fetch Profile
             try {
                 profile = await AuthService.getUserProfile(token);
-                setUserProfile(profile);
-                chrome.storage.local.set({ userProfile: profile });
-            } catch (err) {
-                throw new Error('Failed to fetch user profile');
+            } catch (err: any) {
+                // If 401/403, Token might be stale.
+                console.warn('Profile fetch failed, retrying with fresh token...', err);
+
+                // Retry Strategy: Remove invalid token and ask for a new one
+                await AuthService.removeCachedToken(token);
+                token = await AuthService.getAuthToken(true); // Interactive again (or silent if possible)
+                setAuthToken(token);
+
+                // Retry Profile Fetch
+                try {
+                    profile = await AuthService.getUserProfile(token);
+                } catch (retryErr) {
+                    throw new Error('Failed to authenticate with Google. Please try again.');
+                }
             }
+
+            setUserProfile(profile);
+            chrome.storage.local.set({ userProfile: profile });
 
             // 1. Conflict Check
             const localEmails = await LocalStorageService.getEmails();

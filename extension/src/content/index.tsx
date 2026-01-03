@@ -40,8 +40,15 @@ if (document.readyState === 'loading') {
 }
 
 // 2. Setup Config Sync (Body Preview Length) - Keep a heartbeat for dynamic updates
+// 2. Setup Config Sync (Body Preview Length) - Keep a heartbeat for dynamic updates
 setTimeout(sendConfigToMainWorld, CONSTANTS.CONTENT.CONFIG_SYNC_DELAY_MS);
-setInterval(sendConfigToMainWorld, CONSTANTS.CONTENT.CONFIG_HEARTBEAT_MS); // Heartbeat
+const heartbeatId = setInterval(() => {
+    if (!chrome.runtime?.id) {
+        clearInterval(heartbeatId);
+        return;
+    }
+    sendConfigToMainWorld();
+}, CONSTANTS.CONTENT.CONFIG_HEARTBEAT_MS); // Heartbeat
 
 // Watch for Config Changes
 try {
@@ -58,6 +65,10 @@ setupRegistrationListener();
 
 // 4. Setup Stats Injection (Message View)
 const observer = new MutationObserver(() => {
+    if (!chrome.runtime?.id) {
+        observer.disconnect();
+        return;
+    }
     injectStats();
 });
 

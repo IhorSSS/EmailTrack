@@ -6,7 +6,7 @@ import { LocalStorageService } from '../../services/LocalStorageService';
 
 const STATS_INJECT_CLASS = 'email-track-stats-injected';
 
-export function handleOptimisticBadge(trackId: string): boolean {
+export function handleOptimisticBadge(trackId: string, currentUserEmail: string | null): boolean {
     const messages = document.querySelectorAll('div.adn');
     if (messages.length === 0) return false;
 
@@ -14,6 +14,17 @@ export function handleOptimisticBadge(trackId: string): boolean {
     const lastMessage = messages[messages.length - 1];
 
     if (lastMessage.classList.contains(STATS_INJECT_CLASS)) return true;
+
+    // Check ownership if email is available
+    if (currentUserEmail) {
+        const senderElement = lastMessage.querySelector('span.gD');
+        const senderEmail = senderElement?.getAttribute('email');
+
+        if (senderEmail && senderEmail !== currentUserEmail) {
+            // This is likely a received message (reply), not our sent message
+            return false;
+        }
+    }
 
     // Find Anchor
     const dateElement = lastMessage.querySelector('.gH');
@@ -46,97 +57,106 @@ export function handleOptimisticBadge(trackId: string): boolean {
 }
 
 export function injectStats() {
+    // Safety check for invalidated context
+    if (!chrome.runtime?.id) return;
+
     // PRIVACY: Only show badges if user has access rights
     // Fix: Read from 'local' because useAuth saves to 'local'
-    chrome.storage.local.get(['userProfile'], async (syncResult) => {
-        const hasCloudAccess = !!syncResult.userProfile;
+    try {
+        chrome.storage.local.get(['userProfile'], async (syncResult) => {
+            if (chrome.runtime?.lastError) return; // Handle invalidated context in callback
 
-        // Load local emails for ownership validation
-        let localEmailIds: Set<string> = new Set();
-        try {
-            const localEmails = await LocalStorageService.getEmails();
-            localEmailIds = new Set(localEmails.map(e => e.id));
+            const hasCloudAccess = !!syncResult.userProfile;
 
-            // If not logged in and no local history -> no access
-            if (!hasCloudAccess && localEmailIds.size === 0) {
-                return;
-            }
-        } catch (e) {
-            return; // Fail-safe
-        }
+            // Load local emails for ownership validation
+            let localEmailIds: Set<string> = new Set();
+            try {
+                const localEmails = await LocalStorageService.getEmails();
+                localEmailIds = new Set(localEmails.map(e => e.id));
 
-        // User has access - proceed
-        const messages = document.querySelectorAll('div.adn');
-
-        messages.forEach((row) => {
-            const body = row.querySelector('.a3s');
-            if (!body) return;
-
-            // Skip if already injected
-            if (row.classList.contains(STATS_INJECT_CLASS)) return;
-
-            const imgs = body.querySelectorAll('img');
-            let trackId = null;
-
-            // Scan images but STRICTLY EXCLUDE those inside quoted text.
-            let uniquePixels: { id: string }[] = [];
-
-            for (const img of imgs) {
-                if (img.closest('.gmail_quote') || img.closest('.im')) {
-                    continue;
+                // If not logged in and no local history -> no access
+                if (!hasCloudAccess && localEmailIds.size === 0) {
+                    return;
                 }
-
-                const rawSrc = img.src;
-                let decodedSrc = rawSrc;
-                try { decodedSrc = decodeURIComponent(rawSrc); } catch { }
-
-                const uuidRegex = /(?:track(?:%2F|\/)|id=)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
-                const match = rawSrc.match(uuidRegex) || decodedSrc.match(uuidRegex);
-
-                if (match) {
-                    uniquePixels.push({ id: match[1] });
-                }
+            } catch (e) {
+                return; // Fail-safe
             }
 
-            if (uniquePixels.length > 0) {
-                trackId = uniquePixels[0].id;
-            }
+            // User has access - proceed
+            const messages = document.querySelectorAll('div.adn');
 
-            if (trackId) {
-                // OWNERSHIP VALIDATION
-                // Cloud mode: Show badge, let StatsDisplay + backend validate ownership (returns 404 if not owned)
-                // Offline mode: Check local storage (synced from cloud or created locally)
-                if (!hasCloudAccess && !localEmailIds.has(trackId)) {
-                    logger.log(`[Stats] Skipping badge for ${trackId} - not in local storage (offline mode)`);
-                    return; // Skip - not owned in offline mode
-                }
-                // In cloud mode: localEmailIds might be empty before popup sync, so we let backend decide
+            messages.forEach((row) => {
+                const body = row.querySelector('.a3s');
+                if (!body) return;
 
-                // Find Injection Point: .gH (Date/Header) prioritized
-                const dateElement = row.querySelector('.gH');
-                const subjectHeader = row.closest('.gs')?.parentElement?.querySelector('h2.hP');
-                const anchor = dateElement || subjectHeader;
+                // Skip if already injected
+                if (row.classList.contains(STATS_INJECT_CLASS)) return;
 
-                if (anchor && anchor.parentElement) {
-                    const statsContainer = document.createElement('span');
-                    statsContainer.style.marginLeft = '10px';
-                    statsContainer.style.display = 'inline-flex';
-                    statsContainer.style.alignItems = 'center';
-                    statsContainer.style.verticalAlign = 'middle';
-                    statsContainer.style.position = 'relative';
+                const imgs = body.querySelectorAll('img');
+                let trackId = null;
 
-                    statsContainer.onclick = (e) => e.stopPropagation();
+                // Scan images but STRICTLY EXCLUDE those inside quoted text.
+                let uniquePixels: { id: string }[] = [];
 
-                    if (anchor.nextSibling) {
-                        anchor.parentElement.insertBefore(statsContainer, anchor.nextSibling);
-                    } else {
-                        anchor.parentElement.appendChild(statsContainer);
+                for (const img of imgs) {
+                    if (img.closest('.gmail_quote') || img.closest('.im') || img.closest('blockquote')) {
+                        continue;
                     }
 
-                    row.classList.add(STATS_INJECT_CLASS);
-                    createRoot(statsContainer).render(<StatsDisplay trackId={trackId} />);
+                    const rawSrc = img.src;
+                    let decodedSrc = rawSrc;
+                    try { decodedSrc = decodeURIComponent(rawSrc); } catch { }
+
+                    const uuidRegex = /(?:track(?:%2F|\/)|id=)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+                    const match = rawSrc.match(uuidRegex) || decodedSrc.match(uuidRegex);
+
+                    if (match) {
+                        uniquePixels.push({ id: match[1] });
+                    }
                 }
-            }
+
+                if (uniquePixels.length > 0) {
+                    trackId = uniquePixels[0].id;
+                }
+
+                if (trackId) {
+                    // OWNERSHIP VALIDATION
+                    // Cloud mode: Show badge, let StatsDisplay + backend validate ownership (returns 404 if not owned)
+                    // Offline mode: Check local storage (synced from cloud or created locally)
+                    if (!hasCloudAccess && !localEmailIds.has(trackId)) {
+                        logger.log(`[Stats] Skipping badge for ${trackId} - not in local storage (offline mode)`);
+                        return; // Skip - not owned in offline mode
+                    }
+                    // In cloud mode: localEmailIds might be empty before popup sync, so we let backend decide
+
+                    // Find Injection Point: .gH (Date/Header) prioritized
+                    const dateElement = row.querySelector('.gH');
+                    const subjectHeader = row.closest('.gs')?.parentElement?.querySelector('h2.hP');
+                    const anchor = dateElement || subjectHeader;
+
+                    if (anchor && anchor.parentElement) {
+                        const statsContainer = document.createElement('span');
+                        statsContainer.style.marginLeft = '10px';
+                        statsContainer.style.display = 'inline-flex';
+                        statsContainer.style.alignItems = 'center';
+                        statsContainer.style.verticalAlign = 'middle';
+                        statsContainer.style.position = 'relative';
+
+                        statsContainer.onclick = (e) => e.stopPropagation();
+
+                        if (anchor.nextSibling) {
+                            anchor.parentElement.insertBefore(statsContainer, anchor.nextSibling);
+                        } else {
+                            anchor.parentElement.appendChild(statsContainer);
+                        }
+
+                        row.classList.add(STATS_INJECT_CLASS);
+                        createRoot(statsContainer).render(<StatsDisplay trackId={trackId} />);
+                    }
+                }
+            });
         });
-    });
+    } catch (e) {
+        // Context invalidated
+    }
 }

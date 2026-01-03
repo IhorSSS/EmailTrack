@@ -1,4 +1,5 @@
 import { API_CONFIG } from '../config/api';
+import { logger } from '../utils/logger';
 
 export interface UserProfile {
     id: string; // Google ID
@@ -15,6 +16,9 @@ export class AuthService {
     /**
      * Authenticate with Google and get the Access Token
      */
+    /**
+     * Authenticate with Google and get the Access Token
+     */
     static async getAuthToken(interactive: boolean = true): Promise<string> {
         return new Promise((resolve, reject) => {
             if (!chrome.identity) {
@@ -22,9 +26,7 @@ export class AuthService {
                 return;
             }
             chrome.identity.getAuthToken({ interactive }, (token) => {
-                if (chrome.runtime.lastError) {
-                    // Start interactive flow if non-interactive failed? 
-                    // Usually caller handles it by passing interactive=true
+                if (chrome.runtime?.lastError) {
                     reject(new Error(chrome.runtime.lastError.message));
                 } else if (token) {
                     resolve(token as string);
@@ -32,6 +34,16 @@ export class AuthService {
                     reject(new Error('Failed to retrieve token'));
                 }
             });
+        });
+    }
+
+    /**
+     * Remove a token from Chrome's cache (Invalidate)
+     */
+    static async removeCachedToken(token: string): Promise<void> {
+        return new Promise((resolve) => {
+            if (!chrome.identity) return resolve();
+            chrome.identity.removeCachedAuthToken({ token }, () => resolve());
         });
     }
 
@@ -97,16 +109,29 @@ export class AuthService {
      * Sync user with backend (Create or Update)
      */
     static async syncUser(email: string, googleId: string, token: string): Promise<void> {
-        const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.LOGIN}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ email, googleId, token }) // We still send token in body for legacy/backup, but header is primary
-        });
-        if (!response.ok) {
-            console.warn('Failed to sync user with backend');
+        const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.LOGIN}`;
+        logger.log('[AuthService] syncUser calling:', url);
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ email, googleId, token })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                logger.error('[AuthService] syncUser failed:', response.status, errorText);
+                throw new Error(`Sync failed: ${response.status}`);
+            }
+
+            logger.log('[AuthService] syncUser success');
+        } catch (e) {
+            logger.error('[AuthService] syncUser error:', e);
+            throw e; // Re-throw so caller knows sync failed
         }
     }
 
@@ -136,20 +161,31 @@ export class AuthService {
      * Upload local history to backend (Batch Sync)
      */
     static async uploadHistory(emails: any[], googleId: string, email: string, token: string): Promise<number> {
-        const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.SYNC}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ googleId, email, emails })
-        });
+        const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.SYNC}`;
+        logger.log('[AuthService] uploadHistory calling:', url, 'with', emails.length, 'emails');
 
-        if (!response.ok) {
-            throw new Error('Failed to upload history');
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ googleId, email, emails })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                logger.error('[AuthService] uploadHistory failed:', response.status, errorText);
+                throw new Error(`Upload failed: ${response.status}`);
+            }
+
+            const data = await response.json();
+            logger.log('[AuthService] uploadHistory success, count:', data.count);
+            return data.count || 0;
+        } catch (e) {
+            logger.error('[AuthService] uploadHistory error:', e);
+            throw e;
         }
-
-        const data = await response.json();
-        return data.count || 0;
     }
 }

@@ -61,17 +61,15 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
 
         if (resolvedOwnerUuid) {
             if (user) {
-                // Filter specific sender within owner
                 whereClause.ownerId = resolvedOwnerUuid;
                 whereClause.user = user;
             } else {
-                // ownerId only (handled in ids section if ids present, otherwise here)
                 whereClause.ownerId = resolvedOwnerUuid;
             }
-        } else if (user) {
-            whereClause.user = user; // Legacy/Incognito strict filter
-            // Enforce that we only return UNOWNED items if asking by 'user' (email) without 'ownerId'
-            // effectively "Incognito View"
+        } else if (user && !ids) {
+            // Only enforce 'ownerId = null' (Unowned) if we are listing by USER (broad query).
+            // If querying by IDs (specific), we allow owned items (handled below).
+            whereClause.user = user;
             whereClause.ownerId = null;
         }
 
@@ -80,26 +78,22 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
             const idList = ids.split(',').filter(Boolean);
             if (idList.length > 0) {
                 if (resolvedOwnerUuid) {
-                    // Cloud mode: Return items owned by this account OR unowned items (if we want to allow claiming? No, just view)
-                    // Actually, if I'm logged in, I should see my items.
-                    // If I also have local items that are unowned, maybe I should see them too?
-                    // Let's stick to: If ownerId is present, we are in Cloud Mode.
-
+                    // Cloud mode: Return items owned by this account
                     whereClause.id = { in: idList };
-                    // Only show items I own. If I want to see unowned, I wouldn't pass ownerId.
                     whereClause.ownerId = resolvedOwnerUuid;
-
-                    // Note: If the frontend wants to "merge" views, it handles it. 
-                    // Backend strictness: ownerId param = strict ownership.
                 } else {
-                    // No ownerId param.
-                    // STRICT: Only return items that are UNOWNED. (Incognito)
-                    // This prevents Incognito users from snooping on valid IDs that strictly belong to someone else.
+                    // Incognito mode with Explicit IDs (Proof of Knowledge)
+                    // Allow fetching ANY items if their ID is known, regardless of ownership.
+                    // This fixes the issue where Incognito users lose visibility of items they just claimed and logged out from.
                     whereClause.id = { in: idList };
-                    whereClause.ownerId = null;
 
-                    // If 'user' was also provided, we already set whereClause.user = user AND ownerId = null above.
-                    // This creates a safe intersection.
+                    // SECURITY NOTE:
+                    // We DO NOT filter by ownerId here. If you know the UUID, you can view the stats.
+                    // This is consistent with the pixel tracking model (public if ID is known).
+                    // We still respect 'user' filter if provided.
+                    if (user) {
+                        whereClause.user = user;
+                    }
                 }
             }
         } else {

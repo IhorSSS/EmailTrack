@@ -21,7 +21,8 @@ export class LocalStorageService {
                 body: email.body, // Now optional
                 user: email.user || '',
                 createdAt: email.createdAt,
-                synced: true
+                synced: true,
+                openCount: email.openCount ?? 0
             });
         });
 
@@ -34,19 +35,37 @@ export class LocalStorageService {
     /**
      * Save email metadata to local storage
      */
+    /**
+     * Save email metadata to local storage
+     */
     static async saveEmail(email: LocalEmailMetadata): Promise<void> {
         return new Promise((resolve) => {
-            chrome.storage.local.get([STORAGE_KEY], (result) => {
-                const history = (result[STORAGE_KEY] || []) as LocalEmailMetadata[];
-                // Prepend new email
-                history.unshift(email);
+            try {
+                if (!chrome.runtime?.id) {
+                    return resolve(); // Fail silently
+                }
+                chrome.storage.local.get([STORAGE_KEY], (result) => {
+                    if (chrome.runtime.lastError) return resolve();
 
-                // Optional: Limit local history size? (e.g. 1000 items)
+                    const history = (result[STORAGE_KEY] || []) as LocalEmailMetadata[];
 
-                chrome.storage.local.set({ [STORAGE_KEY]: history }, () => {
-                    resolve();
+                    // Check if email already exists
+                    const existingIndex = history.findIndex(e => e.id === email.id);
+                    if (existingIndex >= 0) {
+                        // Update existing - preserve synced status
+                        history[existingIndex] = { ...history[existingIndex], ...email };
+                    } else {
+                        // New email - mark as unsynced for future upload
+                        history.unshift({ ...email, synced: false });
+                    }
+
+                    chrome.storage.local.set({ [STORAGE_KEY]: history }, () => {
+                        resolve();
+                    });
                 });
-            });
+            } catch (e) {
+                resolve(); // Fail silently
+            }
         });
     }
 
@@ -55,9 +74,17 @@ export class LocalStorageService {
      */
     static async getEmails(): Promise<LocalEmailMetadata[]> {
         return new Promise((resolve) => {
-            chrome.storage.local.get([STORAGE_KEY], (result) => {
-                resolve((result[STORAGE_KEY] || []) as LocalEmailMetadata[]);
-            });
+            try {
+                if (!chrome.runtime?.id) {
+                    return resolve([]);
+                }
+                chrome.storage.local.get([STORAGE_KEY], (result) => {
+                    if (chrome.runtime.lastError) return resolve([]);
+                    resolve((result[STORAGE_KEY] || []) as LocalEmailMetadata[]);
+                });
+            } catch (e) {
+                resolve([]);
+            }
         });
     }
 
@@ -152,11 +179,15 @@ export class LocalStorageService {
 
     static async queuePendingDelete(ids: string[], user?: string): Promise<void> {
         return new Promise((resolve) => {
-            chrome.storage.local.get(['pending_deletes'], (result) => {
-                const queue = (result['pending_deletes'] || []) as { ids: string[], user?: string }[];
-                queue.push({ ids, user });
-                chrome.storage.local.set({ 'pending_deletes': queue }, resolve);
-            });
+            try {
+                if (!chrome.runtime?.id) return resolve();
+                chrome.storage.local.get(['pending_deletes'], (result) => {
+                    if (chrome.runtime.lastError) return resolve();
+                    const queue = (result['pending_deletes'] || []) as { ids: string[], user?: string }[];
+                    queue.push({ ids, user });
+                    chrome.storage.local.set({ 'pending_deletes': queue }, resolve);
+                });
+            } catch (e) { resolve(); }
         });
     }
 
