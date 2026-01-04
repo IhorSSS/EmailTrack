@@ -34,8 +34,12 @@ const authRoutes: FastifyPluginAsync = async (fastify, opts) => {
         // Note: Missing token check is handled by Zod .min(1) above
 
         let verifiedGoogleId: string | null = null;
+        let tokenEmail: string | undefined;
+
         try {
-            verifiedGoogleId = await verifyGoogleToken(token);
+            const authInfo = await verifyGoogleToken(token);
+            verifiedGoogleId = authInfo.googleId;
+            tokenEmail = authInfo.email;
         } catch (e) {
             request.log.warn(`[Auth] Invalid token for ${email}: ${e instanceof Error ? e.message : 'Unknown error'}`);
             return reply.status(401).send({ error: 'Invalid authentication token' });
@@ -44,6 +48,12 @@ const authRoutes: FastifyPluginAsync = async (fastify, opts) => {
         // Optional: mismatch check
         if (googleId && googleId !== verifiedGoogleId) {
             request.log.warn(`[Auth] Mismatch: Body ID ${googleId} !== Token ID ${verifiedGoogleId}`);
+        }
+
+        // Mismatch check email
+        if (tokenEmail && tokenEmail !== email) {
+            request.log.warn(`[Auth] Email Mismatch: Body Email ${email} !== Token Email ${tokenEmail}`);
+            // Potentially reject? For now basic warning as alias emails exist.
         }
 
         try {
@@ -58,8 +68,10 @@ const authRoutes: FastifyPluginAsync = async (fastify, opts) => {
 
     fastify.post('/sync', async (request, reply) => {
         // Authenticate first
-        const verifiedGoogleId = await authenticate(request, reply);
-        if (!verifiedGoogleId) return; // Reply already sent
+        const authInfo = await authenticate(request, reply);
+        if (!authInfo) return; // Reply already sent
+
+        const verifiedGoogleId = authInfo.googleId;
 
         const parseResult = SyncSchema.safeParse(request.body);
         if (!parseResult.success) {
@@ -86,8 +98,10 @@ const authRoutes: FastifyPluginAsync = async (fastify, opts) => {
 
     fastify.post('/check-conflicts', async (request, reply) => {
         // Authenticate first
-        const verifiedGoogleId = await authenticate(request, reply);
-        if (!verifiedGoogleId) return; // Reply already sent
+        const authInfo = await authenticate(request, reply);
+        if (!authInfo) return; // Reply already sent
+
+        const verifiedGoogleId = authInfo.googleId;
 
         const parseResult = ConflictCheckSchema.safeParse(request.body);
         if (!parseResult.success) {
