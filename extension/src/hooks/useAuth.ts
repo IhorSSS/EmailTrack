@@ -70,10 +70,10 @@ export const useAuth = () => {
         }
     };
 
-    const login = useCallback(async () => {
+    const login = useCallback(async (): Promise<UserProfile | undefined> => {
         if (authLoading && !authError) {
             console.warn('Login already in progress, ignoring concurrent request');
-            return;
+            return undefined;
         }
 
         setAuthError(null);
@@ -134,6 +134,7 @@ export const useAuth = () => {
             }
 
             chrome.storage.local.set({ lastLoggedInEmail: profile.email });
+            return profile; // RETURN PROFILE
         } catch (e: any) {
             // If we ALREADY have a valid profile/token from a concurrent successful attempt, 
             // don't overwrite it with a "Cancelled" error from a redundant popup.
@@ -141,7 +142,7 @@ export const useAuth = () => {
                 if (userProfile && authToken) {
                     console.log('Ignoring cancellation error for already authenticated session');
                     setAuthLoading(false);
-                    return;
+                    return userProfile; // Return existing profile
                 }
             }
 

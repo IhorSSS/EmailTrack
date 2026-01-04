@@ -96,28 +96,54 @@ async function handleRegister(data: any) {
     }
 }
 
-async function handleGetStats(trackId: string) {
-    logger.log('Fetching stats for:', trackId);
+async function handleGetStats(trackId: string, senderHint?: string) {
+    logger.log('Fetching stats for:', trackId, 'senderHint:', senderHint);
     try {
+        // 1. Check if we *should* satisfy this request as an authenticated user
+        const storageData = await chrome.storage.local.get(['userProfile']);
+        const userProfile = storageData.userProfile as { id: string; email: string } | undefined;
+
         // Get auth token if available (for ownership validation)
         const headers: Record<string, string> = {};
 
+        // Pass sender hint for incognito / local ownership validation on backend
+        if (senderHint) {
+            headers['x-sender-hint'] = senderHint;
+        }
+
+        let token: string | undefined;
+
         try {
-            const token = await new Promise<string | undefined>((resolve) => {
-                chrome.identity.getAuthToken({ interactive: false }, (token: any) => {
-                    if (chrome.runtime.lastError || !token) {
+            token = await new Promise<string | undefined>((resolve) => {
+                chrome.identity.getAuthToken({ interactive: false }, (t: any) => {
+                    if (chrome.runtime.lastError || !t) {
                         resolve(undefined);
                     } else {
-                        resolve(token);
+                        resolve(t);
                     }
                 });
             });
+        } catch (e) {
+            // Ignore error
+        }
 
+        if (userProfile) {
+            // LOGGED IN MODE: Strict Security
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
+            } else {
+                // User is supposedly logged in, but we can't get a token.
+                // WE MUST NOT FALLBACK TO PUBLIC ACCESS.
+                // Doing so would allow a logged-in user (with a broken token) to see "incognito" (unowned) stats
+                // which might belong to another user on the same machine.
+                logger.warn('[Background] Logged in but no token. Blocking public fallback.');
+                return { error: 'Auth Required', status: 401 };
             }
-        } catch (e) {
-            // Proceed without auth (public access mode)
+        } else {
+            // INCOGNITO MODE: Public Access
+            // We allow requests without token, but only for incognito data.
+            // (Backend enforces owner-mismatch if it turns out the email IS owned)
+            if (token) headers['Authorization'] = `Bearer ${token}`; // Attach if accidentally available? No harm.
         }
 
         const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.STATS}/${trackId}`, {
@@ -142,7 +168,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         handleRegister(message.data).then((result) => sendResponse(result));
         return true; // Keep channel open
     } else if (message.type === 'GET_STATS') {
-        handleGetStats(message.trackId).then(sendResponse);
+        handleGetStats(message.trackId, message.senderHint).then(sendResponse);
         return true; // Keep channel open for async response
     }
 });

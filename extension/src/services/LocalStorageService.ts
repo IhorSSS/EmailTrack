@@ -109,6 +109,26 @@ export class LocalStorageService {
     }
 
     /**
+     * Update the owner of local emails (used during Sync migration)
+     */
+    static async updateOwnership(ids: string[], newUser: string): Promise<void> {
+        return new Promise((resolve) => {
+            chrome.storage.local.get([STORAGE_KEY], (result) => {
+                const history = (result[STORAGE_KEY] || []) as LocalEmailMetadata[];
+                const updated = history.map(e => {
+                    if (ids.includes(e.id)) {
+                        return { ...e, user: newUser };
+                    }
+                    return e;
+                });
+                chrome.storage.local.set({ [STORAGE_KEY]: updated }, () => {
+                    resolve();
+                });
+            });
+        });
+    }
+
+    /**
      * Overwrite all emails (Internal)
      */
     private static async setEmails(emails: LocalEmailMetadata[]): Promise<void> {

@@ -22,24 +22,32 @@ const statsRoutes: FastifyPluginAsync = async (fastify, opts) => {
 
         // OWNERSHIP VALIDATION
         const authInfo = await getAuthenticatedUser(request);
+        const senderHint = request.headers['x-sender-hint'] as string | undefined;
 
         if (email.owner) {
             // Case 1: Email is owned by an account - MUST be the owner
             if (!authInfo || email.owner.googleId !== authInfo.googleId) {
                 return reply.status(404).send({ error: 'Not Found' });
             }
-        } else if (authInfo && authInfo.email) {
-            // Case 2: Email is Incognito, but requester is LOGGED IN
-            // We only show it if the logged-in email matches the sender string
+        } else {
+            // Case 2 & 3: Email is Incognito (Unowned)
+            // We only show it if the requester proves they are the sender
             const emailUser = email.user?.toLowerCase();
-            const authEmail = authInfo.email?.toLowerCase();
+            const authEmail = authInfo?.email?.toLowerCase();
+            const hintEmail = senderHint?.toLowerCase();
 
-            if (emailUser && emailUser !== authEmail) {
+            if (!emailUser) {
+                // Should not happen for tracked emails, but block for safety
+                return reply.status(404).send({ error: 'Not Found' });
+            }
+
+            // Priority: Authenticated Email > Sender Hint
+            const requesterIdentity = authEmail || hintEmail;
+
+            if (!requesterIdentity || emailUser !== requesterIdentity) {
                 return reply.status(404).send({ error: 'Not Found' });
             }
         }
-        // Case 3: Email is Incognito and requester is NOT logged in
-        // Allow public access for now (local unowned tracking)
 
         // SECURITY: Don't expose sensitive data (subject, body, recipient, ownerId)
         // Only return anonymized tracking stats

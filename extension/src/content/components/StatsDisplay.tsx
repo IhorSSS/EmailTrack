@@ -8,9 +8,10 @@ import { CONSTANTS } from '../../config/constants';
 
 interface StatsDisplayProps {
     trackId: string;
+    senderHint?: string;
 }
 
-const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
+const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false); // New state for manual refresh
@@ -29,7 +30,8 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
 
             chrome.runtime.sendMessage({
                 type: 'GET_STATS',
-                trackId
+                trackId,
+                senderHint
             }, (response) => {
                 const lastError = chrome.runtime?.lastError;
                 if (lastError) {

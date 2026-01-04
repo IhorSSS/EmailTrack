@@ -4,6 +4,24 @@ import StatsDisplay from '../components/StatsDisplay';
 import { logger } from '../../utils/logger';
 import { LocalStorageService } from '../../services/LocalStorageService';
 
+/**
+ * Extract the mailbox owner's email from the Gmail DOM.
+ * This handles cases where extension storage hasn't synced the profile yet.
+ */
+function extractMailboxOwner(): string | null {
+    try {
+        const profileBtn = document.querySelector('a[aria-label*="@"][href*="SignOutOptions"]');
+        if (profileBtn) {
+            const ariaLabel = profileBtn.getAttribute('aria-label');
+            const match = ariaLabel?.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+            if (match) return match[1].toLowerCase();
+        }
+        return null;
+    } catch (e) {
+        return null;
+    }
+}
+
 const STATS_INJECT_CLASS = 'email-track-stats-injected';
 
 export function handleOptimisticBadge(trackId: string, currentUserEmail: string | null): boolean {
@@ -49,7 +67,7 @@ export function handleOptimisticBadge(trackId: string, currentUserEmail: string 
         }
 
         lastMessage.classList.add(STATS_INJECT_CLASS);
-        createRoot(statsContainer).render(<StatsDisplay trackId={trackId} />);
+        createRoot(statsContainer).render(<StatsDisplay trackId={trackId} senderHint={currentUserEmail || undefined} />);
         return true;
     }
 
@@ -68,16 +86,22 @@ export function injectStats() {
 
             const userProfile = result.userProfile as { email: string } | undefined;
             const currentUser = result.currentUser as string | undefined;
-            const activeEmail = (userProfile?.email || currentUser)?.toLowerCase();
+            let activeEmail = (userProfile?.email || currentUser)?.toLowerCase();
             const hasCloudAccess = !!userProfile;
+
+            // FALLBACK: If storage is empty, try to get identity from DOM to enforce privacy.
+            if (!activeEmail) {
+                activeEmail = extractMailboxOwner() || undefined;
+            }
 
             // Load and filter local emails for ownership validation
             let ownedLocalIds: Set<string> = new Set();
+            let allLocalIds: Set<string> = new Set(); // Initialize allLocalIds
             try {
-                const localEmails = await LocalStorageService.getEmails();
-                // ONLY keep IDs that belong to the current active profile/guest
+                const allLocalEmails = await LocalStorageService.getEmails();
+                allLocalIds = new Set(allLocalEmails.map(e => e.id)); // Populate allLocalIds
                 ownedLocalIds = new Set(
-                    localEmails
+                    allLocalEmails
                         .filter(e => e.user?.toLowerCase() === activeEmail)
                         .map(e => e.id)
                 );
@@ -128,12 +152,40 @@ export function injectStats() {
                 }
 
                 if (trackId) {
+                    // SENDER VALIDATION (DOM Check)
+                    // Ensure the visual sender matches the active extension identity.
+                    if (activeEmail) {
+                        const senderElement = row.querySelector('span.gD');
+                        const senderEmail = senderElement?.getAttribute('email')?.toLowerCase();
+
+                        // Skip if visible sender is not the active user
+                        if (senderEmail && senderEmail !== activeEmail) {
+                            logger.log(`[Stats] Skipping badge for ${trackId} - DOM sender ${senderEmail} !== active ${activeEmail}`);
+                            return;
+                        }
+                    } else {
+                        // CRITICAL PRIVACY: If we don't know who the active user is, 
+                        // we MUST NOT show badges, as we can't verify they own the email.
+                        logger.log(`[Stats] Skipping badge for ${trackId} - active user identity unknown`);
+                        return;
+                    }
+
                     // OWNERSHIP VALIDATION
+                    // 1. STRICT LOCAL CHECK:
+                    // If the email exists locally (in allLocalIds) but does NOT belong to the current user (not in ownedLocalIds),
+                    // then it belongs to another local identity. Block it immediately.
+                    if (allLocalIds.has(trackId) && !ownedLocalIds.has(trackId)) {
+                        logger.log(`[Stats] Skipping badge for ${trackId} - exists locally but belongs to another identity`);
+                        return;
+                    }
+
+                    // 2. Further validation based on cloud access
                     // Cloud mode: Show badge, let StatsDisplay + backend validate ownership (returns 404 if not owned)
-                    // Offline mode: Check local storage (synced from cloud or created locally)
+                    // Offline mode: Must be in ownedLocalIds (already checked by the first condition if it's in allLocalIds)
+                    // If not in allLocalIds, and no cloud access, we can't show it.
                     if (!hasCloudAccess && !ownedLocalIds.has(trackId)) {
-                        logger.log(`[Stats] Skipping badge for ${trackId} - not in local storage or belongs to another identity`);
-                        return; // Skip - not owned in current session
+                        logger.log(`[Stats] Skipping badge for ${trackId} - not in local storage and no cloud access`);
+                        return; // Skip - not owned in current session and no cloud to verify
                     }
                     // In cloud mode: localEmailIds might be empty before popup sync, so we let backend decide
 
@@ -159,7 +211,7 @@ export function injectStats() {
                         }
 
                         row.classList.add(STATS_INJECT_CLASS);
-                        createRoot(statsContainer).render(<StatsDisplay trackId={trackId} />);
+                        createRoot(statsContainer).render(<StatsDisplay trackId={trackId} senderHint={activeEmail || undefined} />);
                     }
                 }
             });

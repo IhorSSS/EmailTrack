@@ -83,16 +83,33 @@ export const useAppController = () => {
             } else {
                 await LocalStorageService.deleteSyncedOnly();
             }
-            // CRITICAL: Clear lastLoggedInEmail so the next attempt can proceed
+
+            // CRITICAL fix for "Ghost Data" after Account Switch:
+            // If we kept data (!wipeAll), it still belongs to the OLD user in the DB (local storage).
+            // We need to re-tag it to the NEW user upon successful login, otherwise strict identity filter hides it.
+
+            // 1. Clear blocker
             await new Promise<void>((resolve) => {
                 chrome.storage.local.remove(['lastLoggedInEmail'], () => resolve());
             });
             clearAuthError();
             setConflictEmail(null);
-            // Re-trigger auth check or login
-            await login();
+
+            // 2. Re-login and MIGRATE data if successful
+            const profile = await login(); // Ensure useAuth.login returns profile!
+
+            if (profile && !wipeAll) {
+                // We kept local data, now we must adopt it for the new user
+                const allLocal = await LocalStorageService.getEmails();
+                const ids = allLocal.map(e => e.id);
+                if (ids.length > 0) {
+                    await LocalStorageService.updateOwnership(ids, profile.email);
+                    // Refresh to show migrated data
+                    await fetchEmails();
+                }
+            }
         } catch (e: any) {
-            showStatus('Resolution Failed', e.message, 'danger');
+            showStatus('Resolution/Login Failed', e.message, 'danger');
         }
     };
 

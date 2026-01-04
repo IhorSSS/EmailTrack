@@ -27,7 +27,7 @@ describe('Stats Route', () => {
         app = buildApp();
     });
 
-    it('should return stats for tracked email (Public Access)', async () => {
+    it('should return 404 for tracked email WITHOUT identity (Public Access Restricted)', async () => {
         const mockId = '123-stats-uuid';
         (prisma.trackedEmail.findUnique as any).mockResolvedValue({
             id: mockId,
@@ -35,15 +35,7 @@ describe('Stats Route', () => {
             user: 'sender@example.com',
             owner: null,
             createdAt: new Date(),
-            opens: [
-                {
-                    id: '1',
-                    openedAt: new Date(),
-                    ip: '1.2.3.4',
-                    device: 'Chrome on Mac',
-                    location: 'New York, US'
-                }
-            ]
+            opens: []
         });
 
         const response = await app.inject({
@@ -51,10 +43,34 @@ describe('Stats Route', () => {
             url: `/stats/${mockId}`,
         });
 
+        expect(response.statusCode).toBe(404);
+    });
+
+    it('should return 200 for tracked email WITH x-sender-hint', async () => {
+        const mockId = '123-stats-uuid';
+        (prisma.trackedEmail.findUnique as any).mockResolvedValue({
+            id: mockId,
+            user: 'sender@example.com',
+            owner: null,
+            opens: [
+                {
+                    openedAt: new Date(),
+                    device: 'Chrome',
+                    location: 'Local'
+                }
+            ]
+        });
+
+        const response = await app.inject({
+            method: 'GET',
+            url: `/stats/${mockId}`,
+            headers: {
+                'x-sender-hint': 'sender@example.com'
+            }
+        });
+
         expect(response.statusCode).toBe(200);
-        const body = response.json();
-        expect(body.id).toBe(mockId);
-        expect(body.opens).toHaveLength(1);
+        expect(response.json().id).toBe(mockId);
     });
 
     it('should return 404 if email is owned by another user', async () => {
