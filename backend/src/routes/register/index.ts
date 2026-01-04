@@ -85,6 +85,19 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
             }
         }
 
+        // SECURITY CHECK: If email exists and has an owner, verify requester ownership
+        if (id) {
+            const existingEmail = await prisma.trackedEmail.findUnique({
+                where: { id },
+                select: { ownerId: true }
+            });
+
+            if (existingEmail && existingEmail.ownerId && existingEmail.ownerId !== validOwnerUuid) {
+                console.warn(`[REGISTER] Hijack attempt! User ${validOwnerUuid || 'Anonymous'} tried to register email ${id} owned by ${existingEmail.ownerId}`);
+                return reply.status(403).send({ error: 'Forbidden: Email belongs to another account' });
+            }
+        }
+
         // Use upsert to handle duplicate IDs gracefully
         const email = await prisma.trackedEmail.upsert({
             where: { id: id || 'never-exists' }, // Fallback for auto-generated IDs

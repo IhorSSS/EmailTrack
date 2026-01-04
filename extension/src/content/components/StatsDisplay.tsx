@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MapPin, Monitor, Smartphone, Clock, ShieldCheck, RefreshCw } from 'lucide-react';
+import { MapPin, Monitor, Smartphone, Clock, ShieldCheck, RefreshCw, ChevronDown } from 'lucide-react';
 import './StatsDisplay.css';
 import { format } from 'date-fns';
 import { theme } from '../../config/theme';
@@ -317,7 +317,9 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
                                                     }}>
                                                         x{open.count}
                                                     </span>
-                                                    <span className="et-chevron">▼</span>
+                                                    <span className="et-chevron">
+                                                        <ChevronDown size={14} />
+                                                    </span>
                                                 </div>
                                                 <div className="et-row">
                                                     <MapPin className="et-icon" />
@@ -346,7 +348,9 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
                                                 }}
                                             >
                                                 <span>Grouped Opens (x{open.count})</span>
-                                                <span className="et-chevron expanded">▼</span>
+                                                <span className="et-chevron expanded">
+                                                    <ChevronDown size={14} />
+                                                </span>
                                             </div>
                                             {open.items.map((item: any, itemIdx: number) => (
                                                 <div key={itemIdx} className="et-group-item">

@@ -9,7 +9,8 @@ export const useHistoryManager = (
     senderFilter: string,
     userProfile: any,
     showStatus: (title: string, message: string, type: any) => void,
-    setCurrentUser: (user: string | null) => void
+    setCurrentUser: (user: string | null) => void,
+    currentUser: string | null
 ) => {
 
     const handleDeleteHistory = async () => {
@@ -28,14 +29,16 @@ export const useHistoryManager = (
                 result.success ? 'success' : 'warning'
             );
 
-            // Logic to clear current user if we just deleted the active local history
-            const currentUser = localStorage.getItem('currentUser'); // Or passed from props if needed, but managing local state here
-
             // If local delete happened and it matched currentUser, clear it
             if (!userProfile && senderFilter !== 'all' && currentUser === senderFilter) {
                 setCurrentUser(null);
             } else if (!userProfile && senderFilter === 'all') {
                 setCurrentUser(null);
+            }
+
+            // If full wipe, clear who we thought was logged in
+            if (senderFilter === 'all') {
+                chrome.storage.local.remove(['lastLoggedInEmail']);
             }
 
         } catch (e: any) {

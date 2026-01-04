@@ -1,4 +1,4 @@
-
+import { Badge } from '../common/Badge';
 import { formatRecipient, formatDateTime } from '../../utils/formatter';
 import styles from './EmailItem.module.css';
 
@@ -9,8 +9,6 @@ interface EmailItemProps {
 
 export const EmailItem = ({ email, onClick }: EmailItemProps) => {
     const isOpened = email.openCount > 0;
-
-
 
     // Calculate last opened time
     const lastOpened = email.opens && email.opens.length > 0
@@ -36,20 +34,23 @@ export const EmailItem = ({ email, onClick }: EmailItemProps) => {
             </div>
 
             <div className={styles.meta}>
-                <span className={`${styles.badge} ${isOpened ? styles.badgeOpened : styles.badgeSent}`}>
-                    {isOpened ? (email.openCount > 1 ? `Opened (${email.openCount})` : 'Opened') : 'Sent'}
-                </span>
-                <span className={styles.timestamp}>
-                    Sent: {formatDateTime(email.createdAt)}
-                </span>
-                {lastOpened && (
+                <div className={styles.metaRow}>
+                    <Badge variant={isOpened ? 'success' : 'neutral'}>
+                        {isOpened ? (email.openCount > 1 ? `Opened (${email.openCount})` : 'Opened') : 'Sent'}
+                    </Badge>
+                    {lastOpened && (
+                        <span className={styles.timestamp}>
+                            Last Opened: {formatDateTime(lastOpened.openedAt || lastOpened.timestamp)}
+                        </span>
+                    )}
+                </div>
+
+                <div className={styles.metaRow}>
                     <span className={styles.timestamp}>
-                        Last Opened: {formatDateTime(lastOpened.openedAt || lastOpened.timestamp)}
+                        Sent: {formatDateTime(email.createdAt)}
                     </span>
-                )}
+                </div>
             </div>
-
-
         </div>
     );
 };

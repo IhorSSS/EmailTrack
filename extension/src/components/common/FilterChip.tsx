@@ -1,5 +1,4 @@
 import React from 'react';
-import { theme } from '../../config/theme';
 
 interface FilterChipProps {
     label: string;
@@ -11,17 +10,19 @@ export const FilterChip: React.FC<FilterChipProps> = ({ label, active, onClick }
     <button
         onClick={onClick}
         style={{
-            padding: '4px 12px',
-            borderRadius: '16px',
-            border: 'none',
+            padding: '6px 14px',
+            borderRadius: 'var(--radius-full)',
+            border: active ? '1px solid var(--color-primary)' : '1px solid var(--border-color)',
             fontSize: '12px',
-            fontWeight: 500,
+            fontWeight: 600,
             cursor: 'pointer',
-            background: active ? theme.colors.primary : theme.colors.gray200,
-            color: active ? 'white' : theme.colors.gray500,
-            transition: 'all 0.2s'
+            background: active ? 'var(--color-primary)' : 'var(--bg-card)',
+            color: active ? 'var(--text-on-primary)' : 'var(--text-secondary)',
+            transition: 'var(--transition-base)',
+            boxShadow: active ? 'var(--shadow-sm)' : 'none',
         }}
     >
         {label}
     </button>
 );
+

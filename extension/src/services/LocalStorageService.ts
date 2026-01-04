@@ -120,6 +120,23 @@ export class LocalStorageService {
     }
 
     /**
+     * Delete only emails that have already been synced to the cloud.
+     * This is used when switching accounts to keep anonymous history while
+     * protecting the privacy of the previous user.
+     */
+    static async deleteSyncedOnly(): Promise<void> {
+        return new Promise((resolve) => {
+            chrome.storage.local.get([STORAGE_KEY], (result) => {
+                const history = (result[STORAGE_KEY] || []) as LocalEmailMetadata[];
+                const unsynced = history.filter(e => !e.synced);
+                chrome.storage.local.set({ [STORAGE_KEY]: unsynced }, () => {
+                    resolve();
+                });
+            });
+        });
+    }
+
+    /**
      * Delete persistent history (clear all)
      */
     static async deleteAll(): Promise<void> {

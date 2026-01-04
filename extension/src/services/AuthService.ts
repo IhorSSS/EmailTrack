@@ -92,16 +92,30 @@ export class AuthService {
                     console.error('Token revocation network error:', err);
                 })
                 .finally(() => {
-                    // 2. Remove from Chrome Identity Cache
+                    // 2. Remove specific token from Chrome Identity Cache
                     chrome.identity.removeCachedAuthToken({ token }, () => {
                         console.log('Token removed from cache');
 
-                        // 3. Clear Local Storage 'currentUser' to prevent UI stickiness
-                        chrome.storage.local.remove(['currentUser'], () => {
-                            resolve();
-                        });
+                        // 3. Clear ALL cached tokens to reset account selection
+                        // This forces the account picker to show on next login
+                        if (chrome.identity.clearAllCachedAuthTokens) {
+                            chrome.identity.clearAllCachedAuthTokens(() => {
+                                console.log('All cached tokens cleared');
+                                finishLogout();
+                            });
+                        } else {
+                            // Fallback for older Chrome versions
+                            finishLogout();
+                        }
                     });
                 });
+
+            function finishLogout() {
+                // 4. Clear Local Storage 'currentUser' to prevent UI stickiness
+                chrome.storage.local.remove(['currentUser'], () => {
+                    resolve();
+                });
+            }
         });
     }
 
@@ -136,25 +150,38 @@ export class AuthService {
     }
 
     /**
-     * Check if local email IDs are owned by another user
+     * Check if local email IDs are owned by another user.
+     * THROWS on API error (fail-closed behavior for security).
      */
     static async checkOwnershipConflict(emailIds: string[], googleId: string, token: string): Promise<boolean> {
-        const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/check-conflicts`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ googleId, emailIds })
-        });
+        logger.log('[AuthService] checkOwnershipConflict called with', emailIds.length, 'IDs for googleId:', googleId);
 
-        if (!response.ok) {
-            console.error('Failed to check ownership conflicts (API Error)');
-            return false;
+        try {
+            const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/check-conflicts`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ googleId, emailIds })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                logger.error('[AuthService] checkOwnershipConflict API error:', response.status, errorText);
+                // FAIL-CLOSED: If we can't verify, assume conflict for security
+                throw new Error(`Ownership conflict check failed (${response.status}). Please try again.`);
+            }
+
+            const data = await response.json();
+            logger.log('[AuthService] checkOwnershipConflict result:', data);
+
+            return data.conflict === true;
+        } catch (e) {
+            logger.error('[AuthService] checkOwnershipConflict exception:', e);
+            // FAIL-CLOSED: Network error = assume conflict
+            throw new Error('Unable to verify data ownership. Please check your connection and try again.');
         }
-
-        const data = await response.json();
-        return data.conflict;
     }
 
     /**

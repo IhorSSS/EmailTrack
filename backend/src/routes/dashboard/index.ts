@@ -134,15 +134,8 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
             prisma.trackedEmail.count({ where: whereClause })
         ]);
 
-        // DEBUG: Inject simple open count verification
-        const debugData = data.map(d => ({
-            ...d,
-            _debug_opens_count: d.opens.length,
-            _debug_agg_opens: d._count?.opens
-        }));
-
         reply.send({
-            data: debugData,
+            data,
             total,
             page: Number(page),
             limit: Number(limit)

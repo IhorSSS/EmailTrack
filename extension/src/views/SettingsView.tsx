@@ -1,19 +1,20 @@
-import React, { useState } from 'react';
-import { Card } from '../components/common/Card';
-import { Modal } from '../components/common/Modal';
-import { theme } from '../config/theme';
+import React from 'react';
+import { Button } from '../components/common/Button';
+import { Select } from '../components/common/Select';
+import { Badge } from '../components/common/Badge';
 import type { UserProfile } from '../services/AuthService';
 
 interface SettingsViewProps {
     globalEnabled: boolean;
     toggleGlobal: () => void;
     bodyPreviewLength: number;
-    handleBodyPreviewChange: (val: number) => void;
+    handleBodyPreviewChange: (length: number) => void;
     userProfile: UserProfile | null;
     senderFilter: string;
     loading: boolean;
-    activeIdentity: string | null;
-    onDeleteHistory: () => Promise<void>;
+    openDeleteConfirm: () => void;
+    theme: 'light' | 'dark' | 'system';
+    setTheme: (theme: 'light' | 'dark' | 'system') => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -24,162 +25,193 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     userProfile,
     senderFilter,
     loading,
-    activeIdentity,
-    onDeleteHistory
+    openDeleteConfirm,
+    theme,
+    setTheme
 }) => {
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-
-    const handleConfirmDelete = async () => {
-        await onDeleteHistory();
-        setIsDeleteModalOpen(false);
-    };
-
     return (
-        <div style={{ padding: 'var(--spacing-md)' }}>
-            <Card>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xl)' }}>
+            {/* Tracking Toggle Section */}
+            <div style={{
+                background: 'var(--bg-card)',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border-color)',
+                overflow: 'hidden'
+            }}>
+                <div style={{
+                    padding: 'var(--spacing-lg)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    borderBottom: '1px solid var(--border-color)',
+                    background: globalEnabled ? 'var(--color-primary-soft)' : 'transparent'
+                }}>
                     <div>
-                        <h4 style={{ fontSize: '15px', fontWeight: 500 }}>Global Tracking</h4>
-                        <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                            Auto-inject pixel into new emails
+                        <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Tracking is {globalEnabled ? 'ON' : 'OFF'}</h4>
+                        <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: 'var(--spacing-xs)' }}>
+                            {globalEnabled ? 'Automatically inject tracking pixel into new emails' : 'No pixels will be added to your emails'}
                         </p>
                     </div>
-                    <div
-                        onClick={toggleGlobal}
-                        style={{
-                            width: '44px', height: '24px', background: globalEnabled ? theme.colors.primary : theme.colors.gray200,
-                            borderRadius: '20px', position: 'relative', cursor: 'pointer', transition: 'background 0.3s'
-                        }}
-                    >
+                    <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px' }}>
+                        <input
+                            type="checkbox"
+                            checked={globalEnabled}
+                            onChange={toggleGlobal}
+                            style={{ opacity: 0, width: 0, height: 0 }}
+                        />
+                        <span style={{
+                            position: 'absolute',
+                            cursor: 'pointer',
+                            top: 0, left: 0, right: 0, bottom: 0,
+                            backgroundColor: globalEnabled ? 'var(--color-primary)' : 'var(--border-color)',
+                            transition: 'var(--transition-base)',
+                            borderRadius: 'var(--radius-full)',
+                        }}>
+                            <span style={{
+                                position: 'absolute',
+                                content: '""',
+                                height: '20px', width: '20px',
+                                left: globalEnabled ? '22px' : '2px',
+                                bottom: '2px',
+                                backgroundColor: 'var(--bg-card)',
+                                transition: 'var(--transition-base)',
+                                borderRadius: '50%',
+                                boxShadow: 'var(--shadow-sm)'
+                            }} />
+                        </span>
+                    </label>
+                </div>
+
+                <div style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
+                    <Select
+                        label="Body Preview Length"
+                        value={bodyPreviewLength}
+                        onChange={(e) => handleBodyPreviewChange(Number(e.target.value))}
+                        options={[
+                            { value: '0', label: 'None' },
+                            { value: '50', label: 'Short (50 chars)' },
+                            { value: '100', label: 'Medium (100 chars)' },
+                            { value: '200', label: 'Long (200 chars)' }
+                        ]}
+                    />
+                    <Select
+                        label="App Theme"
+                        value={theme}
+                        onChange={(e) => setTheme(e.target.value as any)}
+                        options={[
+                            { value: 'system', label: 'System Default' },
+                            { value: 'light', label: 'Light' },
+                            { value: 'dark', label: 'Dark' }
+                        ]}
+                    />
+                </div>
+            </div>
+
+            {/* Identity Info */}
+            <div style={{
+                padding: 'var(--spacing-lg)',
+                background: 'var(--bg-card)',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border-color)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--spacing-md)'
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Active Identity
+                    </h4>
+                    {userProfile ? (
+                        <Badge variant="success" dot>Signed In</Badge>
+                    ) : (
+                        <Badge variant="neutral">Anonymous Session</Badge>
+                    )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+                    {userProfile?.picture ? (
+                        <img
+                            src={userProfile.picture}
+                            style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '50%',
+                                border: '2px solid var(--border-color)',
+                                padding: '2px'
+                            }}
+                            alt=""
+                        />
+                    ) : (
                         <div style={{
-                            width: '20px', height: '20px', background: 'white', borderRadius: '50%',
-                            position: 'absolute', top: '2px', left: globalEnabled ? '22px' : '2px',
-                            transition: 'left 0.3s', boxShadow: theme.shadows.toggle
-                        }} />
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '50%',
+                            background: 'var(--bg-app)',
+                            border: '1px solid var(--border-color)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '18px'
+                        }}>
+                            👤
+                        </div>
+                    )}
+                    <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {userProfile?.name || 'Guest Mode'}
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {userProfile
+                                ? userProfile.email
+                                : 'Tracking locally without cloud sync'}
+                        </div>
                     </div>
                 </div>
-            </Card>
 
-            <div style={{ marginTop: '20px' }}>
-                <h4 style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '8px', textTransform: 'uppercase' }}>Email Body Preview</h4>
-                <Card>
-                    <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                            <div style={{ flex: 1 }}>
-                                <h4 style={{ fontSize: '14px', fontWeight: 500, marginBottom: '4px' }}>Save Content Preview</h4>
-                                <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', margin: 0 }}>
-                                    Store email content for easier identification in tracking history
-                                </p>
-                            </div>
-                        </div>
-
-                        <select
-                            value={bodyPreviewLength}
-                            onChange={(e) => handleBodyPreviewChange(Number(e.target.value))}
-                            style={{
-                                width: '100%',
-                                padding: '8px 12px',
-                                borderRadius: 'var(--radius-md)',
-                                border: '1px solid var(--color-border)',
-                                fontSize: '13px',
-                                background: 'var(--color-bg-card)',
-                                color: 'var(--color-text-main)',
-                                cursor: 'pointer'
-                            }}
-                        >
-                            <option value={0}>Disabled (Recommended for privacy)</option>
-                            <option value={50}>50 characters</option>
-                            <option value={100}>100 characters</option>
-                            <option value={150}>150 characters</option>
-                            <option value={200}>200 characters</option>
-                            <option value={-1}>Full email</option>
-                        </select>
-
-                        {bodyPreviewLength !== 0 && (
-                            <div style={{
-                                marginTop: '12px',
-                                padding: '8px 12px',
-                                background: theme.colors.infoLight,
-                                borderRadius: 'var(--radius-sm)',
-                                fontSize: '11px',
-                                color: theme.colors.infoDark,
-                                display: 'flex',
-                                gap: '6px',
-                                alignItems: 'flex-start'
-                            }}>
-                                <span>ℹ️</span>
-                                <span>Email content will be stored on your tracking server. We recommend keeping this disabled for sensitive communications.</span>
-                            </div>
-                        )}
+                {!userProfile && (
+                    <div style={{
+                        marginTop: 'var(--spacing-xs)',
+                        padding: 'var(--spacing-sm) var(--spacing-md)',
+                        background: 'var(--bg-app)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '11px',
+                        color: 'var(--text-muted)',
+                        borderLeft: '3px solid var(--text-muted)',
+                        lineHeight: '1.4'
+                    }}>
+                        ℹ️ <b>Note:</b> New emails sent in Guest Mode are anonymous and won't be synced to your account until you sign in.
                     </div>
-                </Card>
+                )}
             </div>
 
-            <div style={{ marginTop: '20px' }}>
-                <h4 style={{ fontSize: '12px', color: '#ef4444', marginBottom: '8px', textTransform: 'uppercase' }}>Danger Zone</h4>
-                <Card>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                            <span style={{ fontSize: '13px', fontWeight: 500, color: '#ef4444' }}>Delete History</span>
-                            <p style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px', margin: 0 }}>
-                                {userProfile
-                                    ? `Permanently delete all tracking data for account ${userProfile.email}`
-                                    : senderFilter !== 'all'
-                                        ? `Delete tracking data for sender: ${senderFilter}`
-                                        : 'Delete all local tracking history'
-                                }
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => setIsDeleteModalOpen(true)}
-                            disabled={loading || (!userProfile && !activeIdentity && senderFilter === 'all')}
-                            style={{
-                                fontSize: '11px',
-                                color: theme.colors.danger,
-                                background: 'rgba(239, 68, 68, 0.1)',
-                                border: `1px solid ${theme.colors.danger}`,
-                                padding: '6px 12px',
-                                borderRadius: '4px',
-                                cursor: (loading || (!userProfile && !activeIdentity && senderFilter === 'all')) ? 'not-allowed' : 'pointer',
-                                fontWeight: 600
-                            }}
-                        >
-                            Delete {senderFilter !== 'all' && !userProfile ? 'Sender' : 'All'}
-                        </button>
-                    </div>
-                </Card>
+            {/* Danger Zone */}
+            <div style={{
+                marginTop: 'auto',
+                padding: 'var(--spacing-lg)',
+                background: 'var(--color-danger-bg)',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--color-danger)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--spacing-sm)'
+            }}>
+                <h4 style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-danger-text)' }}>Danger Zone</h4>
+                <p style={{ fontSize: '11px', color: 'var(--color-danger-text)', opacity: 0.8 }}>
+                    {userProfile
+                        ? `Delete history for ${userProfile.email}`
+                        : (senderFilter !== 'all' ? `Delete history for ${senderFilter}` : 'Delete all tracking data')}
+                </p>
+                <Button
+                    variant="danger"
+                    fullWidth
+                    size="sm"
+                    onClick={openDeleteConfirm}
+                    disabled={loading}
+                    style={{ marginTop: 'var(--spacing-xs)' }}
+                >
+                    Clear Tracking Data
+                </Button>
             </div>
-
-            <Modal
-                isOpen={isDeleteModalOpen}
-                title="Delete Tracking History"
-                message={
-                    <span>
-                        {userProfile ? (
-                            <>
-                                Are you sure you want to <b>DELETE ALL</b> tracking history for cloud account <b>{userProfile.email}</b>?
-                            </>
-                        ) : senderFilter !== 'all' ? (
-                            <>
-                                Are you sure you want to delete all tracking history for sender <b>{senderFilter}</b>?
-                                <br /><br />
-                                <i style={{ fontSize: '10px' }}>Other senders' history will remain intact.</i>
-                            </>
-                        ) : (
-                            <>
-                                Are you sure you want to <b>DELETE ALL</b> local tracking history?
-                            </>
-                        )}
-                        <br /><br />
-                        This action cannot be undone.
-                    </span>
-                }
-                type="danger"
-                confirmLabel="Delete Forever"
-                onConfirm={handleConfirmDelete}
-                onCancel={() => setIsDeleteModalOpen(false)}
-                loading={loading}
-            />
         </div>
     );
 };

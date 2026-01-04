@@ -2,123 +2,149 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    background-color: var(--color-bg);
+    background-color: var(--bg-app);
 }
 
 .header {
-    padding: 16px;
-    background: var(--color-bg-card);
-    border-bottom: 1px solid var(--color-border);
+    padding: var(--spacing-lg) 20px;
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border-color);
     display: flex;
-    gap: 12px;
+    gap: var(--spacing-lg);
     align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    backdrop-filter: blur(8px);
 }
 
 .backBtn {
-    background: none;
-    border: none;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
     cursor: pointer;
-    padding: 4px;
-    color: var(--color-text-secondary);
+    padding: 6px var(--spacing-md);
+    color: var(--text-primary);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    transition: var(--transition-base);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.backBtn:hover {
+    background: var(--bg-app);
+    border-color: var(--text-muted);
 }
 
 .title {
+    margin: 0;
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 700;
+    color: var(--text-primary);
+    flex: 1;
+    text-align: center;
 }
 
 .content {
-    padding: 16px;
+    padding: var(--spacing-xl) 20px;
     flex: 1;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
 }
 
 .section {
-    margin-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .label {
     font-size: 11px;
     text-transform: uppercase;
-    color: var(--color-text-secondary);
-    font-weight: 600;
+    color: var(--text-muted);
+    font-weight: 700;
+    letter-spacing: 0.05em;
 }
 
 .value {
-    font-size: 15px;
-    color: var(--color-text-main);
-    margin-top: 4px;
-}
-
-.valueSmall {
     font-size: 14px;
-    color: var(--color-text-main);
-    margin-top: 4px;
-}
-
-.emptyState {
-    padding: 12px;
-    background: #f1f5f9;
-    border-radius: 8px;
-    font-size: 13px;
-    color: #64748b;
-}
-
-.opensList {
-    background: var(--color-bg-card);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.openItem {
-    padding: 12px;
-    font-size: 13px;
-}
-
-.openItemDivider {
-    border-bottom: 1px solid var(--color-border);
-}
-
-.openDetails {
-    margin-top: 8px;
-    padding-left: 8px;
-    font-size: 11px;
-    color: var(--color-text-secondary);
-}
-
-.detailRow {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin: 4px 0;
-}
-
-.detailIcon {
-    font-size: 12px;
-    flex-shrink: 0;
-}
-
-.detailText {
-    flex: 1;
+    font-weight: 600;
+    color: var(--text-primary);
     line-height: 1.4;
 }
 
-.botBadge {
-    color: var(--color-warning, #f59e0b);
-    font-weight: 600;
+.valueSmall {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.emptyState {
+    padding: var(--spacing-xl);
+    background: var(--bg-card);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.opensList {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.openItem {
+    padding: var(--spacing-lg);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    transition: var(--transition-base);
+}
+
+.openItem:hover {
+    border-color: var(--color-primary-soft);
+    box-shadow: var(--shadow-sm);
 }
 
 .openRow {
     display: flex;
     justify-content: space-between;
-}
-
-.openLabel {
-    font-weight: 500;
-    color: #166534;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
 }
 
 .openTimestamp {
-    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.openDetails {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.detailRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.detailIcon {
+    font-size: 14px;
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+}
+
+.detailText {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
 }

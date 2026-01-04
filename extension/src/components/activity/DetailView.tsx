@@ -1,13 +1,16 @@
-
+import { Badge } from '../common/Badge';
 import { formatRecipient, formatFullDate } from '../../utils/formatter';
+import { RefreshButton } from '../common/RefreshButton';
 import styles from './DetailView.module.css';
 
 interface DetailViewProps {
     email: any;
     onBack: () => void;
+    onRefresh: () => void;
+    loading: boolean;
 }
 
-export const DetailView = ({ email, onBack }: DetailViewProps) => {
+export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProps) => {
     return (
         <div className={styles.container}>
             <div className={styles.header}>
@@ -15,6 +18,11 @@ export const DetailView = ({ email, onBack }: DetailViewProps) => {
                     ← Back
                 </button>
                 <h3 className={styles.title}>Message Details</h3>
+                <RefreshButton
+                    onClick={onRefresh}
+                    loading={loading}
+                    title="Refresh status"
+                />
             </div>
 
             <div className={styles.content}>
@@ -35,7 +43,7 @@ export const DetailView = ({ email, onBack }: DetailViewProps) => {
                 {email.body && (
                     <div className={styles.section}>
                         <label className={styles.label}>Body Preview</label>
-                        <div className={styles.value} style={{ fontSize: '13px', lineHeight: '1.4', whiteSpace: 'pre-wrap', color: 'var(--color-text-secondary)' }}>
+                        <div className={styles.value} style={{ fontSize: '13px', lineHeight: '1.4', whiteSpace: 'pre-wrap', color: 'var(--text-secondary)' }}>
                             {email.body}
                         </div>
                     </div>
@@ -70,10 +78,10 @@ export const DetailView = ({ email, onBack }: DetailViewProps) => {
                                 return (
                                     <div
                                         key={idx}
-                                        className={`${styles.openItem} ${idx < email.opens.length - 1 ? styles.openItemDivider : ''}`}
+                                        className={styles.openItem}
                                     >
                                         <div className={styles.openRow}>
-                                            <span className={styles.openLabel}>Opened</span>
+                                            <Badge variant="success">Opened</Badge>
                                             <span className={styles.openTimestamp}>
                                                 {formatFullDate(open.openedAt || open.timestamp || new Date())}
                                             </span>
@@ -85,7 +93,11 @@ export const DetailView = ({ email, onBack }: DetailViewProps) => {
                                                 <span className={styles.detailIcon}>📱</span>
                                                 <span className={styles.detailText}>
                                                     {deviceInfo.device || 'Unknown Device'}
-                                                    {deviceInfo.isBot && <span className={styles.botBadge}> (Bot)</span>}
+                                                    {deviceInfo.isBot && (
+                                                        <Badge variant="warning" shape="square" style={{ marginLeft: '8px', fontSize: '9px', padding: '1px 4px' }}>
+                                                            BOT
+                                                        </Badge>
+                                                    )}
                                                 </span>
                                             </div>
                                             <div className={styles.detailRow}>

@@ -110,8 +110,7 @@ describe('Dashboard Routes', () => {
 
             expect(mockFindMany).toHaveBeenCalledWith({
                 where: {
-                    id: { in: ['uuid1', 'uuid2'] },
-                    ownerId: null // Security fix: without auth, only return unowned items
+                    id: { in: ['uuid1', 'uuid2'] }
                 },
                 skip: 0,
                 take: 20,

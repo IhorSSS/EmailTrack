@@ -1,109 +1,78 @@
 .container {
-    padding: 12px;
-    padding-right: 40px;
-    background-color: var(--color-bg-card);
+    padding: var(--spacing-md) var(--spacing-lg);
+    background-color: var(--bg-card);
     cursor: pointer;
     display: flex;
     flex-direction: column;
     position: relative;
-    /* No borders here - handled by parent layout */
+    border-radius: var(--radius-md);
+    transition: var(--transition-base);
+    border: 1px solid transparent;
 }
 
 .container:hover {
-    background-color: var(--color-bg);
+    background-color: var(--bg-card-hover);
+    border-color: var(--border-color);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
 }
 
-.container:hover .deleteBtn {
-    opacity: 1;
+.container:active {
+    transform: translateY(0);
 }
 
 .content {
     flex: 1;
     min-width: 0;
-    margin-bottom: 8px;
+    margin-bottom: var(--spacing-sm);
 }
 
 .recipient {
     font-size: 14px;
-    font-weight: 600;
-    color: var(--color-text-main);
+    font-weight: 700;
+    color: var(--text-primary);
     margin-bottom: 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    letter-spacing: -0.01em;
 }
 
 .subject {
     font-size: 12px;
-    color: var(--color-text-secondary);
+    font-weight: 500;
+    color: var(--text-secondary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    margin-bottom: 4px;
 }
 
 .body {
-    font-size: 11px;
-    color: #94a3b8;
-    margin-top: 2px;
+    font-size: 12px;
+    color: var(--text-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.4;
 }
 
 .meta {
     display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-xs);
+}
+
+.metaRow {
+    display: flex;
     align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-}
-
-.badge {
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-}
-
-.badgeOpened {
-    background-color: var(--color-success-bg);
-    color: var(--color-success-text);
-}
-
-.badgeSent {
-    background-color: var(--color-neutral-bg);
-    color: var(--color-neutral-text);
+    gap: var(--spacing-md);
+    flex-wrap: wrap;
 }
 
 .timestamp {
-    font-size: 10px;
-    color: #94a3b8;
-}
-
-.deleteBtn {
-    position: absolute;
-    right: 8px;
-    top: 8px;
-    background: #fee2e2;
-    border: 1px solid #fca5a5;
-    border-radius: 6px;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    opacity: 0;
-    transition: all 0.2s ease;
-    color: #dc2626;
-    font-size: 18px;
-    font-weight: 700;
-    line-height: 1;
-}
-
-.deleteBtn:hover {
-    background: #dc2626;
-    color: white;
-    transform: scale(1.1);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
 }

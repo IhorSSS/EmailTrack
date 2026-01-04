@@ -1,7 +1,6 @@
-
-// React import removed
-
 import type { UserProfile } from '../../services/AuthService';
+import { Button } from '../common/Button';
+import { RefreshButton } from '../common/RefreshButton';
 
 interface HeaderProps {
     onRefresh: () => void;
@@ -13,93 +12,91 @@ interface HeaderProps {
 
 export const Header = ({ onRefresh, loading, userProfile, onLogin, onLogout }: HeaderProps) => {
     return (
-        <header style={{
-            height: '56px',
-            padding: '0 var(--spacing-md)',
-            background: 'var(--color-bg-card)',
-            borderBottom: '1px solid var(--color-border)',
+        <header className="glass" style={{
+            height: 'var(--header-height)',
+            padding: '0 var(--spacing-lg)',
+            background: 'var(--bg-header)',
+            borderBottom: '1px solid var(--border-color)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            flexShrink: 0
+            flexShrink: 0,
+            zIndex: 50,
+            position: 'sticky',
+            top: 0,
         }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ fontSize: '24px' }}>📨</div>
-                <h1 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--color-text-main)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                    fontSize: '22px',
+                    background: 'var(--color-primary-soft)',
+                    width: '36px',
+                    height: '36px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '10px',
+                }}>📨</div>
+                <h1 style={{
+                    fontSize: '17px',
+                    fontWeight: 800,
+                    color: 'var(--text-primary)',
+                    letterSpacing: '-0.02em'
+                }}>
                     EmailTrack
                 </h1>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <button
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <RefreshButton
                     onClick={onRefresh}
-                    disabled={loading}
-                    style={{
-                        background: 'transparent',
-                        border: 'none',
-                        padding: '8px',
-                        cursor: loading ? 'wait' : 'pointer',
-                        borderRadius: 'var(--radius-sm)',
-                        color: 'var(--color-text-secondary)',
-                        opacity: loading ? 0.5 : 1,
-                        display: 'flex',
-                        alignItems: 'center'
-                    }}
-                    title="Refresh"
-                >
-                    <svg
-                        width="20" height="20" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                        style={{ transition: 'transform 0.5s', transform: loading ? 'rotate(180deg)' : 'none' }}
-                    >
-                        <path d="M23 4v6h-6"></path>
-                        <path d="M1 20v-6h6"></path>
-                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                    </svg>
-                </button>
+                    loading={loading}
+                />
 
-                <div style={{ width: '1px', height: '24px', background: 'var(--color-border)' }}></div>
+                <div style={{ width: '1px', height: '16px', background: 'var(--border-color)', margin: '0 4px' }}></div>
 
                 {userProfile ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <img
                             src={userProfile.picture}
                             alt={userProfile.name}
                             title={`Signed in as ${userProfile.email}`}
-                            style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1px solid var(--color-border)' }}
+                            style={{
+                                width: '30px',
+                                height: '30px',
+                                borderRadius: 'var(--radius-full)',
+                                border: '2px solid var(--border-color)',
+                                objectFit: 'cover'
+                            }}
                         />
                         <button
                             onClick={onLogout}
                             style={{
-                                background: 'transparent',
+                                fontSize: '13px',
+                                fontWeight: 600,
+                                color: 'var(--text-secondary)',
+                                transition: 'var(--transition-base)',
+                                background: 'none',
                                 border: 'none',
-                                fontSize: '12px',
-                                color: 'var(--color-text-secondary)',
                                 cursor: 'pointer',
-                                textDecoration: 'underline'
+                                padding: '4px 8px',
+                                borderRadius: 'var(--radius-sm)',
                             }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-card-hover)')}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
                         >
-                            Sign out
+                            Log out
                         </button>
                     </div>
                 ) : (
-                    <button
+                    <Button
+                        size="sm"
                         onClick={onLogin}
-                        style={{
-                            background: 'var(--color-primary, #1a73e8)',
-                            color: 'white',
-                            border: 'none',
-                            padding: '6px 12px',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '13px',
-                            fontWeight: 500
-                        }}
                     >
                         Sign in
-                    </button>
+                    </Button>
                 )}
             </div>
         </header>
     );
 };
+

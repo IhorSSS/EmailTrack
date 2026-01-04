@@ -54,7 +54,9 @@ export function deepModify(obj: any, pixelTag: string): InjectionResult {
     let bestCandidate = { key: null as string | null, val: "", original: "", len: -1, isRich: false, score: -1 };
 
     const pixelPath = escapeRegExp(API_CONFIG.ENDPOINTS.PIXEL_PATH);
-    const cleanRegex = new RegExp(`\\<img[^\\>]+src=[\\"'][^\\"']*${pixelPath}[^\\"']*[\\"'][^\\>]*\\>`, 'gi');
+    // Robust Regex: Matches <img> tags that contain EITHER the pixel path OR data-track-id attribute
+    // This handles cases where src might be proxied or quotes are different.
+    const cleanRegex = new RegExp(`\\<img[^\\>]+(?:src=[\\"'][^\\"']*${pixelPath}|data-track-id)[^\\>]*\\>`, 'gi');
 
     const traverse = (target: any, depth = 0) => {
         if (!target || typeof target !== 'object') return;

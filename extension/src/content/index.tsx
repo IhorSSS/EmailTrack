@@ -40,11 +40,24 @@ if (document.readyState === 'loading') {
 }
 
 // 2. Setup Config Sync (Body Preview Length) - Keep a heartbeat for dynamic updates
+// Helper to check context
+const isValidContext = () => {
+    try {
+        return !!chrome.runtime?.id;
+    } catch {
+        return false;
+    }
+};
+
 // 2. Setup Config Sync (Body Preview Length) - Keep a heartbeat for dynamic updates
-setTimeout(sendConfigToMainWorld, CONSTANTS.CONTENT.CONFIG_SYNC_DELAY_MS);
+setTimeout(() => {
+    if (isValidContext()) sendConfigToMainWorld();
+}, CONSTANTS.CONTENT.CONFIG_SYNC_DELAY_MS);
+
 const heartbeatId = setInterval(() => {
-    if (!chrome.runtime?.id) {
+    if (!isValidContext()) {
         clearInterval(heartbeatId);
+        logger.log('[Content] Extension context invalidated. Stopping heartbeat.');
         return;
     }
     sendConfigToMainWorld();
@@ -53,19 +66,21 @@ const heartbeatId = setInterval(() => {
 // Watch for Config Changes
 try {
     chrome.storage.onChanged.addListener((changes, area) => {
-        if (!chrome.runtime?.id) return;
+        if (!isValidContext()) return;
         if (area === 'sync' && (changes.bodyPreviewLength || changes.apiUrl)) {
             sendConfigToMainWorld();
         }
     });
-} catch (e) { }
+} catch (e) {
+    logger.warn('[Content] Failed to attach storage listener (context invalidated?)');
+}
 
 // 3. Setup Registration Listener (Email Sent -> Backend)
 setupRegistrationListener();
 
 // 4. Setup Stats Injection (Message View)
 const observer = new MutationObserver(() => {
-    if (!chrome.runtime?.id) {
+    if (!isValidContext()) {
         observer.disconnect();
         return;
     }

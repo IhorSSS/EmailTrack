@@ -36,8 +36,13 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
 
                         const res = await fetch(`${urlBase}?${params.toString()}`, { method: 'DELETE' });
                         if (!res.ok) {
-                            console.warn('[SYNC] Retry delete failed, keeping in queue', res.status);
-                            remaining.push(task);
+                            if (res.status === 403 || res.status === 401) {
+                                console.warn('[SYNC] Delete forbidden (403/401), discarding from queue:', task);
+                                // Do not retry - we are not authorized
+                            } else {
+                                console.warn('[SYNC] Retry delete failed, keeping in queue', res.status);
+                                remaining.push(task);
+                            }
                         }
                     } catch (e) {
                         remaining.push(task);
@@ -70,8 +75,12 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
             await processPendingDeletes();
             setSyncing(false);
 
-            // 2. Load Local History
-            const localEmails = await LocalStorageService.getEmails();
+            // 2. Load and Filter Local History
+            const rawLocalEmails = await LocalStorageService.getEmails();
+            const activeEmail = effectiveProfile?.email || currentUser;
+
+            // Only keep local emails that belong to the current active identity
+            const localEmails = rawLocalEmails.filter(e => e.user === activeEmail);
             const localIds = localEmails.map(e => e.id);
 
             // 3. Build Query
@@ -80,17 +89,16 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
             params.append('t', String(Date.now()));
 
             if (effectiveProfile) {
-                // Cloud mode: fetch by owner
+                // Cloud mode: fetch by owner (most secure/accurate)
                 params.append('ownerId', effectiveProfile.id);
             } else if (localIds.length > 0) {
-                // Offline mode with local IDs: fetch by IDs only (user= is redundant)
+                // Anonymous Session: fetch strictly by IDs currently stored on this device.
+                // This prevents leaking the email address in the query string (privacy first).
                 params.append('ids', localIds.join(','));
-            } else if (currentUser) {
-                // Fallback: no local IDs, try by user (legacy/initial state)
-                params.append('user', currentUser);
             }
 
-            if (!effectiveProfile && !currentUser && localIds.length === 0) {
+            if (!effectiveProfile && localIds.length === 0) {
+                // No cloud profile and no local IDs -> nothing to fetch anonymously.
                 setEmails([]);
                 setStats({ tracked: 0, opened: 0, rate: 0 });
                 setLoading(false);
@@ -104,55 +112,52 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
             const localEmailMap = new Map(localEmails.map(e => [e.id, e]));
             const emailsToSave: TrackedEmail[] = [];
 
-            // Priority 1: Server Data (with local fallback for placeholders)
+            // Priority 1: Server Data
             serverEmails.forEach((e: any) => {
                 const localEmail = localEmailMap.get(e.id);
                 const serverSubject = e.subject || '';
                 const serverRecipient = e.recipient || '';
 
-                // Detect placeholder values from server
                 const isPlaceholderSubject = !serverSubject || serverSubject.includes('Subject Unavailable');
                 const isPlaceholderRecipient = !serverRecipient || serverRecipient === 'Unknown';
 
+                const serverCount = e._count?.opens ?? e.opens?.length ?? e.openCount ?? 0;
+                const localCount = localEmail?.openCount ?? 0;
+                const calculatedCount = Math.max(serverCount, localCount);
+
                 const enriched = {
                     ...e,
-                    // Preserve local metadata if server has placeholder
                     subject: isPlaceholderSubject && localEmail?.subject ? localEmail.subject : serverSubject,
                     recipient: isPlaceholderRecipient && localEmail?.recipient ? localEmail.recipient : serverRecipient,
                     body: e.body || localEmail?.body || '',
-                    // FIX: Prevent overwriting local open count with 0 from server (sync lag)
-                    // Priority: 1. Server Count (if > 0), 2. Server Opens Array Length, 3. Local Count
-                    openCount: Math.max(e._count?.opens ?? e.opens?.length ?? e.openCount ?? 0, localEmail?.openCount ?? 0),
+                    openCount: calculatedCount,
                     opens: e.opens || []
                 };
                 emailMap.set(e.id, enriched);
 
-                // Hydration: Save merged data (local metadata preserved)
                 emailsToSave.push({
                     id: enriched.id,
                     subject: enriched.subject,
                     recipient: enriched.recipient,
                     body: enriched.body,
-                    user: enriched.user || localEmail?.user || '',
+                    user: enriched.user || localEmail?.user || activeEmail || '',
                     createdAt: enriched.createdAt,
                     opens: e.opens || [],
-                    // FIX: Use enriched.openCount (calculated max) instead of raw e.openCount
                     openCount: enriched.openCount
                 } as TrackedEmail);
             });
 
-            // Batch save (now with local metadata preserved)
+            // Batch save
             if (emailsToSave.length > 0) {
                 await LocalStorageService.saveEmails(emailsToSave);
             }
 
-            // Priority 2: Local Data
+            // Priority 2: Local Data (Already filtered by identity above)
             localEmails.forEach(local => {
                 const existing = emailMap.get(local.id);
                 if (existing) {
                     emailMap.set(local.id, {
                         ...existing,
-                        // Fix: Ignore placeholder subject from server lazy-registration
                         subject: (existing.subject && !existing.subject.includes('Subject Unavailable'))
                             ? existing.subject
                             : local.subject,
@@ -161,10 +166,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                         user: existing.user || local.user,
                     });
                 } else {
-                    // Only keep local if we are NOT in strict Cloud Mode or if we prefer merging?
-                    // If we are in Cloud Mode, and local item is NOT in server list (e.g. page 1),
-                    // we show it anyway?
-                    // Better to show what we have.
+                    // Only keep local if it belongs to current active user (checked in Step 2)
                     emailMap.set(local.id, {
                         ...local,
                         opens: [],
@@ -194,13 +196,11 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
     }, [userProfile, currentUser, authToken]);
 
     const deleteEmails = useCallback(async (
-        filterSender: string = 'all',
-        idsToDelete: string[] = []
+        filterSender: string = 'all'
     ): Promise<{ success: boolean, message: string }> => {
         setLoading(true);
         try {
             const params = new URLSearchParams();
-            let isServerSuccess = true;
 
             if (userProfile) {
                 // Cloud Mode: Delete All or Specific
@@ -212,52 +212,38 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 await DashboardService.deleteEmails(params, authToken);
                 await LocalStorageService.deleteAll();
             } else {
-                // Incognito Mode
-                // 1. Prepare IDs
-                let targetIds = idsToDelete;
-                let targetSender: string | null = filterSender !== 'all' ? filterSender : null;
+                // Incognito Mode: Local-only deletion. Server data requires authentication.
+                const targetSender: string | null = filterSender !== 'all' ? filterSender : null;
 
-                if (targetIds.length === 0) {
-                    if (targetSender) {
-                        const local = await LocalStorageService.getEmails();
-                        targetIds = local.filter(e => e.user === targetSender).map(e => e.id);
-                    } else {
-                        const local = await LocalStorageService.getEmails();
-                        targetIds = local.map(e => e.id);
-                    }
-                }
-
-                // 2. Server Delete
-                if (targetIds.length > 0) {
-                    params.append('ids', targetIds.join(','));
-                    if (targetSender) params.append('user', targetSender);
-
-                    try {
-                        await DashboardService.deleteEmails(params, authToken);
-                    } catch (e) {
-                        isServerSuccess = false;
-                        await LocalStorageService.queuePendingDelete(targetIds, targetSender || undefined);
-                    }
-                }
-
-                // 3. Local Delete
+                // Local Delete only
                 if (targetSender) {
                     await LocalStorageService.deleteBySender(targetSender);
                 } else {
                     await LocalStorageService.deleteAll();
                 }
+
+                // No server call in Incognito - this is by design for security
+                // Refresh
+                setEmails([]);
+                setStats({ tracked: 0, opened: 0, rate: 0 });
+                fetchEmails();
+
+                return {
+                    success: true,
+                    message: targetSender
+                        ? `Local history for "${targetSender}" cleared. Sign in to manage server data.`
+                        : 'Local history cleared from this device. Sign in to manage server data.'
+                };
             }
 
-            // Refresh
+            // Refresh (Cloud mode path)
             setEmails([]);
             setStats({ tracked: 0, opened: 0, rate: 0 });
             fetchEmails();
 
             return {
-                success: isServerSuccess,
-                message: isServerSuccess
-                    ? 'Tracking history has been cleared successfully.'
-                    : 'History cleared from device. Server was unreachable, so deletion has been QUEUED for automatic retry.'
+                success: true,
+                message: 'Tracking history has been cleared successfully.'
             };
 
         } catch (e: any) {

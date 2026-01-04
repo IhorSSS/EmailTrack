@@ -9,6 +9,7 @@ export interface AuthState {
     login: () => Promise<void>;
     logout: () => Promise<void>;
     authError: string | null;
+    clearAuthError: () => void;
 }
 
 export const useAuth = () => {
@@ -27,96 +28,175 @@ export const useAuth = () => {
         try {
             const token = await AuthService.getAuthToken(false).catch(() => null);
             if (token) {
-                setAuthToken(token);
                 const profile = await AuthService.getUserProfile(token);
+
+                // CONFLICT CHECK (same as in login flow)
+                const localEmails = await LocalStorageService.getEmails();
+
+                if (localEmails.length > 0) {
+                    // Check lastLoggedInEmail
+                    const lastLoggedInEmail = await new Promise<string | null>((resolve) => {
+                        chrome.storage.local.get(['lastLoggedInEmail'], (result: { lastLoggedInEmail?: string }) => {
+                            resolve(result.lastLoggedInEmail || null);
+                        });
+                    });
+
+
+                    if (lastLoggedInEmail && lastLoggedInEmail !== profile.email) {
+                        // Different account detected. We DON'T logout, but we signal the conflict.
+                        // For privacy, we don't reveal the email in the generic error.
+                        setAuthError(`Account Conflict: Local history belongs to another account`);
+                        // We still set the profile so App.tsx knows who is TRYING to log in
+                        setUserProfile(profile);
+                        setAuthToken(token);
+                        setAuthLoading(false);
+                        return;
+                    }
+                }
+
+                // No conflict - proceed with auto-login
+                setAuthToken(token);
                 setUserProfile(profile);
 
                 // Persistence for Background Script
                 if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                    chrome.storage.local.set({ userProfile: profile });
+                    chrome.storage.local.set({ userProfile: profile, lastLoggedInEmail: profile.email });
                 }
             }
         } catch (e) {
-            console.log('Auto-login failed / Not logged in', e);
+            // Silent fail for auto-login
         } finally {
             setAuthLoading(false);
         }
     };
 
     const login = useCallback(async () => {
+        if (authLoading && !authError) {
+            console.warn('Login already in progress, ignoring concurrent request');
+            return;
+        }
+
         setAuthError(null);
+        setAuthLoading(true);
         try {
-            // Step 1: Get Token (Potentially Cached)
+            // Step 1: Get Token
             let token = await AuthService.getAuthToken(true);
             setAuthToken(token);
             let profile: UserProfile;
 
-            // Step 2: Try to Fetch Profile
+            // Step 2: Fetch Profile
             try {
                 profile = await AuthService.getUserProfile(token);
             } catch (err: any) {
-                // If 401/403, Token might be stale.
-                console.warn('Profile fetch failed, retrying with fresh token...', err);
-
-                // Retry Strategy: Remove invalid token and ask for a new one
                 await AuthService.removeCachedToken(token);
-                token = await AuthService.getAuthToken(true); // Interactive again (or silent if possible)
+                token = await AuthService.getAuthToken(true);
                 setAuthToken(token);
-
-                // Retry Profile Fetch
-                try {
-                    profile = await AuthService.getUserProfile(token);
-                } catch (retryErr) {
-                    throw new Error('Failed to authenticate with Google. Please try again.');
-                }
+                profile = await AuthService.getUserProfile(token);
             }
 
             setUserProfile(profile);
             chrome.storage.local.set({ userProfile: profile });
 
-            // 1. Conflict Check
+            // 1. Account Conflict Check (Client)
             const localEmails = await LocalStorageService.getEmails();
-            const localIds = localEmails.map(e => e.id);
+            if (localEmails.length > 0) {
+                const lastLoggedInEmail = await new Promise<string | null>((resolve) => {
+                    chrome.storage.local.get(['lastLoggedInEmail'], (result: { lastLoggedInEmail?: string }) => {
+                        resolve(result.lastLoggedInEmail || null);
+                    });
+                });
 
-            if (localIds.length > 0) {
-                const hasConflict = await AuthService.checkOwnershipConflict(localIds, profile.id, token);
-                if (hasConflict) {
-                    await logout(); // Abort
-                    throw new Error(`Account Conflict: Local history belongs to another account. Please clear history first.`);
+                if (lastLoggedInEmail && lastLoggedInEmail !== profile.email) {
+                    throw new Error(`Account Conflict: Local history belongs to another account`);
                 }
             }
 
-            // 2. Sync User
-            await AuthService.syncUser(profile.email, profile.id, token);
+            // 2. Server Conflict Check
+            const localIds = localEmails.map(e => e.id);
+            if (localIds.length > 0) {
+                const hasConflict = await AuthService.checkOwnershipConflict(localIds, profile.id, token);
+                if (hasConflict) {
+                    throw new Error(`Account Conflict: Local history belongs to another account`);
+                }
+            }
 
-            // 3. Upload Local History (Merge)
-            const unsynced = localEmails.filter(e => !e.synced);
-            if (unsynced.length > 0) {
+            // 3. Sync & Upload
+            await AuthService.syncUser(profile.email, profile.id, token);
+            if (localEmails.length > 0) {
                 try {
-                    const count = await AuthService.uploadHistory(unsynced, profile.id, profile.email, token);
+                    const count = await AuthService.uploadHistory(localEmails, profile.id, profile.email, token);
                     if (count > 0) {
-                        await LocalStorageService.markAsSynced(unsynced.map(e => e.id));
+                        await LocalStorageService.markAsSynced(localEmails.map(e => e.id));
                     }
                 } catch (syncErr) {
                     console.warn('History upload failed:', syncErr);
                 }
             }
+
+            chrome.storage.local.set({ lastLoggedInEmail: profile.email });
         } catch (e: any) {
+            // If we ALREADY have a valid profile/token from a concurrent successful attempt, 
+            // don't overwrite it with a "Cancelled" error from a redundant popup.
+            if (e.message?.includes('The user did not approve') || e.message?.includes('cancelled')) {
+                if (userProfile && authToken) {
+                    console.log('Ignoring cancellation error for already authenticated session');
+                    setAuthLoading(false);
+                    return;
+                }
+            }
+
             console.error('Login failed', e);
             setAuthError(e.message || 'Login failed');
-            throw e; // Re-throw for UI to handle (e.g. show modal)
+            throw e;
+        } finally {
+            setAuthLoading(false);
         }
-    }, []);
+    }, [authLoading, authError, userProfile, authToken]);
 
-    const logout = useCallback(async () => {
-        if (authToken) {
-            await AuthService.logout(authToken);
-        }
+    const logout = useCallback(async (clearData: boolean = false) => {
+        // 1. Atomic State Reset (Synchrously reset React state to prevent race conditions)
+        const tokenToRevoke = authToken;
         setAuthToken(null);
         setUserProfile(null);
-        // Clear persistence
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-            chrome.storage.local.remove(['userProfile']);
+
+        // Check context validity before proceeding
+        const isContextValid = typeof chrome !== 'undefined' &&
+            chrome.runtime &&
+            chrome.runtime.id;
+
+        // 2. Async Cleanup
+        if (tokenToRevoke && isContextValid) {
+            try {
+                // Background revoke (don't block UI state update)
+                AuthService.logout(tokenToRevoke).catch(e => console.warn('Revoke failed:', e));
+            } catch (e) {
+                console.warn('Logout service call failed (context may be invalid):', e);
+            }
+        }
+
+        // Clear persistence only if context is valid
+        if (isContextValid && chrome.storage && chrome.storage.local) {
+            try {
+                await new Promise<void>((resolve) => {
+                    // Always remove userProfile, optionally remove lastLoggedInEmail
+                    const keysToRemove = clearData
+                        ? ['userProfile', 'lastLoggedInEmail']
+                        : ['userProfile'];
+
+                    chrome.storage.local.remove(keysToRemove, () => {
+                        if (chrome.runtime.lastError) {
+                            console.warn('Storage remove failed:', chrome.runtime.lastError);
+                        }
+                        resolve();
+                    });
+                });
+
+                if (clearData) {
+                    await LocalStorageService.deleteAll();
+                }
+            } catch (e) {
+                console.warn('Logout storage cleanup failed (context may be invalid):', e);
+            }
         }
     }, [authToken]);
 
@@ -126,6 +206,7 @@ export const useAuth = () => {
         authLoading,
         login,
         logout,
-        authError
+        authError,
+        clearAuthError: () => setAuthError(null)
     };
 };

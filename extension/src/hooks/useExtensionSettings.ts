@@ -7,12 +7,15 @@ export interface ExtensionSettings {
     toggleGlobal: () => void;
     bodyPreviewLength: number;
     setBodyPreviewLength: (length: number) => void;
+    theme: 'light' | 'dark' | 'system';
+    setTheme: (theme: 'light' | 'dark' | 'system') => void;
 }
 
 export function useExtensionSettings(): ExtensionSettings {
     const [currentUser, setLocalCurrentUser] = useState<string | null>(null);
     const [globalEnabled, setGlobalEnabled] = useState(true);
     const [bodyPreviewLength, setBodyPreviewLength] = useState(0);
+    const [theme, setThemeState] = useState<'light' | 'dark' | 'system'>('system');
 
     const setCurrentUser = (user: string | null) => {
         setLocalCurrentUser(user);
@@ -46,6 +49,11 @@ export function useExtensionSettings(): ExtensionSettings {
                         setBodyPreviewLength(result.bodyPreviewLength);
                     }
                 });
+                chrome.storage.sync.get(['theme'], (result: { theme?: 'light' | 'dark' | 'system' }) => {
+                    if (result.theme) {
+                        setThemeState(result.theme);
+                    }
+                });
             }
         }
     }, []);
@@ -67,12 +75,21 @@ export function useExtensionSettings(): ExtensionSettings {
         }
     };
 
+    const handleThemeChange = (value: 'light' | 'dark' | 'system') => {
+        setThemeState(value);
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
+            chrome.storage.sync.set({ theme: value });
+        }
+    };
+
     return {
         currentUser,
         setCurrentUser,
         globalEnabled,
         toggleGlobal,
         bodyPreviewLength,
-        setBodyPreviewLength: handleBodyPreviewChange
+        setBodyPreviewLength: handleBodyPreviewChange,
+        theme,
+        setTheme: handleThemeChange
     };
 }

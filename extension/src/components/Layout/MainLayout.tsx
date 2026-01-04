@@ -25,7 +25,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     onViewChange
 }) => {
     return (
-        <div className="app-container" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-app)' }}>
             <Header
                 onRefresh={onRefresh}
                 loading={loading}
@@ -35,19 +35,36 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             />
 
             {/* Content Area */}
-            <main style={{ flex: 1, overflowY: 'auto', background: 'var(--color-bg)' }}>
-                {children}
+            <main style={{
+                flex: 1,
+                overflowY: 'auto',
+                background: 'var(--bg-app)',
+                position: 'relative',
+                paddingBottom: '20px' // Space before nav
+            }}>
+                <div className="animate-fade-in">
+                    {children}
+                </div>
             </main>
 
             {/* Bottom Tabs */}
-            <nav style={{
-                height: '60px', background: 'var(--color-bg-card)',
-                display: 'flex', justifyContent: 'space-around', alignItems: 'center', flexShrink: 0
+            <nav className="glass" style={{
+                height: 'var(--nav-height)',
+                background: 'var(--bg-header)',
+                borderTop: '1px solid var(--border-color)',
+                display: 'flex',
+                justifyContent: 'space-around',
+                alignItems: 'center',
+                flexShrink: 0,
+                zIndex: 50,
+                paddingBottom: 'env(safe-area-inset-bottom)',
+                minHeight: '64px'
             }}>
-                <TabButton label="Dashboard" icon="📊" active={currentView === 'dashboard'} onClick={() => onViewChange('dashboard')} />
-                <TabButton label="Activity" icon="list" active={currentView === 'activity'} onClick={() => onViewChange('activity')} />
-                <TabButton label="Settings" icon="⚙️" active={currentView === 'settings'} onClick={() => onViewChange('settings')} />
+                <TabButton label="Overview" icon="dashboard" active={currentView === 'dashboard'} onClick={() => onViewChange('dashboard')} />
+                <TabButton label="Activity" icon="activity" active={currentView === 'activity'} onClick={() => onViewChange('activity')} />
+                <TabButton label="Settings" icon="settings" active={currentView === 'settings'} onClick={() => onViewChange('settings')} />
             </nav>
         </div>
     );
 };
+

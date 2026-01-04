@@ -1,12 +1,15 @@
 import React from 'react';
 import { EmailItem } from '../components/activity/EmailItem';
-import { Card } from '../components/common/Card';
-import { theme } from '../config/theme';
+import { StatCard } from '../components/dashboard/StatCard';
+import { Button } from '../components/common/Button';
+import { Select } from '../components/common/Select';
+import { Skeleton } from '../components/common/Skeleton';
 import { CONSTANTS } from '../config/constants';
 import type { TrackedEmail } from '../types';
 
 interface DashboardViewProps {
     stats: { tracked: number; opened: number; rate: number };
+    loading: boolean;
     error: string | null;
     uniqueSenders: string[];
     senderFilter: string;
@@ -18,6 +21,7 @@ interface DashboardViewProps {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
     stats,
+    loading,
     error,
     uniqueSenders,
     senderFilter,
@@ -27,73 +31,109 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     onViewAllClick
 }) => {
     return (
-        <div style={{ padding: '12px' }}>
-            {/* Sender Filter for Dashboard Scope - show only if multiple senders */}
+        <div style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xl)' }}>
+            {/* Sender Filter */}
             {uniqueSenders.length > 1 && (
-                <div style={{ marginBottom: '12px' }}>
-                    <select
-                        value={senderFilter}
-                        onChange={(e) => setSenderFilter(e.target.value)}
-                        style={{
-                            width: '100%',
-                            padding: '8px',
-                            borderRadius: 'var(--radius-md)',
-                            border: '1px solid var(--color-border)',
-                            background: 'var(--color-bg-card)',
-                            color: 'var(--color-text-main)',
-                            fontSize: '13px'
-                        }}
-                    >
-                        <option value="all">All Senders</option>
-                        {uniqueSenders.map(sender => (
-                            <option key={sender} value={sender}>{sender}</option>
-                        ))}
-                    </select>
-                </div>
+                <Select
+                    value={senderFilter}
+                    onChange={(e) => setSenderFilter(e.target.value)}
+                    options={[
+                        { value: 'all', label: 'All Senders' },
+                        ...uniqueSenders.map(s => ({ value: s, label: s }))
+                    ]}
+                />
             )}
 
-            {/* Stats Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-                <Card>
-                    <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--color-primary)' }}>{stats.tracked}</div>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-                        Emails Tracked
-                    </div>
-                </Card>
-                <Card>
-                    <div style={{ fontSize: '24px', fontWeight: 800, color: stats.rate > 50 ? theme.colors.successText : theme.colors.primary }}>
-                        {stats.rate}%
-                    </div>
-                    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-                        Open Rate
-                    </div>
-                </Card>
+            {/* Stats Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+                {loading && processedEmails.length === 0 ? (
+                    <>
+                        <Skeleton height={80} borderRadius="var(--radius-lg)" />
+                        <Skeleton height={80} borderRadius="var(--radius-lg)" />
+                    </>
+                ) : (
+                    <>
+                        <StatCard
+                            value={stats.tracked}
+                            label="Emails Tracked"
+                            color="var(--color-primary)"
+                        />
+                        <StatCard
+                            value={`${stats.rate}%`}
+                            label="Open Rate"
+                            color={stats.rate > 50 ? 'var(--color-success)' : 'var(--color-primary)'}
+                        />
+                    </>
+                )}
             </div>
 
             {/* Error Display */}
             {error && (
                 <div style={{
-                    marginBottom: '16px',
-                    padding: '12px',
-                    background: theme.colors.dangerLight,
+                    padding: 'var(--spacing-sm) var(--spacing-lg)',
+                    background: 'var(--color-danger-bg)',
                     borderRadius: 'var(--radius-md)',
                     fontSize: '13px',
-                    color: theme.colors.danger,
+                    color: 'var(--color-danger-text)',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '8px',
-                    border: `1px solid ${theme.colors.danger}`
+                    gap: 'var(--spacing-sm)',
+                    border: '1px solid var(--color-danger)',
+                    lineHeight: 1.4
                 }}>
-                    <span>⚠️</span> {error}
+                    <span style={{ fontSize: '16px' }}>⚠️</span> {error}
                 </div>
             )}
 
-            {/* Recent Activity Preview */}
-            <div style={{ marginBottom: '12px' }}>
-                <h3 style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '6px' }}>Recent Activity</h3>
-                <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                    {processedEmails.length === 0 ? (
-                        <div style={{ padding: '20px', textAlign: 'center', fontSize: '13px', color: theme.colors.gray400 }}>No activity yet.</div>
+            {/* Recent Activity */}
+            <div>
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 'var(--spacing-sm)',
+                    padding: '0 var(--spacing-xs)'
+                }}>
+                    <h3 style={{
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                        letterSpacing: '-0.01em',
+                        textTransform: 'uppercase'
+                    }}>
+                        Recent Activity
+                    </h3>
+                    {!loading && (
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                            Top {CONSTANTS.DASHBOARD_RECENT_COUNT}
+                        </span>
+                    )}
+                </div>
+
+                <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 'var(--spacing-sm)',
+                    background: 'var(--bg-card)',
+                    padding: loading && processedEmails.length === 0 ? 'var(--spacing-md)' : 'var(--spacing-xs)',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid var(--border-color)',
+                }}>
+                    {loading && processedEmails.length === 0 ? (
+                        <>
+                            <Skeleton height={70} borderRadius="var(--radius-md)" />
+                            <Skeleton height={70} borderRadius="var(--radius-md)" />
+                            <Skeleton height={70} borderRadius="var(--radius-md)" />
+                        </>
+                    ) : processedEmails.length === 0 ? (
+                        <div style={{
+                            padding: 'var(--spacing-xl) var(--spacing-lg)',
+                            textAlign: 'center',
+                            fontSize: '13px',
+                            color: 'var(--text-muted)'
+                        }}>
+                            No activity yet. Send an email to start tracking!
+                        </div>
                     ) : (
                         processedEmails.slice(0, CONSTANTS.DASHBOARD_RECENT_COUNT).map(email => (
                             <EmailItem
@@ -106,16 +146,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
             </div>
 
-            <button
+            <Button
+                variant="secondary"
+                fullWidth
                 onClick={onViewAllClick}
-                style={{
-                    width: '100%', padding: '12px', background: 'var(--color-bg-card)',
-                    border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
-                    fontWeight: 500, cursor: 'pointer', color: 'var(--color-primary)'
-                }}
+                style={{ marginTop: 'var(--spacing-xs)' }}
+                disabled={loading && processedEmails.length === 0}
             >
-                View All Activity
-            </button>
+                View Full History
+            </Button>
         </div>
     );
 };
+

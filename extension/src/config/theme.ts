@@ -1,126 +1,77 @@
 /**
  * Design System / Theme Configuration
- * Single source of truth for all visual design tokens
+ * Single source of truth for all visual design tokens.
+ * References CSS variables defined in index.css for theme-awareness.
  */
 
 export const theme = {
     colors: {
         // Primary
-        primary: '#6366f1',        // Indigo 500
-        primaryDark: '#4f46e5',    // Indigo 600
+        primary: 'var(--color-primary)',
+        primaryHover: 'var(--color-primary-hover)',
+        primarySoft: 'var(--color-primary-soft)',
 
-        // Success
-        success: '#34a853',        // Google green
-        successDark: '#137333',    // Dark green
-        successLight: '#dcfce7',   // Light green bg
-        successBg: '#e6f4ea',      // Success background
-        successText: '#166534',    // Success text
+        // States
+        success: 'var(--color-success)',
+        successBg: 'var(--color-success-bg)',
+        successText: 'var(--color-success-text)',
 
-        // Info/Blue
-        info: '#1a73e8',           // Google blue
-        infoBg: '#e8f0fe',         // Light blue bg
-        infoLight: '#eff6ff',      // Very light blue
-        infoDark: '#1e40af',       // Dark blue
+        danger: 'var(--color-danger)',
+        dangerBg: 'var(--color-danger-bg)',
+        dangerText: 'var(--color-danger-text)',
 
-        // Danger/Error
-        danger: '#dc2626',         // Red 600
-        dangerLight: '#fecaca',    // Red 200
+        warning: 'var(--color-warning)',
+        warningBg: 'var(--color-warning-bg)',
+        warningText: 'var(--color-warning-text)',
 
-        // Neutral/Gray Scale
-        gray50: '#f8fafc',         // Lightest
-        gray100: '#f1f5f9',
-        gray200: '#e2e8f0',
-        gray300: '#cbd5e0',
-        gray400: '#94a3b8',
-        gray500: '#64748b',
-        gray600: '#475569',
-        gray700: '#334155',
-        gray800: '#1e293b',
-        gray900: '#0f172a',        // Darkest
+        info: 'var(--color-primary)',
+        infoBg: 'var(--color-primary-soft)',
 
-        // Semantic colors
-        background: '#f8fafc',
-        backgroundCard: '#ffffff',
-        backgroundAlt: '#fafafa',
+        // Neutral/Surface
+        background: 'var(--bg-app)',
+        backgroundCard: 'var(--bg-card)',
+        backgroundHeader: 'var(--bg-header)',
 
         text: {
-            primary: '#0f172a',
-            secondary: '#64748b',
-            muted: '#888888',
+            primary: 'var(--text-primary)',
+            secondary: 'var(--text-secondary)',
+            muted: 'var(--text-muted)',
+            onPrimary: 'var(--text-on-primary)',
         },
 
-        border: '#e2e8f0',
-
-        // Component-specific
-        badge: {
-            opened: {
-                bg: '#dcfce7',
-                text: '#166534'
-            },
-            sent: {
-                bg: '#f1f5f9',
-                text: '#475569'
-            }
-        }
+        border: 'var(--border-color)',
+        borderHover: 'var(--border-color-hover)',
     },
 
     spacing: {
-        xs: 4,
-        sm: 8,
-        md: 12,
-        lg: 16,
-        xl: 20,
-        xxl: 24,
-        xxxl: 32
+        xs: 'var(--spacing-xs)',
+        sm: 'var(--spacing-sm)',
+        md: 'var(--spacing-md)',
+        lg: 'var(--spacing-lg)',
+        xl: 'var(--spacing-xl)',
     },
 
     borderRadius: {
-        sm: 4,
-        md: 6,
-        lg: 8,
-        xl: 12,
-        xxl: 16,
-        full: 9999
+        sm: 'var(--radius-sm)',
+        md: 'var(--radius-md)',
+        lg: 'var(--radius-lg)',
+        full: 'var(--radius-full)',
     },
 
     shadows: {
-        none: 'none',
-        sm: '0 1px 2px rgba(0,0,0,0.05)',
-        md: '0 1px 3px rgba(0,0,0,0.1)',
-        lg: '0 4px 6px rgba(0,0,0,0.07)',
-        xl: '0 8px 24px rgba(0,0,0,0.15)',
-        toggle: '0 1px 2px rgba(0,0,0,0.2)'
+        sm: 'var(--shadow-sm)',
+        md: 'var(--shadow-md)',
+        lg: 'var(--shadow-lg)',
     },
 
     fonts: {
-        family: "'Inter', -apple-system, sans-serif",
-        sizes: {
-            xs: 11,
-            sm: 12,
-            md: 13,
-            base: 14,
-            lg: 16,
-            xl: 18,
-            xxl: 20
-        },
-        weights: {
-            normal: 400,
-            medium: 500,
-            semibold: 600,
-            bold: 700,
-            extrabold: 800
-        }
+        family: 'var(--font-family)',
     },
 
     transitions: {
-        fast: '0.1s',
-        normal: '0.2s',
-        slow: '0.3s'
+        base: 'var(--transition-base)',
     }
 } as const;
 
-// Type for the theme
 export type Theme = typeof theme;
 
-// Helper function to get spacing/size in px
-export const px = (value: number) => `${value}px`;

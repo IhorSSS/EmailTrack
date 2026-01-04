@@ -20,20 +20,20 @@ const statsRoutes: FastifyPluginAsync = async (fastify, opts) => {
             return reply.status(404).send({ error: 'Not Found' });
         }
 
-        // OWNERSHIP VALIDATION (when authenticated)
-        // If user sends Authorization header, verify they own this email
-        const authGoogleId = await getAuthenticatedUser(request);
+        // OWNERSHIP VALIDATION
+        const authGoogleId = await getAuthenticatedUser(request).catch(() => null);
 
-        if (authGoogleId) {
-            // User is authenticated - check ownership
-            if (email.owner && email.owner.googleId !== authGoogleId) {
-                // Email is owned by someone else
+        if (email.owner) {
+            // Email is owned by a specific account - Authentication REQUIRED
+            if (!authGoogleId || email.owner.googleId !== authGoogleId) {
+                // If not authenticated or not the owner -> Hide the email's existence
                 return reply.status(404).send({ error: 'Not Found' });
             }
-            // Note: If email.owner is null (incognito), authenticated user can see it
-            // This allows viewing old incognito emails after login
+        } else {
+            // Incognito Email (unowned)
+            // Allow public access if no auth header, OR allow if authenticated (anyone can see incognito)
+            // This is the intended behavior for unowned local tracking.
         }
-        // If no auth header, allow public access (for backward compatibility with pixel tracking)
 
         // SECURITY: Don't expose sensitive data (subject, body, recipient, ownerId)
         // Only return anonymized tracking stats
