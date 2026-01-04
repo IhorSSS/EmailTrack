@@ -138,7 +138,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
 
             if (effectiveProfile) {
                 // Cloud mode: fetch by owner (most secure/accurate)
-                params.append('ownerId', effectiveProfile.id);
+                // params.append('ownerId', effectiveProfile.id); // Already appended above
                 serverEmails = await DashboardService.fetchEmails(params, authToken);
             } else if (localIds.length > 0) {
                 // Anonymous Session: fetch strictly by IDs currently stored on this device.

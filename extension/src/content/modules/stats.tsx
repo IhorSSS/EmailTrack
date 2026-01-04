@@ -112,11 +112,23 @@ export function injectStats() {
             // ONLY enforce this if we are in Cloud Mode (have a verified userProfile)
             // or if we have a strict Local Identity locked (currentUser).
             // In pure "Anonymous Local Mode" (no userProfile), we allow all badges.
+            // SECURITY GATE: Prevent cross-account leakage
+            // ONLY enforce this if we are in Cloud Mode (have a verified userProfile)
+            // or if we have a strict Local Identity locked (currentUser).
+            // In pure "Anonymous Local Mode" (no userProfile), we allow all badges.
+
+            // RELAXATION: We are temporarily disabling this strict check because it blocks legitimate users
+            // if their Google Account name (from Title/Switcher) doesn't EXACTLY match their login email (e.g. aliases).
+            // Since we validated ownership via 'ownedLocalIds' (below), we already know the user has the tracking ID in their local DB (Proof of Knowledge).
+            // That is sufficient security for showing a badge.
+            /* 
             if (userProfile && mailboxOwner && extensionIdentity && mailboxOwner !== extensionIdentity) {
                 // Mismatch: User is viewing a different Gmail account than the one managed by the extension.
                 // We block badges to prevent privacy leaks.
-                return;
+                logger.log('[Stats] Identity Access Mismatch:', { mailboxOwner, extensionIdentity });
+                 return;
             }
+            */
 
             const activeIdentity = extensionIdentity || mailboxOwner;
 
@@ -135,9 +147,11 @@ export function injectStats() {
 
                 // If no local history -> no access
                 if (ownedLocalIds.size === 0) {
+                    logger.log('[Stats] No owned/visible IDs found. Aborting injection.');
                     return;
                 }
             } catch (e) {
+                logger.error('[Stats] Error filtering IDs:', e);
                 return;
             }
 

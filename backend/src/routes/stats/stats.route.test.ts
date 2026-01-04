@@ -76,7 +76,8 @@ describe('Stats Route', () => {
         expect(response.json().id).toBe(mockId);
     });
 
-    it('should return 404 if email is owned by another user', async () => {
+    it('should return 200 (Public Access) even if email is owned by another user', async () => {
+        // Rationale: If you have the UUID (Proof of Knowledge), you can see the stats.
         (prisma.trackedEmail.findUnique as any).mockResolvedValue({
             id: 'owned-id',
             owner: { googleId: 'other-user-uuid' },
@@ -94,10 +95,10 @@ describe('Stats Route', () => {
             headers: { authorization: 'Bearer valid-token' }
         });
 
-        expect(response.statusCode).toBe(404);
+        expect(response.statusCode).toBe(200);
     });
 
-    it('should return 404 if incognito email belongs to sender but requester is LOGGED IN', async () => {
+    it('should return 200 for unowned/incognito email even if requester is LOGGED IN', async () => {
         (prisma.trackedEmail.findUnique as any).mockResolvedValue({
             id: 'incognito-id',
             user: 'me@example.com',
@@ -110,7 +111,6 @@ describe('Stats Route', () => {
             email: 'me@example.com'
         });
 
-        // We also need to mock user lookup
         vi.mocked(prisma.user as any).findUnique.mockResolvedValue({ id: 'my-uuid' });
 
         const response = await app.inject({
@@ -119,8 +119,7 @@ describe('Stats Route', () => {
             headers: { authorization: 'Bearer valid-token' }
         });
 
-        // Should be 404 because it's not OWNED by my-uuid
-        expect(response.statusCode).toBe(404);
+        expect(response.statusCode).toBe(200);
     });
 
     it('should return 200 for owned email if requester is the owner', async () => {

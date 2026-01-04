@@ -24,8 +24,9 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
         let query;
         try {
             query = GetDashboardQuerySchema.parse(request.query);
-        } catch (e) {
-            return reply.status(400).send({ error: 'Invalid query parameters' });
+        } catch (e: any) {
+            request.log.error({ error: e, query: request.query }, 'Dashboard schema validation failed');
+            return reply.status(400).send({ error: 'Invalid query parameters', details: e.issues || e.message });
         }
 
         const { page, limit, user, ownerId, ids } = query;

@@ -117,13 +117,15 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
 
     if (contextInvalidated) {
         return (
-            <span
-                className="email-track-badge error"
-                title="Extension updated. Please reload the page."
-                style={{ cursor: 'help' }}
-            >
-                ⚠️ Reload
-            </span>
+            <div className="email-track-stats-container">
+                <span
+                    className="email-track-badge error"
+                    title="Extension updated. Please reload the page."
+                    style={{ cursor: 'help', whiteSpace: 'nowrap' }}
+                >
+                    ⚠️ Reload
+                </span>
+            </div>
         );
     }
 

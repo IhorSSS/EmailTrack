@@ -21,25 +21,9 @@ const statsRoutes: FastifyPluginAsync = async (fastify, opts) => {
         }
 
         // OWNERSHIP VALIDATION
-        const authInfo = await getAuthenticatedUser(request);
-        const senderHint = request.headers['x-sender-hint'] as string | undefined;
-
-        if (authInfo) {
-            // Case 1: Requester is logged in
-            // MUST be the owner of the email.
-            // (We no longer allow viewing "Incognito" emails by sender hint if you are logged in, 
-            // as those might belong to another local session. Badges == Dashboard.)
-            const u = await prisma.user.findUnique({ where: { googleId: authInfo.googleId } });
-            if (!email.ownerId || email.ownerId !== u?.id) {
-                return reply.status(404).send({ error: 'Not Found' });
-            }
-        } else {
-            // Case 2: Requester is NOT logged in (Incognito / Local Mode)
-            // RELAXATION: Possessing the valid UUID (from the pixel URL in the email body)
-            // is sufficient proof of access for read-only statistics.
-            // This allows Local Mode users to see badges for ALL their emails (from any local account)
-            // without needing complex sender-matching logic that fails for multi-account setups.
-        }
+        // RELAXATION: Possessing the valid UUID (Proof of Knowledge) is sufficient for read-only access.
+        // This ensures badges work consistently whether logged in, logged out, or in multi-account environments.
+        // We do NOT strictly enforce ownership for stats, unlike the Dashboard which lists private data.
 
         // SECURITY: Don't expose sensitive data (subject, body, recipient, ownerId)
         // Only return anonymized tracking stats
