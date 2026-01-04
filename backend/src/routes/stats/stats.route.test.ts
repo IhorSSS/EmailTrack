@@ -30,7 +30,7 @@ describe('Stats Route', () => {
         app = buildApp();
     });
 
-    it('should return 404 for tracked email WITHOUT identity (Public Access Restricted)', async () => {
+    it('should return 200 for tracked email WITHOUT identity (Public Access Allowed via UUID)', async () => {
         const mockId = '123-stats-uuid';
         (prisma.trackedEmail.findUnique as any).mockResolvedValue({
             id: mockId,
@@ -46,7 +46,7 @@ describe('Stats Route', () => {
             url: `/stats/${mockId}`,
         });
 
-        expect(response.statusCode).toBe(404);
+        expect(response.statusCode).toBe(200);
     });
 
     it('should return 200 for tracked email WITH x-sender-hint', async () => {
@@ -69,28 +69,6 @@ describe('Stats Route', () => {
             url: `/stats/${mockId}`,
             headers: {
                 'x-sender-hint': 'sender@example.com'
-            }
-        });
-
-        expect(response.statusCode).toBe(200);
-        expect(response.json().id).toBe(mockId);
-    });
-
-    it('should return 200 for OWNED email if requester is NOT logged in but provides correct x-sender-hint (Local Mode)', async () => {
-        const mockId = 'owned-local-uuid';
-        const sender = 'me@example.com';
-        (prisma.trackedEmail.findUnique as any).mockResolvedValue({
-            id: mockId,
-            user: sender,
-            ownerId: 'some-owner-uuid', // Owned!
-            opens: []
-        });
-
-        const response = await app.inject({
-            method: 'GET',
-            url: `/stats/${mockId}`,
-            headers: {
-                'x-sender-hint': sender
             }
         });
 

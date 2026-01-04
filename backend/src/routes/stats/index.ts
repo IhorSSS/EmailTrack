@@ -34,21 +34,11 @@ const statsRoutes: FastifyPluginAsync = async (fastify, opts) => {
                 return reply.status(404).send({ error: 'Not Found' });
             }
         } else {
-            // Case 2: Requester is NOT logged in (Incognito)
-            // We allow viewing based on sender hint.
-            // RELAXATION: Even if `email.ownerId` is set (Synced), we allow the badge to show
-            // if the requester can prove they know the sender email (Sender Hint).
-            // This is required for "Local Mode" (Logout with Keep Data) to continue showing badges.
-            // Consistency: Matches `dashboard` route which allows "Proof of Knowledge" via IDs.
-
-            // previous: if (email.ownerId) return 404; (Removed)
-
-            const emailUser = email.user?.toLowerCase();
-            const hintEmail = senderHint?.toLowerCase();
-
-            if (!emailUser || !hintEmail || emailUser !== hintEmail) {
-                return reply.status(404).send({ error: 'Not Found' });
-            }
+            // Case 2: Requester is NOT logged in (Incognito / Local Mode)
+            // RELAXATION: Possessing the valid UUID (from the pixel URL in the email body)
+            // is sufficient proof of access for read-only statistics.
+            // This allows Local Mode users to see badges for ALL their emails (from any local account)
+            // without needing complex sender-matching logic that fails for multi-account setups.
         }
 
         // SECURITY: Don't expose sensitive data (subject, body, recipient, ownerId)
