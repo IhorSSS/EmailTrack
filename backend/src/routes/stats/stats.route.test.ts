@@ -7,6 +7,9 @@ vi.mock('../../db', () => ({
         trackedEmail: {
             findUnique: vi.fn(),
         },
+        user: {
+            findUnique: vi.fn(),
+        },
     },
 }));
 
@@ -94,11 +97,11 @@ describe('Stats Route', () => {
         expect(response.statusCode).toBe(404);
     });
 
-    it('should return 404 if incognito email belongs to another sender (when logged in)', async () => {
+    it('should return 404 if incognito email belongs to sender but requester is LOGGED IN', async () => {
         (prisma.trackedEmail.findUnique as any).mockResolvedValue({
             id: 'incognito-id',
-            user: 'someone-else@example.com',
-            owner: null,
+            user: 'me@example.com',
+            ownerId: null, // Unowned
             opens: []
         });
 
@@ -106,6 +109,9 @@ describe('Stats Route', () => {
             googleId: 'my-id',
             email: 'me@example.com'
         });
+
+        // We also need to mock user lookup
+        vi.mocked(prisma.user as any).findUnique.mockResolvedValue({ id: 'my-uuid' });
 
         const response = await app.inject({
             method: 'GET',
@@ -113,36 +119,16 @@ describe('Stats Route', () => {
             headers: { authorization: 'Bearer valid-token' }
         });
 
+        // Should be 404 because it's not OWNED by my-uuid
         expect(response.statusCode).toBe(404);
-    });
-
-    it('should return 200 for incognito email if sender matches (case insensitive)', async () => {
-        (prisma.trackedEmail.findUnique as any).mockResolvedValue({
-            id: 'incognito-match-id',
-            user: 'Me@Example.com', // Stored with mixed case
-            owner: null,
-            opens: []
-        });
-
-        (verifyGoogleToken as any).mockResolvedValue({
-            googleId: 'my-id',
-            email: 'me@example.com' // Token is lower case
-        });
-
-        const response = await app.inject({
-            method: 'GET',
-            url: '/stats/incognito-match-id',
-            headers: { authorization: 'Bearer valid-token' }
-        });
-
-        expect(response.statusCode).toBe(200);
     });
 
     it('should return 200 for owned email if requester is the owner', async () => {
         const myId = 'my-id';
+        const myUuid = 'my-uuid';
         (prisma.trackedEmail.findUnique as any).mockResolvedValue({
             id: 'my-email-id',
-            owner: { googleId: myId },
+            ownerId: myUuid,
             opens: []
         });
 
@@ -150,6 +136,8 @@ describe('Stats Route', () => {
             googleId: myId,
             email: 'me@example.com'
         });
+
+        vi.mocked(prisma.user as any).findUnique.mockResolvedValue({ id: myUuid });
 
         const response = await app.inject({
             method: 'GET',

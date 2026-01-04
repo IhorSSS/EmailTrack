@@ -86,20 +86,26 @@ export function injectStats() {
 
             const userProfile = result.userProfile as { email: string } | undefined;
             const currentUser = result.currentUser as string | undefined;
-            let activeEmail = (userProfile?.email || currentUser)?.toLowerCase();
-            const hasCloudAccess = !!userProfile;
+            let extensionIdentity = (userProfile?.email || currentUser)?.toLowerCase();
 
-            // FALLBACK: If storage is empty, try to get identity from DOM to enforce privacy.
-            if (!activeEmail) {
-                activeEmail = extractMailboxOwner() || undefined;
+            // Get the actual mailbox owner from the Gmail DOM
+            const mailboxOwner = extractMailboxOwner();
+
+            // CRITICAL: Ensure extension identity matches the current Gmail mailbox
+            // If they don't match (e.g. user switched Gmail account but not extension), 
+            // we MUST block all badges to prevent data leakage.
+            if (extensionIdentity && mailboxOwner && extensionIdentity !== mailboxOwner) {
+                logger.warn(`[Stats] Account Mismatch: Extension (${extensionIdentity}) != Gmail (${mailboxOwner}). Blocking badges.`);
+                return;
             }
+
+            // Use mailboxOwner as activeEmail for filtering if extension identity is missing or matches
+            const activeEmail = extensionIdentity || mailboxOwner;
 
             // Load and filter local emails for ownership validation
             let ownedLocalIds: Set<string> = new Set();
-            let allLocalIds: Set<string> = new Set(); // Initialize allLocalIds
             try {
                 const allLocalEmails = await LocalStorageService.getEmails();
-                allLocalIds = new Set(allLocalEmails.map(e => e.id)); // Populate allLocalIds
                 ownedLocalIds = new Set(
                     allLocalEmails
                         .filter(e => e.user?.toLowerCase() === activeEmail)
@@ -170,24 +176,13 @@ export function injectStats() {
                         return;
                     }
 
-                    // OWNERSHIP VALIDATION
-                    // 1. STRICT LOCAL CHECK:
-                    // If the email exists locally (in allLocalIds) but does NOT belong to the current user (not in ownedLocalIds),
-                    // then it belongs to another local identity. Block it immediately.
-                    if (allLocalIds.has(trackId) && !ownedLocalIds.has(trackId)) {
-                        logger.log(`[Stats] Skipping badge for ${trackId} - exists locally but belongs to another identity`);
+                    // OWNERSHIP VALIDATION (Strict Dashboard Sync)
+                    // We only show badges for emails that exist in the user's current managed set (dashboard).
+                    // This prevents ghost badges from other sessions or unmanaged context.
+                    if (!ownedLocalIds.has(trackId)) {
+                        logger.log(`[Stats] Skipping badge for ${trackId} - not in user's current dashboard sync`);
                         return;
                     }
-
-                    // 2. Further validation based on cloud access
-                    // Cloud mode: Show badge, let StatsDisplay + backend validate ownership (returns 404 if not owned)
-                    // Offline mode: Must be in ownedLocalIds (already checked by the first condition if it's in allLocalIds)
-                    // If not in allLocalIds, and no cloud access, we can't show it.
-                    if (!hasCloudAccess && !ownedLocalIds.has(trackId)) {
-                        logger.log(`[Stats] Skipping badge for ${trackId} - not in local storage and no cloud access`);
-                        return; // Skip - not owned in current session and no cloud to verify
-                    }
-                    // In cloud mode: localEmailIds might be empty before popup sync, so we let backend decide
 
                     // Find Injection Point: .gH (Date/Header) prioritized
                     const dateElement = row.querySelector('.gH');

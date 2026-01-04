@@ -24,27 +24,27 @@ const statsRoutes: FastifyPluginAsync = async (fastify, opts) => {
         const authInfo = await getAuthenticatedUser(request);
         const senderHint = request.headers['x-sender-hint'] as string | undefined;
 
-        if (email.owner) {
-            // Case 1: Email is owned by an account - MUST be the owner
-            if (!authInfo || email.owner.googleId !== authInfo.googleId) {
+        if (authInfo) {
+            // Case 1: Requester is logged in
+            // MUST be the owner of the email.
+            // (We no longer allow viewing "Incognito" emails by sender hint if you are logged in, 
+            // as those might belong to another local session. Badges == Dashboard.)
+            const u = await prisma.user.findUnique({ where: { googleId: authInfo.googleId } });
+            if (!email.ownerId || email.ownerId !== u?.id) {
                 return reply.status(404).send({ error: 'Not Found' });
             }
         } else {
-            // Case 2 & 3: Email is Incognito (Unowned)
-            // We only show it if the requester proves they are the sender
-            const emailUser = email.user?.toLowerCase();
-            const authEmail = authInfo?.email?.toLowerCase();
-            const hintEmail = senderHint?.toLowerCase();
-
-            if (!emailUser) {
-                // Should not happen for tracked emails, but block for safety
+            // Case 2: Requester is NOT logged in (Incognito)
+            // We allow viewing based on sender hint if the email is unowned.
+            if (email.ownerId) {
+                // Cannot view owned emails without auth
                 return reply.status(404).send({ error: 'Not Found' });
             }
 
-            // Priority: Authenticated Email > Sender Hint
-            const requesterIdentity = authEmail || hintEmail;
+            const emailUser = email.user?.toLowerCase();
+            const hintEmail = senderHint?.toLowerCase();
 
-            if (!requesterIdentity || emailUser !== requesterIdentity) {
+            if (!emailUser || !hintEmail || emailUser !== hintEmail) {
                 return reply.status(404).send({ error: 'Not Found' });
             }
         }
