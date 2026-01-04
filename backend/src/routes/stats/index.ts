@@ -35,11 +35,13 @@ const statsRoutes: FastifyPluginAsync = async (fastify, opts) => {
             }
         } else {
             // Case 2: Requester is NOT logged in (Incognito)
-            // We allow viewing based on sender hint if the email is unowned.
-            if (email.ownerId) {
-                // Cannot view owned emails without auth
-                return reply.status(404).send({ error: 'Not Found' });
-            }
+            // We allow viewing based on sender hint.
+            // RELAXATION: Even if `email.ownerId` is set (Synced), we allow the badge to show
+            // if the requester can prove they know the sender email (Sender Hint).
+            // This is required for "Local Mode" (Logout with Keep Data) to continue showing badges.
+            // Consistency: Matches `dashboard` route which allows "Proof of Knowledge" via IDs.
+
+            // previous: if (email.ownerId) return 404; (Removed)
 
             const emailUser = email.user?.toLowerCase();
             const hintEmail = senderHint?.toLowerCase();

@@ -157,8 +157,14 @@ export const useAuth = () => {
     const logout = useCallback(async (clearData: boolean = false) => {
         // 1. Atomic State Reset (Synchrously reset React state to prevent race conditions)
         const tokenToRevoke = authToken;
+        const emailToPreserve = userProfile?.email; // Capture before clearing
         setAuthToken(null);
         setUserProfile(null);
+
+        // CRITICAL: If keeping data, save email as currentUser for Anonymous Mode filtering
+        if (!clearData && emailToPreserve && typeof chrome !== 'undefined' && chrome.storage?.local) {
+            chrome.storage.local.set({ currentUser: emailToPreserve });
+        }
 
         // Check context validity before proceeding
         const isContextValid = typeof chrome !== 'undefined' &&

@@ -4,24 +4,6 @@ import StatsDisplay from '../components/StatsDisplay';
 import { logger } from '../../utils/logger';
 import { LocalStorageService } from '../../services/LocalStorageService';
 
-/**
- * Extract the mailbox owner's email from the Gmail DOM.
- * This handles cases where extension storage hasn't synced the profile yet.
- */
-function extractMailboxOwner(): string | null {
-    try {
-        const profileBtn = document.querySelector('a[aria-label*="@"][href*="SignOutOptions"]');
-        if (profileBtn) {
-            const ariaLabel = profileBtn.getAttribute('aria-label');
-            const match = ariaLabel?.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
-            if (match) return match[1].toLowerCase();
-        }
-        return null;
-    } catch (e) {
-        return null;
-    }
-}
-
 const STATS_INJECT_CLASS = 'email-track-stats-injected';
 
 export function handleOptimisticBadge(trackId: string, currentUserEmail: string | null): boolean {
@@ -74,46 +56,85 @@ export function handleOptimisticBadge(trackId: string, currentUserEmail: string 
     return false;
 }
 
+function detectMailboxOwner(): string | null {
+    try {
+        // 1. Try account switcher
+        const switcher = document.querySelector('a[aria-label*="Google Account:"]');
+        if (switcher) {
+            const label = switcher.getAttribute('aria-label');
+            const match = label?.match(/\(([^)]+)\)/);
+            if (match) return match[1].toLowerCase();
+        }
+        // 2. Try title
+        const title = document.title;
+        const match = title.match(/ - ([^ ]+@[^ ]+) - /);
+        if (match) return match[1].toLowerCase();
+    } catch (e) {
+        // Silent
+    }
+    return null;
+}
+
 export function injectStats() {
     // Safety check for invalidated context
     if (!chrome.runtime?.id) return;
 
     // PRIVACY: Only show badges if user has access rights
-    // Fix: Read from 'local' because useAuth saves to 'local'
     try {
         chrome.storage.local.get(['userProfile', 'currentUser'], async (result) => {
             if (chrome.runtime?.lastError) return;
 
+            // IDENTITY DETECTION
             const userProfile = result.userProfile as { email: string } | undefined;
             const currentUser = result.currentUser as string | undefined;
+
+            const rawLocalEmails = await LocalStorageService.getEmails();
             let extensionIdentity = (userProfile?.email || currentUser)?.toLowerCase();
 
-            // Get the actual mailbox owner from the Gmail DOM
-            const mailboxOwner = extractMailboxOwner();
+            // FALLBACK: Infer identity if missing (for legacy sessions)
+            if (!extensionIdentity && rawLocalEmails.length > 0) {
+                const ownerEmails = rawLocalEmails
+                    .map(e => e.ownerEmail)
+                    .filter((email): email is string => !!email);
+                if (ownerEmails.length > 0) {
+                    const counts = ownerEmails.reduce((acc, email) => {
+                        acc[email] = (acc[email] || 0) + 1;
+                        return acc;
+                    }, {} as Record<string, number>);
+                    extensionIdentity = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0].toLowerCase();
+                    logger.log(`[Stats] Inferred identity: ${extensionIdentity}`);
+                }
+            }
 
-            // CRITICAL: Ensure extension identity matches the current Gmail mailbox
-            // If they don't match (e.g. user switched Gmail account but not extension), 
-            // we MUST block all badges to prevent data leakage.
-            if (extensionIdentity && mailboxOwner && extensionIdentity !== mailboxOwner) {
-                logger.warn(`[Stats] Account Mismatch: Extension (${extensionIdentity}) != Gmail (${mailboxOwner}). Blocking badges.`);
+            const mailboxOwner = detectMailboxOwner();
+
+            // SECURITY GATE: Prevent cross-account leakage
+            // ONLY enforce this if we are in Cloud Mode (have a verified userProfile)
+            // or if we have a strict Local Identity locked (currentUser).
+            // In pure "Anonymous Local Mode" (no userProfile), we allow all badges.
+            if (userProfile && mailboxOwner && extensionIdentity && mailboxOwner !== extensionIdentity) {
+                // Mismatch: User is viewing a different Gmail account than the one managed by the extension.
+                // We block badges to prevent privacy leaks.
                 return;
             }
 
-            // Use mailboxOwner as activeEmail for filtering if extension identity is missing or matches
-            const activeEmail = extensionIdentity || mailboxOwner;
+            const activeIdentity = extensionIdentity || mailboxOwner;
 
-            // Load and filter local emails for ownership validation
+            // Load local manageable IDs (Dashboard Sync)
             let ownedLocalIds: Set<string> = new Set();
             try {
-                const allLocalEmails = await LocalStorageService.getEmails();
-                ownedLocalIds = new Set(
-                    allLocalEmails
-                        .filter(e => e.user?.toLowerCase() === activeEmail)
-                        .map(e => e.id)
-                );
+                // OWNED ID FILTERING:
+                if (userProfile) {
+                    // Cloud Mode: strict sync
+                    ownedLocalIds = new Set(rawLocalEmails.map(e => e.id));
+                } else {
+                    // Local/Anonymous Mode: Show ALL local emails
+                    // The user explicitly requested to see badges for ANY tracked email in local mode
+                    ownedLocalIds = new Set(rawLocalEmails.map(e => e.id));
+                }
 
-                // If no active identity and no local history -> no access
-                if (!activeEmail && ownedLocalIds.size === 0) {
+                // If no local history -> no access
+                if (ownedLocalIds.size === 0) {
                     return;
                 }
             } catch (e) {
@@ -127,75 +148,35 @@ export function injectStats() {
                 const body = row.querySelector('.a3s');
                 if (!body) return;
 
-                // Skip if already injected
                 if (row.classList.contains(STATS_INJECT_CLASS)) return;
 
                 const imgs = body.querySelectorAll('img');
                 let trackId = null;
-
-                // Scan images but STRICTLY EXCLUDE those inside quoted text.
                 let uniquePixels: { id: string }[] = [];
 
                 for (const img of imgs) {
-                    if (img.closest('.gmail_quote') || img.closest('.im') || img.closest('blockquote')) {
-                        continue;
-                    }
-
+                    if (img.closest('.gmail_quote') || img.closest('.im') || img.closest('blockquote')) continue;
                     const rawSrc = img.src;
-                    let decodedSrc = rawSrc;
-                    try { decodedSrc = decodeURIComponent(rawSrc); } catch { }
-
                     const uuidRegex = /(?:track(?:%2F|\/)|id=)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
-                    const match = rawSrc.match(uuidRegex) || decodedSrc.match(uuidRegex);
-
-                    if (match) {
-                        uniquePixels.push({ id: match[1] });
-                    }
+                    const match = rawSrc.match(uuidRegex);
+                    if (match) uniquePixels.push({ id: match[1] });
                 }
 
-                if (uniquePixels.length > 0) {
-                    trackId = uniquePixels[0].id;
-                }
+                if (uniquePixels.length > 0) trackId = uniquePixels[0].id;
 
                 if (trackId) {
-                    // SENDER VALIDATION (DOM Check)
-                    // Ensure the visual sender matches the active extension identity.
-                    if (activeEmail) {
-                        const senderElement = row.querySelector('span.gD');
-                        const senderEmail = senderElement?.getAttribute('email')?.toLowerCase();
-
-                        // Skip if visible sender is not the active user
-                        if (senderEmail && senderEmail !== activeEmail) {
-                            logger.log(`[Stats] Skipping badge for ${trackId} - DOM sender ${senderEmail} !== active ${activeEmail}`);
-                            return;
-                        }
-                    } else {
-                        // CRITICAL PRIVACY: If we don't know who the active user is, 
-                        // we MUST NOT show badges, as we can't verify they own the email.
-                        logger.log(`[Stats] Skipping badge for ${trackId} - active user identity unknown`);
-                        return;
-                    }
-
-                    // OWNERSHIP VALIDATION (Strict Dashboard Sync)
-                    // We only show badges for emails that exist in the user's current managed set (dashboard).
-                    // This prevents ghost badges from other sessions or unmanaged context.
                     if (!ownedLocalIds.has(trackId)) {
-                        logger.log(`[Stats] Skipping badge for ${trackId} - not in user's current dashboard sync`);
+                        logger.log(`[Stats] Skipping badge for ${trackId} - not in dashboard sync`);
                         return;
                     }
 
-                    // Find Injection Point: .gH (Date/Header) prioritized
-                    const dateElement = row.querySelector('.gH');
-                    const subjectHeader = row.closest('.gs')?.parentElement?.querySelector('h2.hP');
-                    const anchor = dateElement || subjectHeader;
+                    const anchor = row.querySelector('.gH') || row.closest('.gs')?.parentElement?.querySelector('h2.hP');
 
                     if (anchor && anchor.parentElement) {
                         const statsContainer = document.createElement('span');
                         statsContainer.style.marginLeft = '10px';
                         statsContainer.style.display = 'inline-flex';
                         statsContainer.style.alignItems = 'center';
-                        statsContainer.style.verticalAlign = 'middle';
-                        statsContainer.style.position = 'relative';
 
                         statsContainer.onclick = (e) => e.stopPropagation();
 
@@ -206,7 +187,7 @@ export function injectStats() {
                         }
 
                         row.classList.add(STATS_INJECT_CLASS);
-                        createRoot(statsContainer).render(<StatsDisplay trackId={trackId} senderHint={activeEmail || undefined} />);
+                        createRoot(statsContainer).render(<StatsDisplay trackId={trackId} senderHint={activeIdentity || undefined} />);
                     }
                 }
             });

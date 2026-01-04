@@ -18,7 +18,7 @@ export const useAppController = () => {
         currentUser, setCurrentUser,
         globalEnabled, toggleGlobal,
         bodyPreviewLength, setBodyPreviewLength,
-        theme, setTheme
+        theme, setTheme, settingsLoaded
     } = useExtensionSettings();
     const { statusModal, showStatus, closeStatus } = useStatusModal();
 
@@ -34,7 +34,7 @@ export const useAppController = () => {
         // Clearing currentUser is handled explicitly in logout(true) or deleteHistory.
     }, [userProfile, currentUser, setCurrentUser]);
 
-    const { emails, loading: dataLoading, error: dataError, fetchEmails, deleteEmails } = useEmails(userProfile, currentUser, authToken);
+    const { emails, loading: dataLoading, error: dataError, fetchEmails, deleteEmails } = useEmails(userProfile, currentUser, authToken, settingsLoaded);
 
     const {
         searchQuery, setSearchQuery,

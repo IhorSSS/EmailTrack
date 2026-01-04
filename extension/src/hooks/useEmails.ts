@@ -11,7 +11,7 @@ export interface EmailStats {
     rate: number;
 }
 
-export const useEmails = (userProfile: UserProfile | null, currentUser: string | null, authToken: string | null) => {
+export const useEmails = (userProfile: UserProfile | null, currentUser: string | null, authToken: string | null, settingsLoaded: boolean = true) => {
     const [emails, setEmails] = useState<TrackedEmail[]>([]);
     const [stats, setStats] = useState<EmailStats>({ tracked: 0, opened: 0, rate: 0 });
     const [loading, setLoading] = useState(true);
@@ -65,6 +65,11 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
 
     const fetchEmails = useCallback(async (overrideProfile?: UserProfile | null) => {
         console.log('[useEmails] fetchEmails started', { profile: !!overrideProfile, currentUser, authToken: !!authToken });
+        if (!settingsLoaded) {
+            console.log('[useEmails] fetchEmails deferred: settings not loaded');
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         setError(null);
         try {
@@ -77,11 +82,43 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
 
             // 2. Load and Filter Local History
             const rawLocalEmails = await LocalStorageService.getEmails();
-            const activeEmail = effectiveProfile?.email || currentUser;
+            let activeEmail = effectiveProfile?.email || currentUser;
 
-            // Only keep local emails that belong to the current active identity
-            const localEmails = rawLocalEmails.filter(e => e.user === activeEmail);
+            // FALLBACK: If no identity but we have local emails with ownerEmail, use that
+            if (!activeEmail && rawLocalEmails.length > 0) {
+                const ownerEmails = rawLocalEmails
+                    .map(e => e.ownerEmail)
+                    .filter((email): email is string => !!email);
+                if (ownerEmails.length > 0) {
+                    // Use the most common ownerEmail as the identity
+                    const counts = ownerEmails.reduce((acc, email) => {
+                        acc[email] = (acc[email] || 0) + 1;
+                        return acc;
+                    }, {} as Record<string, number>);
+                    activeEmail = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+                    console.log(`[useEmails] Fallback: Inferred identity from ownerEmail: ${activeEmail}`);
+                }
+            }
+
+            console.log(`[useEmails] Step 2: rawLocal=${rawLocalEmails.length}, active=${activeEmail}, profile=${effectiveProfile?.email}`);
+            if (rawLocalEmails.length > 0) {
+                console.log('[useEmails] Sample local email:', {
+                    id: rawLocalEmails[0].id,
+                    user: rawLocalEmails[0].user,
+                    ownerEmail: rawLocalEmails[0].ownerEmail
+                });
+            }
+
+            // IDENTITY FILTERING:
+            // Cloud Mode: No filtering, server (ownerId) is the source of truth.
+            // Local/Anonymous Mode: Show ALL local emails, regardless of sender.
+            // User requirement: "All of them will be in one list in the extension" (Local Mode).
+            const localEmails = rawLocalEmails;
+
             const localIds = localEmails.map(e => e.id);
+            console.log(`[useEmails] Step 3: filteredLocal=${localEmails.length}, localIds=${localIds.length}`);
+
+
 
             // 3. Build Query
             const params = new URLSearchParams();
@@ -97,6 +134,40 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 params.append('ids', localIds.join(','));
             }
 
+            let serverEmails: any[] = []; // Use explicit type or any if TrackedEmail import issue
+
+            if (effectiveProfile) {
+                // Cloud mode: fetch by owner (most secure/accurate)
+                params.append('ownerId', effectiveProfile.id);
+                serverEmails = await DashboardService.fetchEmails(params, authToken);
+            } else if (localIds.length > 0) {
+                // Anonymous Session: fetch strictly by IDs currently stored on this device.
+                // BATCHING: To prevent URL length limits (414 URI Too Long) when tracking 1000+ emails,
+                // we split the IDs into chunks (e.g. 50 at a time).
+                const CHUNK_SIZE = 50;
+                const chunks = [];
+                for (let i = 0; i < localIds.length; i += CHUNK_SIZE) {
+                    chunks.push(localIds.slice(i, i + CHUNK_SIZE));
+                }
+
+                try {
+                    const results = await Promise.all(chunks.map(async (chunk) => {
+                        const chunkParams = new URLSearchParams();
+                        chunkParams.append('limit', '1000'); // Ensure we get all 50
+                        chunkParams.append('t', String(Date.now()));
+                        chunkParams.append('ids', chunk.join(','));
+                        return await DashboardService.fetchEmails(chunkParams, authToken);
+                    }));
+                    serverEmails = results.flat();
+                } catch (batchErr) {
+                    console.error('[useEmails] Batch fetch failed:', batchErr);
+                    // Fallback: If one chunk fails, we might still have partial data? 
+                    // For now, simpler to treat as error or empty.
+                    // But we should try to persevere.
+                    serverEmails = [];
+                }
+            }
+
             if (!effectiveProfile && localIds.length === 0) {
                 // No cloud profile and no local IDs -> nothing to fetch anonymously.
                 setEmails([]);
@@ -104,8 +175,6 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 setLoading(false);
                 return;
             }
-
-            const serverEmails = await DashboardService.fetchEmails(params, authToken);
 
             // 4. Merge Strategy
             const emailMap = new Map<string, TrackedEmail>();
@@ -141,6 +210,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                     recipient: enriched.recipient,
                     body: enriched.body,
                     user: enriched.user || localEmail?.user || activeEmail || '',
+                    ownerEmail: userProfile?.email || localEmail?.ownerEmail,
                     createdAt: enriched.createdAt,
                     opens: e.opens || [],
                     openCount: enriched.openCount
@@ -193,7 +263,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
         } finally {
             setLoading(false);
         }
-    }, [userProfile, currentUser, authToken]);
+    }, [userProfile, currentUser, authToken, settingsLoaded]);
 
     const deleteEmails = useCallback(async (
         filterSender: string = 'all'
@@ -256,10 +326,12 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
 
     // Fetch when userProfile or currentUser changes (NOT on mount to avoid race)
     // This ensures we use ownerId in cloud mode after login completes
-    // Fetch data whenever auth context changes
+    // Fetch data whenever auth context changes OR after settings are loaded
     useEffect(() => {
-        fetchEmails();
-    }, [userProfile, currentUser]);
+        if (settingsLoaded) {
+            fetchEmails();
+        }
+    }, [userProfile, currentUser, settingsLoaded]);
 
     return {
         emails,

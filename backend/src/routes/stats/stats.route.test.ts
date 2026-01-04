@@ -76,6 +76,28 @@ describe('Stats Route', () => {
         expect(response.json().id).toBe(mockId);
     });
 
+    it('should return 200 for OWNED email if requester is NOT logged in but provides correct x-sender-hint (Local Mode)', async () => {
+        const mockId = 'owned-local-uuid';
+        const sender = 'me@example.com';
+        (prisma.trackedEmail.findUnique as any).mockResolvedValue({
+            id: mockId,
+            user: sender,
+            ownerId: 'some-owner-uuid', // Owned!
+            opens: []
+        });
+
+        const response = await app.inject({
+            method: 'GET',
+            url: `/stats/${mockId}`,
+            headers: {
+                'x-sender-hint': sender
+            }
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(response.json().id).toBe(mockId);
+    });
+
     it('should return 404 if email is owned by another user', async () => {
         (prisma.trackedEmail.findUnique as any).mockResolvedValue({
             id: 'owned-id',

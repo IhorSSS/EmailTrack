@@ -9,10 +9,12 @@ export interface ExtensionSettings {
     setBodyPreviewLength: (length: number) => void;
     theme: 'light' | 'dark' | 'system';
     setTheme: (theme: 'light' | 'dark' | 'system') => void;
+    settingsLoaded: boolean;
 }
 
 export function useExtensionSettings(): ExtensionSettings {
     const [currentUser, setLocalCurrentUser] = useState<string | null>(null);
+    const [settingsLoaded, setSettingsLoaded] = useState(false);
     const [globalEnabled, setGlobalEnabled] = useState(true);
     const [bodyPreviewLength, setBodyPreviewLength] = useState(0);
     const [theme, setThemeState] = useState<'light' | 'dark' | 'system'>('system');
@@ -30,32 +32,44 @@ export function useExtensionSettings(): ExtensionSettings {
 
     // Initial Load
     useEffect(() => {
-        if (typeof chrome !== 'undefined' && chrome.storage) {
-            // Load Local (CurrentUser)
-            if (chrome.storage.local) {
-                chrome.storage.local.get(['currentUser'], (result: { currentUser?: string }) => {
-                    if (result.currentUser) {
-                        setCurrentUser(result.currentUser);
-                    }
+        const loadSettings = async () => {
+            console.log('[useExtensionSettings] Starting settings load...');
+            if (typeof chrome !== 'undefined' && chrome.storage) {
+                const results = await new Promise<any>((resolve) => {
+                    chrome.storage.local.get(['currentUser'], (res) => {
+                        console.log('[useExtensionSettings] Loaded from storage:', res);
+                        resolve(res);
+                    });
                 });
+
+                if (results.currentUser) {
+                    console.log('[useExtensionSettings] Setting currentUser to:', results.currentUser);
+                    setLocalCurrentUser(results.currentUser);
+                } else {
+                    console.log('[useExtensionSettings] No currentUser in storage');
+                }
+
+                if (chrome.storage.sync) {
+                    const syncResults = await new Promise<any>((resolve) => {
+                        chrome.storage.sync.get(['trackingEnabled', 'bodyPreviewLength', 'theme'], (res) => resolve(res));
+                    });
+
+                    if (syncResults.trackingEnabled !== undefined) {
+                        setGlobalEnabled(syncResults.trackingEnabled);
+                    }
+                    if (syncResults.bodyPreviewLength !== undefined) {
+                        setBodyPreviewLength(syncResults.bodyPreviewLength);
+                    }
+                    if (syncResults.theme) {
+                        setThemeState(syncResults.theme);
+                    }
+                }
             }
-            // Load Sync (Settings)
-            if (chrome.storage.sync) {
-                chrome.storage.sync.get(['trackingEnabled', 'bodyPreviewLength'], (result: { trackingEnabled?: boolean; bodyPreviewLength?: number }) => {
-                    if (result.trackingEnabled !== undefined) {
-                        setGlobalEnabled(result.trackingEnabled);
-                    }
-                    if (result.bodyPreviewLength !== undefined) {
-                        setBodyPreviewLength(result.bodyPreviewLength);
-                    }
-                });
-                chrome.storage.sync.get(['theme'], (result: { theme?: 'light' | 'dark' | 'system' }) => {
-                    if (result.theme) {
-                        setThemeState(result.theme);
-                    }
-                });
-            }
-        }
+            console.log('[useExtensionSettings] Settings loaded, setting settingsLoaded=true');
+            setSettingsLoaded(true);
+        };
+
+        loadSettings();
     }, []);
 
     const toggleGlobal = () => {
@@ -90,6 +104,7 @@ export function useExtensionSettings(): ExtensionSettings {
         bodyPreviewLength,
         setBodyPreviewLength: handleBodyPreviewChange,
         theme,
-        setTheme: handleThemeChange
+        setTheme: handleThemeChange,
+        settingsLoaded
     };
 }

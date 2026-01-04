@@ -20,6 +20,7 @@ export class LocalStorageService {
                 subject: email.subject,
                 body: email.body, // Now optional
                 user: email.user || '',
+                ownerEmail: email.ownerEmail,
                 createdAt: email.createdAt,
                 synced: true,
                 openCount: email.openCount ?? 0
@@ -117,7 +118,7 @@ export class LocalStorageService {
                 const history = (result[STORAGE_KEY] || []) as LocalEmailMetadata[];
                 const updated = history.map(e => {
                     if (ids.includes(e.id)) {
-                        return { ...e, user: newUser };
+                        return { ...e, user: newUser, ownerEmail: newUser };
                     }
                     return e;
                 });
