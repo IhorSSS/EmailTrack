@@ -68,7 +68,7 @@ export function injectStats() {
 
             const userProfile = result.userProfile as { email: string } | undefined;
             const currentUser = result.currentUser as string | undefined;
-            const activeEmail = userProfile?.email || currentUser;
+            const activeEmail = (userProfile?.email || currentUser)?.toLowerCase();
             const hasCloudAccess = !!userProfile;
 
             // Load and filter local emails for ownership validation
@@ -78,7 +78,7 @@ export function injectStats() {
                 // ONLY keep IDs that belong to the current active profile/guest
                 ownedLocalIds = new Set(
                     localEmails
-                        .filter(e => e.user === activeEmail)
+                        .filter(e => e.user?.toLowerCase() === activeEmail)
                         .map(e => e.id)
                 );
 

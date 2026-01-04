@@ -31,7 +31,10 @@ const statsRoutes: FastifyPluginAsync = async (fastify, opts) => {
         } else if (authInfo && authInfo.email) {
             // Case 2: Email is Incognito, but requester is LOGGED IN
             // We only show it if the logged-in email matches the sender string
-            if (email.user && email.user !== authInfo.email) {
+            const emailUser = email.user?.toLowerCase();
+            const authEmail = authInfo.email?.toLowerCase();
+
+            if (emailUser && emailUser !== authEmail) {
                 return reply.status(404).send({ error: 'Not Found' });
             }
         }

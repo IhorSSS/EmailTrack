@@ -41,7 +41,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId }) => {
                     setRefreshing(false);
                     return;
                 }
-                if (response && !response.error) setStats(response);
+                if (response) setStats(response);
                 setLoading(false);
                 setRefreshing(false);
             });

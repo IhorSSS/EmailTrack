@@ -100,6 +100,28 @@ describe('Stats Route', () => {
         expect(response.statusCode).toBe(404);
     });
 
+    it('should return 200 for incognito email if sender matches (case insensitive)', async () => {
+        (prisma.trackedEmail.findUnique as any).mockResolvedValue({
+            id: 'incognito-match-id',
+            user: 'Me@Example.com', // Stored with mixed case
+            owner: null,
+            opens: []
+        });
+
+        (verifyGoogleToken as any).mockResolvedValue({
+            googleId: 'my-id',
+            email: 'me@example.com' // Token is lower case
+        });
+
+        const response = await app.inject({
+            method: 'GET',
+            url: '/stats/incognito-match-id',
+            headers: { authorization: 'Bearer valid-token' }
+        });
+
+        expect(response.statusCode).toBe(200);
+    });
+
     it('should return 200 for owned email if requester is the owner', async () => {
         const myId = 'my-id';
         (prisma.trackedEmail.findUnique as any).mockResolvedValue({
