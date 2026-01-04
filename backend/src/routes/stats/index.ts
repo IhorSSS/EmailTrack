@@ -21,19 +21,22 @@ const statsRoutes: FastifyPluginAsync = async (fastify, opts) => {
         }
 
         // OWNERSHIP VALIDATION
-        const authGoogleId = await getAuthenticatedUser(request).catch(() => null);
+        const authInfo = await getAuthenticatedUser(request);
 
         if (email.owner) {
-            // Email is owned by a specific account - Authentication REQUIRED
-            if (!authGoogleId || email.owner.googleId !== authGoogleId) {
-                // If not authenticated or not the owner -> Hide the email's existence
+            // Case 1: Email is owned by an account - MUST be the owner
+            if (!authInfo || email.owner.googleId !== authInfo.googleId) {
                 return reply.status(404).send({ error: 'Not Found' });
             }
-        } else {
-            // Incognito Email (unowned)
-            // Allow public access if no auth header, OR allow if authenticated (anyone can see incognito)
-            // This is the intended behavior for unowned local tracking.
+        } else if (authInfo && authInfo.email) {
+            // Case 2: Email is Incognito, but requester is LOGGED IN
+            // We only show it if the logged-in email matches the sender string
+            if (email.user && email.user !== authInfo.email) {
+                return reply.status(404).send({ error: 'Not Found' });
+            }
         }
+        // Case 3: Email is Incognito and requester is NOT logged in
+        // Allow public access for now (local unowned tracking)
 
         // SECURITY: Don't expose sensitive data (subject, body, recipient, ownerId)
         // Only return anonymized tracking stats

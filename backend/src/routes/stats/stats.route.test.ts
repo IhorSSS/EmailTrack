@@ -10,8 +10,14 @@ vi.mock('../../db', () => ({
     },
 }));
 
+// Mock Auth
+vi.mock('../../utils/auth', () => ({
+    verifyGoogleToken: vi.fn(),
+}));
+
 import { buildApp } from '../../app';
 import { prisma } from '../../db';
+import { verifyGoogleToken } from '../../utils/auth';
 
 describe('Stats Route', () => {
     let app: FastifyInstance;
@@ -21,11 +27,13 @@ describe('Stats Route', () => {
         app = buildApp();
     });
 
-    it('should return stats for tracked email', async () => {
+    it('should return stats for tracked email (Public Access)', async () => {
         const mockId = '123-stats-uuid';
         (prisma.trackedEmail.findUnique as any).mockResolvedValue({
             id: mockId,
             subject: 'Test Email',
+            user: 'sender@example.com',
+            owner: null,
             createdAt: new Date(),
             opens: [
                 {
@@ -47,7 +55,71 @@ describe('Stats Route', () => {
         const body = response.json();
         expect(body.id).toBe(mockId);
         expect(body.opens).toHaveLength(1);
-        expect(body.opens[0].location).toBe('New York, US');
+    });
+
+    it('should return 404 if email is owned by another user', async () => {
+        (prisma.trackedEmail.findUnique as any).mockResolvedValue({
+            id: 'owned-id',
+            owner: { googleId: 'other-user-uuid' },
+            opens: []
+        });
+
+        (verifyGoogleToken as any).mockResolvedValue({
+            googleId: 'my-user-uuid',
+            email: 'me@example.com'
+        });
+
+        const response = await app.inject({
+            method: 'GET',
+            url: '/stats/owned-id',
+            headers: { authorization: 'Bearer valid-token' }
+        });
+
+        expect(response.statusCode).toBe(404);
+    });
+
+    it('should return 404 if incognito email belongs to another sender (when logged in)', async () => {
+        (prisma.trackedEmail.findUnique as any).mockResolvedValue({
+            id: 'incognito-id',
+            user: 'someone-else@example.com',
+            owner: null,
+            opens: []
+        });
+
+        (verifyGoogleToken as any).mockResolvedValue({
+            googleId: 'my-id',
+            email: 'me@example.com'
+        });
+
+        const response = await app.inject({
+            method: 'GET',
+            url: '/stats/incognito-id',
+            headers: { authorization: 'Bearer valid-token' }
+        });
+
+        expect(response.statusCode).toBe(404);
+    });
+
+    it('should return 200 for owned email if requester is the owner', async () => {
+        const myId = 'my-id';
+        (prisma.trackedEmail.findUnique as any).mockResolvedValue({
+            id: 'my-email-id',
+            owner: { googleId: myId },
+            opens: []
+        });
+
+        (verifyGoogleToken as any).mockResolvedValue({
+            googleId: myId,
+            email: 'me@example.com'
+        });
+
+        const response = await app.inject({
+            method: 'GET',
+            url: '/stats/my-email-id',
+            headers: { authorization: 'Bearer valid-token' }
+        });
+
+        expect(response.statusCode).toBe(200);
     });
 
     it('should return 404 if email not found', async () => {

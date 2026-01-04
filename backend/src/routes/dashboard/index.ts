@@ -33,7 +33,8 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
         const take = limit;
 
         // AUTHENTICATION CHECK
-        const authGoogleId = await getAuthenticatedUser(request);
+        const authInfo = await getAuthenticatedUser(request);
+        const authGoogleId = authInfo?.googleId || null;
 
         // Security: If ownerId is requested, it MUST match the authenticated user.
         if (ownerId) {
@@ -153,7 +154,8 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
 
         // AUTHENTICATION REQUIRED FOR DELETE
         // Unless we are doing pure incognito deletion by ID (unowned only)
-        const authGoogleId = await getAuthenticatedUser(request);
+        const authInfo = await getAuthenticatedUser(request);
+        const authGoogleId = authInfo?.googleId || null;
 
         if (ownerId) {
             if (!authGoogleId || ownerId !== authGoogleId) {

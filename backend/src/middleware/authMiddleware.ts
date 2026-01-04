@@ -2,24 +2,19 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { verifyGoogleToken } from '../utils/auth';
 
-// Extend FastifyRequest to include user context if desired, or just return the ID
+import { GoogleAuthInfo } from '../utils/auth';
+
+// Extend FastifyRequest to include user context
 declare module 'fastify' {
     interface FastifyRequest {
-        user?: {
-            googleId: string;
-        };
+        user?: GoogleAuthInfo;
     }
 }
 
 /**
  * Middleware to authenticate requests using Google OAuth Token.
- * Returns the Google ID if successful, or sends 401/500 and returns null.
- * 
- * Usage:
- * const googleId = await authenticate(request, reply);
- * if (!googleId) return; // Response already sent
  */
-export async function authenticate(request: FastifyRequest, reply: FastifyReply): Promise<string | null> {
+export async function authenticate(request: FastifyRequest, reply: FastifyReply): Promise<GoogleAuthInfo | null> {
     const authHeader = request.headers.authorization;
     if (!authHeader) {
         reply.status(401).send({ error: 'Missing Authorization header' });
@@ -33,10 +28,9 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     }
 
     try {
-        const googleId = await verifyGoogleToken(token);
-        // Attach to request for convenience in downstream handlers if needed
-        request.user = { googleId };
-        return googleId;
+        const authInfo = await verifyGoogleToken(token);
+        request.user = authInfo;
+        return authInfo;
     } catch (e) {
         request.log.warn(`[Auth] Token verification failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
         reply.status(401).send({ error: 'Invalid or expired token' });
@@ -46,11 +40,9 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
 
 /**
  * Optional Authentication:
- * Returns Google ID if token is valid.
- * Returns null if no token / invalid token (but doesn't halt request).
- * DOES NOT SEND REPLY.
+ * Returns GoogleAuthInfo if token is valid.
  */
-export async function getAuthenticatedUser(request: FastifyRequest): Promise<string | null> {
+export async function getAuthenticatedUser(request: FastifyRequest): Promise<GoogleAuthInfo | null> {
     const authHeader = request.headers.authorization;
     if (!authHeader) return null;
 

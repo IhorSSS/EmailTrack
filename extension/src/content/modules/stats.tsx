@@ -63,23 +63,31 @@ export function injectStats() {
     // PRIVACY: Only show badges if user has access rights
     // Fix: Read from 'local' because useAuth saves to 'local'
     try {
-        chrome.storage.local.get(['userProfile'], async (syncResult) => {
-            if (chrome.runtime?.lastError) return; // Handle invalidated context in callback
+        chrome.storage.local.get(['userProfile', 'currentUser'], async (result) => {
+            if (chrome.runtime?.lastError) return;
 
-            const hasCloudAccess = !!syncResult.userProfile;
+            const userProfile = result.userProfile as { email: string } | undefined;
+            const currentUser = result.currentUser as string | undefined;
+            const activeEmail = userProfile?.email || currentUser;
+            const hasCloudAccess = !!userProfile;
 
-            // Load local emails for ownership validation
-            let localEmailIds: Set<string> = new Set();
+            // Load and filter local emails for ownership validation
+            let ownedLocalIds: Set<string> = new Set();
             try {
                 const localEmails = await LocalStorageService.getEmails();
-                localEmailIds = new Set(localEmails.map(e => e.id));
+                // ONLY keep IDs that belong to the current active profile/guest
+                ownedLocalIds = new Set(
+                    localEmails
+                        .filter(e => e.user === activeEmail)
+                        .map(e => e.id)
+                );
 
-                // If not logged in and no local history -> no access
-                if (!hasCloudAccess && localEmailIds.size === 0) {
+                // If no active identity and no local history -> no access
+                if (!activeEmail && ownedLocalIds.size === 0) {
                     return;
                 }
             } catch (e) {
-                return; // Fail-safe
+                return;
             }
 
             // User has access - proceed
@@ -123,9 +131,9 @@ export function injectStats() {
                     // OWNERSHIP VALIDATION
                     // Cloud mode: Show badge, let StatsDisplay + backend validate ownership (returns 404 if not owned)
                     // Offline mode: Check local storage (synced from cloud or created locally)
-                    if (!hasCloudAccess && !localEmailIds.has(trackId)) {
-                        logger.log(`[Stats] Skipping badge for ${trackId} - not in local storage (offline mode)`);
-                        return; // Skip - not owned in offline mode
+                    if (!hasCloudAccess && !ownedLocalIds.has(trackId)) {
+                        logger.log(`[Stats] Skipping badge for ${trackId} - not in local storage or belongs to another identity`);
+                        return; // Skip - not owned in current session
                     }
                     // In cloud mode: localEmailIds might be empty before popup sync, so we let backend decide
 

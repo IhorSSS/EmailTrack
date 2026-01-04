@@ -23,7 +23,8 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
         console.log(`[REGISTER] Attempting to register email. ID: ${id}, User: ${user}`);
 
         // SECURITY: Verify the claimed ownerId against the actual Auth Token
-        const authenticatedGoogleId = await getAuthenticatedUser(request);
+        const authInfo = await getAuthenticatedUser(request);
+        const authenticatedGoogleId = authInfo?.googleId || null;
         let verifiedGoogleId: string | null = null;
 
         if (ownerId) {
@@ -39,49 +40,46 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
                 }
             }
         } else if (authenticatedGoogleId) {
-            // If they didn't claim an ownerId but ARE logged in, verify/link them anyway?
-            // Usually the frontend sends the ID if it knows it.
-            // But let's rely on explicit sending for now to avoid accidental linking if logic differs.
-            // Actually, safe default: if you're authed, you probably own this.
             verifiedGoogleId = authenticatedGoogleId;
         }
+
+        // Resolve Email (Use 'user' from body, or fallback to authenticated email)
+        const primaryEmail = user || authInfo?.email;
 
         // CORRECTION: The 'ownerId' sent from Frontend (and verified now) is the GOOGLE ID.
         // We must resolve the User UUID from the Google ID.
         let validOwnerUuid: string | null = null;
 
-        if (verifiedGoogleId && user) {
+        if (verifiedGoogleId && primaryEmail) {
             try {
                 // 1. Try to find/create by Google ID
                 let dbUser = await prisma.user.findUnique({ where: { googleId: verifiedGoogleId } });
 
                 if (!dbUser) {
-                    // 2. If not found by Google ID, try to find by Email (Legacy/Social mismatch)
-                    const existingByEmail = await prisma.user.findUnique({ where: { email: user } });
+                    // 2. If not found by Google ID, try to find by Email
+                    const existingByEmail = await prisma.user.findUnique({ where: { email: primaryEmail } });
 
                     if (existingByEmail) {
-                        // MERGE: User exists by email, but hasn't linked Google ID. Link it now.
+                        // MERGE
                         dbUser = await prisma.user.update({
                             where: { id: existingByEmail.id },
                             data: { googleId: verifiedGoogleId }
                         });
-                        console.log(`[REGISTER] Merged existing user ${user} with Google ID ${verifiedGoogleId}`);
+                        console.log(`[REGISTER] Merged existing user ${primaryEmail} with Google ID ${verifiedGoogleId}`);
                     } else {
-                        // CREATE: User doesn't exist at all. Create new.
+                        // CREATE
                         dbUser = await prisma.user.create({
                             data: {
-                                email: user,
+                                email: primaryEmail,
                                 googleId: verifiedGoogleId
                             }
                         });
-                        console.log(`[REGISTER] Created new user ${user} for Google ID ${verifiedGoogleId}`);
+                        console.log(`[REGISTER] Created new user ${primaryEmail} for Google ID ${verifiedGoogleId}`);
                     }
                 }
-
                 validOwnerUuid = dbUser.id;
             } catch (err) {
                 console.error('[REGISTER] User resolution failed completely:', err);
-                // validOwnerUuid remains null, email will be incognito
             }
         }
 
