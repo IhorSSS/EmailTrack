@@ -1,41 +1,63 @@
-version: '3.8'
-
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: emailtrack-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: emailtrack
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
       POSTGRES_DB: emailtrack
-    ports:
-      - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-data:/var/lib/postgresql/data
     networks:
-      - emailtrack-network
+      - emailtrack-internal
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U emailtrack" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: emailtrack-backend
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://user:password@postgres:5432/emailtrack?schema=public
+      # Database connection string
+      DATABASE_URL: postgresql://emailtrack:${DB_PASSWORD:-password}@postgres:5432/emailtrack?schema=public
+
+      # App Config
+      JWT_SECRET: ${JWT_SECRET:-supersecretkey}
+      NODE_ENV: production
       PORT: 3000
+
+      # Google OAuth (Must be set in .env)
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+
+      # Extension ID for CORS/Auth (Must be set in .env)
+      EXTENSION_ID: ${EXTENSION_ID}
+
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
-      - emailtrack-network
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
+      - emailtrack-internal
+    # Run migrations before starting
+    command: sh -c "npx prisma migrate deploy && npm start"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
-  emailtrack-network:
+  emailtrack-internal:
     driver: bridge
-
-volumes:
-  postgres_data:

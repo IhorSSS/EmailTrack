@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '../../db';
 import { getAuthenticatedUser } from '../../middleware/authMiddleware';
+import { logger } from '../../utils/logger';
 
 const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
     const RegisterBodySchema = z.object({
@@ -22,7 +23,7 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
         }
 
         const { id, subject, recipient, cc, bcc, body, user, ownerId } = parseResult.data;
-        console.log(`[REGISTER] Attempting to register email. ID: ${id}, User: ${user}`);
+        logger.info(`[REGISTER] Attempting to register email. ID: ${id}, User: ${user}`);
 
         // SECURITY: Verify the claimed ownerId against the actual Auth Token
         const authInfo = await getAuthenticatedUser(request);
@@ -34,10 +35,10 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
                 verifiedGoogleId = ownerId;
             } else {
                 if (authenticatedGoogleId) {
-                    console.warn(`[REGISTER] OwnerId mismatch! Claimed: ${ownerId}, Verified: ${authenticatedGoogleId}. Using Verified.`);
+                    logger.warn(`[REGISTER] OwnerId mismatch! Claimed: ${ownerId}, Verified: ${authenticatedGoogleId}. Using Verified.`);
                     verifiedGoogleId = authenticatedGoogleId;
                 } else {
-                    console.warn(`[REGISTER] Unauthenticated attempt to set ownerId ${ownerId}. Ignoring.`);
+                    logger.warn(`[REGISTER] Unauthenticated attempt to set ownerId ${ownerId}. Ignoring.`);
                     verifiedGoogleId = null;
                 }
             }
@@ -67,7 +68,7 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
                             where: { id: existingByEmail.id },
                             data: { googleId: verifiedGoogleId }
                         });
-                        console.log(`[REGISTER] Merged existing user ${primaryEmail} with Google ID ${verifiedGoogleId}`);
+                        logger.info(`[REGISTER] Merged existing user ${primaryEmail} with Google ID ${verifiedGoogleId}`);
                     } else {
                         // CREATE
                         dbUser = await prisma.user.create({
@@ -76,12 +77,12 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
                                 googleId: verifiedGoogleId
                             }
                         });
-                        console.log(`[REGISTER] Created new user ${primaryEmail} for Google ID ${verifiedGoogleId}`);
+                        logger.info(`[REGISTER] Created new user ${primaryEmail} for Google ID ${verifiedGoogleId}`);
                     }
                 }
                 validOwnerUuid = dbUser.id;
             } catch (err) {
-                console.error('[REGISTER] User resolution failed completely:', err);
+                logger.error('[REGISTER] User resolution failed completely:', err);
             }
         }
 
@@ -93,7 +94,7 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
             });
 
             if (existingEmail && existingEmail.ownerId && existingEmail.ownerId !== validOwnerUuid) {
-                console.warn(`[REGISTER] Hijack attempt! User ${validOwnerUuid || 'Anonymous'} tried to register email ${id} owned by ${existingEmail.ownerId}`);
+                logger.warn(`[REGISTER] Hijack attempt! User ${validOwnerUuid || 'Anonymous'} tried to register email ${id} owned by ${existingEmail.ownerId}`);
                 return reply.status(403).send({ error: 'Forbidden: Email belongs to another account' });
             }
         }
@@ -122,7 +123,7 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
             }
         });
 
-        request.log.info(`[REGISTER] Registering email. ID: ${id}, User: ${user}, Owner: ${email.ownerId || 'None'}`);
+        logger.info(`[REGISTER] Registering email. ID: ${id}, User: ${user}, Owner: ${email.ownerId || 'None'}`);
 
         const protocol = request.protocol;
         const host = request.headers.host;
@@ -136,3 +137,4 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
 };
 
 export default registerRoutes;
+
