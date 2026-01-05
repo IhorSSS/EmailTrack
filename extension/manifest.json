@@ -13,7 +13,8 @@
         "activeTab",
         "scripting",
         "declarativeNetRequest",
-        "identity"
+        "identity",
+        "alarms"
     ],
     "oauth2": {
         "client_id": "YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com",

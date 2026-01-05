@@ -32,7 +32,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setShowTrackingIndicator
 }) => {
     return (
-        <div style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xl)' }}>
+        <div style={{ padding: 'var(--spacing-lg) var(--spacing-lg) var(--spacing-sm)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xl)', minHeight: '100%' }}>
             {/* Tracking Toggle Section */}
             <div style={{
                 background: 'var(--bg-card)',
@@ -263,14 +263,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {/* Version Footer */}
             <div style={{
                 textAlign: 'center',
-                padding: 'var(--spacing-sm)',
                 fontSize: '10px',
                 color: 'var(--text-muted)',
-                opacity: 0.6,
+                opacity: 0.5,
                 marginTop: 'auto'
             }}>
                 EmailTrack v{__APP_VERSION__}
             </div>
         </div>
     );
+
 };

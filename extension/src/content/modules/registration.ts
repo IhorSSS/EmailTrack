@@ -79,12 +79,10 @@ export function setupRegistrationListener() {
                 }
                 if (response && response.success) {
                     logger.log('[Content] Successfully registered email via background');
-                    // FIX: Close the sync loop immediately
-                    if (response.synced) {
-                        LocalStorageService.markAsSynced([id]).then(() => {
-                            logger.log('[Content] Marked email as synced locally.');
-                        });
-                    }
+                    // Mark as synced locally
+                    LocalStorageService.markAsSynced([id]).then(() => {
+                        logger.log('[Content] Marked email as synced locally.');
+                    });
                 } else {
                     logger.warn('[Content] Background registration returned failure:', response);
                 }

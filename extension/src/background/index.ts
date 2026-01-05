@@ -1,11 +1,62 @@
-// Service Worker Background Script
 import { logger } from '../utils/logger';
 import { API_CONFIG } from '../config/api';
+import { LocalStorageService } from '../services/LocalStorageService';
 
 logger.log('EmailTrack: Background Script Loaded');
 
+// --- RETRY LOGIC (OUTBOX) ---
+
+async function processOutbox() {
+    logger.log('[Outbox] Processing pending registrations...');
+    try {
+        const emails = await LocalStorageService.getEmails();
+        const unsynced = emails.filter(e => !e.synced);
+
+        if (unsynced.length === 0) {
+            logger.log('[Outbox] No pending registrations.');
+            return;
+        }
+
+        logger.log(`[Outbox] Found ${unsynced.length} pending emails. Retrying...`);
+
+        for (const email of unsynced) {
+            try {
+                const result = await handleRegister(email);
+                if (result.success) {
+                    await LocalStorageService.markAsSynced([email.id]);
+                    logger.log(`[Outbox] Successfully registered ${email.id}`);
+                }
+            } catch (err) {
+                logger.error(`[Outbox] Failed to retry ${email.id}:`, err);
+                // Continue to next email
+            }
+        }
+    } catch (err) {
+        logger.error('[Outbox] Critical error in processing:', err);
+    }
+}
+
+// Set up periodic retry (every 5 minutes)
+chrome.alarms.create('retry_registration', { periodInMinutes: 5 });
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === 'retry_registration') {
+        processOutbox();
+    }
+});
+
+// Also try to process on startup
+chrome.runtime.onStartup.addListener(() => {
+    logger.log('[Background] Run onStartup tasks');
+    processOutbox();
+});
+
 async function handleRegister(data: any) {
     logger.log('Registering email:', data);
+
+    // Proactively try to process any pending items first
+    processOutbox().catch(() => { });
+
     try {
         // Check if user is logged in (Cloud mode)
         // Use local storage as it is more reliable for extension communication
@@ -88,10 +139,9 @@ async function handleRegister(data: any) {
         }
 
         logger.log('Email registered successfully');
-        // Return whether we successfully claimed it (synced) or just registered anonymously (unsynced/incognito)
-        // If we attached ownerId, it's synced.
-        const isSynced = !!payload.ownerId;
-        return { success: true, synced: isSynced };
+        // Return success so the content script (or outbox) can mark it as synced.
+        // It's 'synced' if it successfully reached the backend.
+        return { success: true, synced: true };
     } catch (err: any) {
         logger.error('Registration failed:', err);
         return { success: false, error: err.message };

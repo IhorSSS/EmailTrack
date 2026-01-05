@@ -103,11 +103,16 @@ export class DashboardService {
         ]);
 
         return {
-            data: data.map(item => ({
-                ...item,
-                subject: item.subject ? decrypt(item.subject) : item.subject,
-                body: (item as any).body ? decrypt((item as any).body) : (item as any).body
-            })),
+            data: data.map(item => {
+                const decrypted: any = { ...item };
+                if (decrypted.subject) decrypted.subject = decrypt(decrypted.subject);
+                if (decrypted.body) decrypted.body = decrypt(decrypted.body);
+                if (decrypted.recipient) decrypted.recipient = decrypt(decrypted.recipient);
+                if (decrypted.user) decrypted.user = decrypt(decrypted.user);
+                if (decrypted.cc) decrypted.cc = decrypt(decrypted.cc);
+                if (decrypted.bcc) decrypted.bcc = decrypt(decrypted.bcc);
+                return decrypted;
+            }),
             total,
             page,
             limit
@@ -207,10 +212,15 @@ export class DashboardService {
             }
         });
 
-        return data.map(item => ({
-            ...item,
-            subject: item.subject ? decrypt(item.subject) : item.subject,
-            body: item.body ? decrypt(item.body) : item.body
-        }));
+        return data.map(item => {
+            const decrypted: any = { ...item };
+            if (decrypted.subject) decrypted.subject = decrypt(decrypted.subject);
+            if (decrypted.body) decrypted.body = decrypt(decrypted.body);
+            if (decrypted.recipient) decrypted.recipient = decrypt(decrypted.recipient);
+            if (decrypted.user) decrypted.user = decrypt(decrypted.user);
+            if (decrypted.cc) decrypted.cc = decrypt(decrypted.cc);
+            if (decrypted.bcc) decrypted.bcc = decrypt(decrypted.bcc);
+            return decrypted;
+        });
     }
 }

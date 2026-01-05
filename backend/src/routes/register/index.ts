@@ -106,24 +106,23 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
             where: { id: id || 'never-exists' }, // Fallback for auto-generated IDs
             update: {
                 subject: subject ? encrypt(subject) : subject,
-                recipient,
-                cc,
-                bcc,
+                recipient: recipient ? encrypt(recipient) : recipient,
+                cc: cc ? encrypt(cc) : cc,
+                bcc: bcc ? encrypt(bcc) : bcc,
                 body: body ? encrypt(body) : body,
-                user,
+                user: user ? encrypt(user) : user,
                 ownerId: validOwnerUuid // Use resolved UUID
             },
             create: {
                 id,
                 subject: subject ? encrypt(subject) : subject,
-                recipient,
-                cc,
-                bcc,
+                recipient: recipient ? encrypt(recipient) : recipient,
+                cc: cc ? encrypt(cc) : cc,
+                bcc: bcc ? encrypt(bcc) : bcc,
                 body: body ? encrypt(body) : body,
-                user,
+                user: user ? encrypt(user) : user,
                 ownerId: validOwnerUuid // Use resolved UUID
             }
-
         });
 
         logger.info(`[REGISTER] Registering email. ID: ${id}, User: ${user}, Owner: ${email.ownerId || 'None'}`);

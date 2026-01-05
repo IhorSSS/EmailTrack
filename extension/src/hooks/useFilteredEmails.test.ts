@@ -19,7 +19,7 @@ const mockEmails = [
         createdAt: new Date('2023-01-02').toISOString(),
         recipient: 'recipient2@example.com',
         subject: 'Project Update',
-        opens: [{ openedAt: new Date(), ip: '127.0.0.1', userAgent: 'Chrome' }], // Opened
+        opens: [{ id: 'o1', openedAt: new Date().toISOString(), ip: '127.0.0.1', userAgent: 'Chrome' }], // Opened
         user: 'sender1@example.com',
         body: 'Body 2',
         ownerId: 'owner1',

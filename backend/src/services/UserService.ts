@@ -1,6 +1,7 @@
 import { prisma } from '../db';
 import { User } from '@prisma/client';
 import { logger } from '../utils/logger';
+import { encrypt } from '../utils/crypto';
 
 export class UserService {
     /**
@@ -88,17 +89,21 @@ export class UserService {
                     create: {
                         id: email.id,
                         ownerId: userId,
-                        subject: email.subject || 'Unknown',
-                        recipient: email.recipient || 'Unknown',
-                        body: email.body,
-                        user: email.user || 'Unknown' // Save Sender Identity
+                        subject: email.subject ? encrypt(email.subject) : 'Unknown',
+                        recipient: email.recipient ? encrypt(email.recipient) : 'Unknown',
+                        cc: (email as any).cc ? encrypt((email as any).cc) : (email as any).cc,
+                        bcc: (email as any).bcc ? encrypt((email as any).bcc) : (email as any).bcc,
+                        body: email.body ? encrypt(email.body) : email.body,
+                        user: email.user ? encrypt(email.user) : 'Unknown' // Save Sender Identity
                     },
                     update: {
                         ownerId: userId,
-                        subject: email.subject,
-                        recipient: email.recipient,
-                        body: email.body,
-                        user: email.user // Update Sender Identity
+                        subject: email.subject ? encrypt(email.subject) : email.subject,
+                        recipient: email.recipient ? encrypt(email.recipient) : email.recipient,
+                        cc: (email as any).cc ? encrypt((email as any).cc) : (email as any).cc,
+                        bcc: (email as any).bcc ? encrypt((email as any).bcc) : (email as any).bcc,
+                        body: email.body ? encrypt(email.body) : email.body,
+                        user: email.user ? encrypt(email.user) : email.user // Update Sender Identity
                     }
                 })
             )
