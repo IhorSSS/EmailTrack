@@ -51,6 +51,7 @@ export const useAppController = () => {
     const { handleDeleteHistory } = useHistoryManager(
         deleteEmails,
         senderFilter,
+        setSenderFilter,
         userProfile,
         showStatus,
         setCurrentUser,

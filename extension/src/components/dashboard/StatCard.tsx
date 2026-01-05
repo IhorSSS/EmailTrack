@@ -11,34 +11,31 @@ export const StatCard: React.FC<StatCardProps> = ({ value, label, icon, color = 
     return (
         <div style={{
             background: 'var(--bg-card)',
-            padding: 'var(--spacing-lg)',
-            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--spacing-sm) var(--spacing-md)',
+            borderRadius: 'var(--radius-md)',
             border: '1px solid var(--border-color)',
-            boxShadow: 'var(--shadow-sm)',
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
+            gap: 'var(--spacing-sm)',
             flex: 1,
-            transition: 'var(--transition-base)',
-            cursor: 'default',
+            minHeight: '36px',
         }}>
-            {icon && <div style={{ marginBottom: 'var(--spacing-sm)' }}>{icon}</div>}
+            {icon && <div>{icon}</div>}
             <div style={{
-                fontSize: '24px',
+                fontSize: '16px',
                 fontWeight: 800,
                 color: color,
                 lineHeight: 1,
-                marginBottom: 'var(--spacing-xs)'
             }}>
                 {value}
             </div>
             <div style={{
                 fontSize: '10px',
-                fontWeight: 700,
+                fontWeight: 600,
                 color: 'var(--text-secondary)',
                 textTransform: 'uppercase',
-                letterSpacing: '0.05em'
+                letterSpacing: '0.03em'
             }}>
                 {label}
             </div>

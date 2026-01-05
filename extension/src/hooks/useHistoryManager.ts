@@ -7,6 +7,7 @@
 export const useHistoryManager = (
     deleteEmails: (filter: string) => Promise<{ success: boolean; message: string; type?: 'success' | 'warning' }>,
     senderFilter: string,
+    setSenderFilter: (filter: string) => void,
     userProfile: any,
     showStatus: (title: string, message: string, type: any) => void,
     setCurrentUser: (user: string | null) => void,
@@ -39,6 +40,11 @@ export const useHistoryManager = (
             // If full wipe, clear who we thought was logged in
             if (senderFilter === 'all') {
                 chrome.storage.local.remove(['lastLoggedInEmail']);
+            }
+
+            // RESET FILTER so UI doesn't show an empty list
+            if (result.success && senderFilter !== 'all') {
+                setSenderFilter('all');
             }
 
         } catch (e: any) {

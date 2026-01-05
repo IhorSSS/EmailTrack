@@ -48,93 +48,93 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
             }}>
                 {/* Sender Select at the top */}
                 {uniqueSenders.length > 1 && (
-                    <div style={{ marginBottom: 'var(--spacing-xs)' }}>
-                        <Select
-                            value={senderFilter}
-                            onChange={(e) => setSenderFilter(e.target.value)}
-                            options={[
-                                { value: 'all', label: 'All Senders' },
-                                ...uniqueSenders.map(s => ({ value: s, label: s }))
-                            ]}
-                        />
-                    </div>
+                    <Select
+                        value={senderFilter}
+                        onChange={(e) => setSenderFilter(e.target.value)}
+                        options={[
+                            { value: 'all', label: 'All Senders' },
+                            ...uniqueSenders.map(s => ({ value: s, label: s }))
+                        ]}
+                    />
                 )}
 
-                {/* Search Bar */}
-                <div style={{ position: 'relative' }}>
-                    <input
-                        type="text"
-                        placeholder="Search by recipient or subject..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        style={{
-                            width: '100%',
-                            padding: 'var(--spacing-sm) 36px var(--spacing-sm) 36px',
-                            borderRadius: 'var(--radius-md)',
-                            border: '1px solid var(--border-color)',
-                            background: 'var(--bg-card)',
-                            color: 'var(--text-primary)',
-                            fontSize: '13px',
-                            outline: 'none',
-                            transition: 'var(--transition-base)',
-                        }}
-                    />
-                    <div style={{
-                        position: 'absolute',
-                        left: 'var(--spacing-md)',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        color: 'var(--text-muted)'
-                    }}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                    </div>
-                    {searchQuery && (
-                        <button
-                            onClick={() => setSearchQuery('')}
+                {/* Search Bar + Filters Row - Fixed Height */}
+                <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', height: '36px' }}>
+                    <div style={{ position: 'relative', flex: 1 }}>
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                             style={{
-                                position: 'absolute',
-                                right: '10px',
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                color: 'var(--text-muted)',
-                                padding: '4px',
-                                borderRadius: '50%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                transition: 'var(--transition-base)'
+                                width: '100%',
+                                padding: 'var(--spacing-sm) 32px var(--spacing-sm) 32px',
+                                borderRadius: 'var(--radius-md)',
+                                border: '1px solid var(--border-color)',
+                                background: 'var(--bg-card)',
+                                color: 'var(--text-primary)',
+                                fontSize: '13px',
+                                outline: 'none',
+                                transition: 'var(--transition-base)',
                             }}
-                            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
-                            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
-                        >
+                        />
+                        <div style={{
+                            position: 'absolute',
+                            left: '10px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            color: 'var(--text-muted)'
+                        }}>
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                             </svg>
-                        </button>
-                    )}
-                </div>
+                        </div>
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                style={{
+                                    position: 'absolute',
+                                    right: '8px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    color: 'var(--text-muted)',
+                                    padding: '4px',
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'var(--transition-base)'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
+                                onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
+                            >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                        )}
+                    </div>
 
-                {/* Filters Row */}
-                <div style={{ display: 'flex', gap: 'var(--spacing-sm)', alignItems: 'center', overflowX: 'auto', paddingBottom: '2px', scrollbarWidth: 'none' }}>
-                    <FilterChip
-                        label="All"
-                        active={filterType === 'all'}
-                        onClick={() => setFilterType('all')}
-                    />
-                    <FilterChip
-                        label="Opened"
-                        active={filterType === 'opened'}
-                        onClick={() => setFilterType('opened')}
-                    />
-                    <FilterChip
-                        label="Unopened"
-                        active={filterType === 'unopened'}
-                        onClick={() => setFilterType('unopened')}
-                    />
+                    {/* Filters */}
+                    <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                        <FilterChip
+                            label="All"
+                            active={filterType === 'all'}
+                            onClick={() => setFilterType('all')}
+                        />
+                        <FilterChip
+                            label="Opened"
+                            active={filterType === 'opened'}
+                            onClick={() => setFilterType('opened')}
+                        />
+                        <FilterChip
+                            label="Unopened"
+                            active={filterType === 'unopened'}
+                            onClick={() => setFilterType('unopened')}
+                        />
+                    </div>
                 </div>
             </div>
 

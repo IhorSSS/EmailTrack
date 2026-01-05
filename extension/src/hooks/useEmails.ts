@@ -344,6 +344,13 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                     cloudParams.append('user', filterSender);
                 }
 
+                // Persistent Local Deletion
+                if (filterSender === 'all') {
+                    await LocalStorageService.deleteAll();
+                } else {
+                    await LocalStorageService.deleteBySender(filterSender);
+                }
+
                 // Optimistic UI update: Filter based on sender
                 setEmails(prev => filterSender === 'all'
                     ? []
