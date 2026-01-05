@@ -7,6 +7,7 @@ vi.mock('../../db', () => ({
         trackedEmail: {
             create: vi.fn(),
             upsert: vi.fn(),
+            findUnique: vi.fn(),
         },
         user: {
             findUnique: vi.fn(),

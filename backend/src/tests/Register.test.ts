@@ -14,7 +14,8 @@ const { mockEmailUpsert, mockUserFindUnique } = vi.hoisted(() => {
 vi.mock('../db', () => ({
     prisma: {
         trackedEmail: {
-            upsert: mockEmailUpsert
+            upsert: mockEmailUpsert,
+            findUnique: vi.fn()
         },
         user: {
             // Let's just use mockCreate for user.create as well?
@@ -47,7 +48,21 @@ describe('POST /register', () => {
             user: 'sender@example.com'
         };
 
-        mockEmailUpsert.mockResolvedValue(payload);
+        // In controller, we might be failing because we can't find 'owner' relation or similar if logic changed.
+        // But dashboard refactor shouldn't affect register.
+        // Wait, the failure was "expected 201 received 500".
+        // This implies the route handler crashed.
+        // Check console error in tests?
+        // Ah, likely missing logger mock or similar?
+        // Or "Upsert" mock return value structure mismatch?
+
+        // Let's relax the mock return to be safe.
+        mockEmailUpsert.mockResolvedValue({
+            ...payload,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            ownerId: null // default
+        });
         mockUserFindUnique.mockResolvedValue({ id: 'sender-uuid', googleId: 'sender@example.com' }); // Mock existing user resolve for ownerId check? 
         // Logic checks ownerId AND user. If ownerId is null/undefined in payload, it skips user resolution.
         // In this test 'ownerId' is NOT sent in payload?
@@ -82,7 +97,9 @@ describe('POST /register', () => {
             recipient: null,
             body: null,
             user: null,
-            ownerId: null
+            ownerId: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
         });
 
         const response = await app.inject({

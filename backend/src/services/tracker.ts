@@ -1,11 +1,12 @@
 import { prisma } from '../db';
 import geoip from 'geoip-lite';
 import { UAParser } from 'ua-parser-js';
+import { logger } from '../utils/logger';
 
 export async function recordOpen(trackId: string, ip: string, userAgent: string, pixelTimestamp?: string) {
     try {
-        console.log(`[TRACK] Recording open for ${trackId} from ${ip}`);
-        console.log(`[TRACK] Raw User Agent: ${userAgent}`);
+        logger.info(`[TRACK] Recording open for ${trackId} from ${ip}`);
+        logger.info(`[TRACK] Raw User Agent: ${userAgent}`);
 
         let targetUA = userAgent;
 
@@ -71,7 +72,7 @@ export async function recordOpen(trackId: string, ip: string, userAgent: string,
             const sameActor = lastEvent.ip === ip && lastEvent.userAgent === userAgent;
 
             if (sameActor && timeDiff < DEBOUNCE_WINDOW_MS) {
-                console.log(`[TRACK] Debounced event for ${trackId} (too soon: ${timeDiff}ms)`);
+                logger.info(`[TRACK] Debounced event for ${trackId} (too soon: ${timeDiff}ms)`);
                 return; // SKIP saving
             }
         }
@@ -81,7 +82,7 @@ export async function recordOpen(trackId: string, ip: string, userAgent: string,
         });
 
         if (!email) {
-            console.warn(`[TRACK] Track ID ${trackId} not found. Lazy registering...`);
+            logger.warn(`[TRACK] Track ID ${trackId} not found. Lazy registering...`);
             try {
                 // Schema has no User relation, so we just create the email record.
                 email = await prisma.trackedEmail.create({
@@ -91,9 +92,10 @@ export async function recordOpen(trackId: string, ip: string, userAgent: string,
                         recipient: 'Unknown'
                     }
                 });
-                console.log('[TRACK] Lazy registration successful for', trackId);
+
+                logger.info('[TRACK] Lazy registration successful for', trackId);
             } catch (createErr) {
-                console.error('[TRACK] Lazy registration failed', createErr);
+                logger.error('[TRACK] Lazy registration failed', createErr);
             }
         }
 
@@ -106,7 +108,7 @@ export async function recordOpen(trackId: string, ip: string, userAgent: string,
 
         // Re-check email existence
         if (email) {
-            console.log(`[TRACK] Email found/created: ${trackId}. Creating OpenEvent...`);
+            logger.info(`[TRACK] Email found/created: ${trackId}. Creating OpenEvent...`);
             // ... existing create logic
             await prisma.openEvent.create({
                 data: {
@@ -117,10 +119,10 @@ export async function recordOpen(trackId: string, ip: string, userAgent: string,
                     location: location
                 }
             });
-            console.log(`[TRACK] OpenEvent created for ${trackId}`);
+            logger.info(`[TRACK] OpenEvent created for ${trackId}`);
         }
 
     } catch (error) {
-        console.error('Error recording open:', error);
+        logger.error('Error recording open:', error);
     }
 }

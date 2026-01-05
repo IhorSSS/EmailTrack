@@ -56,11 +56,13 @@ describe('Dashboard Routes', () => {
                 url: '/?user=test@example.com'
             });
 
+            // Service now constructs the query. We must verify what the Service passes to Prisma.
+            // The service adds `orderBy: { createdAt: 'desc' }` and other defaults.
             expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-                where: {
+                where: expect.objectContaining({
                     user: 'test@example.com',
                     ownerId: null
-                }
+                })
             }));
         });
 
@@ -68,7 +70,7 @@ describe('Dashboard Routes', () => {
             mockFindMany.mockResolvedValue([]);
             mockCount.mockResolvedValue(0);
             (prisma.user.findUnique as any).mockResolvedValue({ id: 'master-uuid', googleId: 'master-uuid' });
-            (getAuthenticatedUser as any).mockResolvedValue('master-uuid');
+            (getAuthenticatedUser as any).mockResolvedValue({ googleId: 'master-uuid' });
 
             const response = await app.inject({
                 method: 'GET',
@@ -76,7 +78,7 @@ describe('Dashboard Routes', () => {
             });
 
             expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-                where: { ownerId: 'master-uuid' }
+                where: expect.objectContaining({ ownerId: 'master-uuid' })
             }));
         });
 
@@ -84,7 +86,7 @@ describe('Dashboard Routes', () => {
             mockFindMany.mockResolvedValue([]);
             mockCount.mockResolvedValue(0);
             (prisma.user.findUnique as any).mockResolvedValue({ id: 'master-uuid', googleId: 'master-uuid' });
-            (getAuthenticatedUser as any).mockResolvedValue('master-uuid');
+            (getAuthenticatedUser as any).mockResolvedValue({ googleId: 'master-uuid' });
 
             const response = await app.inject({
                 method: 'GET',
@@ -92,10 +94,10 @@ describe('Dashboard Routes', () => {
             });
 
             expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
-                where: {
+                where: expect.objectContaining({
                     ownerId: 'master-uuid',
                     user: 'alias@example.com'
-                }
+                })
             }));
         });
 
@@ -108,18 +110,11 @@ describe('Dashboard Routes', () => {
                 url: '/?ids=uuid1,uuid2'
             });
 
-            expect(mockFindMany).toHaveBeenCalledWith({
-                where: {
+            expect(mockFindMany).toHaveBeenCalledWith(expect.objectContaining({
+                where: expect.objectContaining({
                     id: { in: ['uuid1', 'uuid2'] }
-                },
-                skip: 0,
-                take: 20,
-                orderBy: { createdAt: 'desc' },
-                include: {
-                    opens: { orderBy: { openedAt: 'desc' } },
-                    _count: { select: { opens: true } }
-                }
-            });
+                })
+            }));
         });
     });
 

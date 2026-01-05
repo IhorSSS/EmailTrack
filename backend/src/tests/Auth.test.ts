@@ -32,7 +32,10 @@ describe('Auth Routes', () => {
     describe('POST /login', () => {
         it('should login successfully with a valid Google Token', async () => {
             // Mock token verification success
-            (verifyGoogleToken as any).mockResolvedValue('google-123');
+            (verifyGoogleToken as any).mockResolvedValue({
+                googleId: 'google-123',
+                email: 'test@example.com'
+            });
 
             // Mock user upsert
             (prisma.user.upsert as any).mockResolvedValue({

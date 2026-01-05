@@ -807,7 +807,6 @@ var Gmail = function (localJQuery) {
         }
 
         if (params.url.search !== undefined) {
-            // console.log(params.url, params.body, params.url_raw);
         }
 
         var triggered = {}; // store an object of event_name: [response_args] for events triggered by parsing the actions
@@ -1353,7 +1352,6 @@ var Gmail = function (localJQuery) {
 
                 let fd_emails = fd_thread_container["2"]; // array
                 for (let fd_email of fd_emails) {
-                    //console.log(fd_email)
                     const fd_email_id = fd_email["0"];
 
                     // detailed to/from-fields must be obtained through the -other- email message node.
@@ -1403,7 +1401,6 @@ var Gmail = function (localJQuery) {
                         email["$email_node"] = fd_email;
                         email["$thread_node"] = fd_thread_container;
                     }
-                    //console.log(email);
                     res.push(email);
                 }
             }
@@ -1433,7 +1430,6 @@ var Gmail = function (localJQuery) {
 
                 let fd_emails = fd_thread_container["1"]["4"]; // array
                 for (let fd_email of fd_emails) {
-                    //console.log(fd_email)
                     const fd_email_id = fd_email["0"];
 
 
@@ -1493,7 +1489,6 @@ var Gmail = function (localJQuery) {
                         email["$email_node"] = fd_email;
                         email["$thread_node"] = fd_thread_container;
                     }
-                    //console.log(email);
                     res.push(email);
                 }
             }
@@ -1527,7 +1522,6 @@ var Gmail = function (localJQuery) {
 
                 let bv_emails = bv_thread_container["0"]["4"]; // array
                 for (let bv_email of bv_emails) {
-                    //console.log(bv_email)
                     const bv_email_id = bv_email["0"];
                     const bv_legacy_email_id = bv_email["55"];
                     const bv_email_smtp_id = ""; //bv_email["16"] is smtp_id of previous email in the conversation
@@ -1572,7 +1566,6 @@ var Gmail = function (localJQuery) {
                         email["$email_node"] = bv_email;
                         email["$thread_node"] = bv_thread_container;
                     }
-                    //console.log(email);
                     res.push(email);
                 }
             }
@@ -1602,7 +1595,6 @@ var Gmail = function (localJQuery) {
 
                 let bv_emails = bv_thread_container["4"]["4"]; // array
                 for (let bv_email of bv_emails) {
-                    //console.log(bv_email)
                     const bv_email_id = bv_email["0"];
                     const bv_legacy_email_id = bv_email["55"];
                     const bv_email_smtp_id = ""; //bv_email["16"] is smtp_id of previous email in the conversation
@@ -1647,7 +1639,6 @@ var Gmail = function (localJQuery) {
                         email["$email_node"] = bv_email;
                         email["$thread_node"] = bv_thread_container;
                     }
-                    //console.log(email);
                     res.push(email);
                 }
             }
@@ -1700,7 +1691,6 @@ var Gmail = function (localJQuery) {
     api.tools.parse_sent_message_payload = function (json) {
         try {
             let sent_email = json;
-            //console.log(sent_email);
 
             const sent_email_id = sent_email["0"];
 
@@ -1790,7 +1780,6 @@ var Gmail = function (localJQuery) {
             };
 
             let sent_email = json;
-            //console.log(sent_email);
 
             const sent_email_id = sent_email[0];
 
@@ -1849,17 +1838,12 @@ var Gmail = function (localJQuery) {
         }
 
         const threads = api.tools.extract_from_graph(params, api.check.data.is_thread);
-        // console.log("Threads:");
-        // console.log(threads);
         const emails = [
             ...api.tools.extract_from_graph(params.body_params, api.check.data.is_email),
             ...api.tools.extract_from_graph(params.body_params, api.check.data.is_email_new),
         ];
-        // console.log("Emails:", emails, "url", params.url_raw, "body", params.body_params);
 
         for (let email of emails) {
-            // console.log("Email:");
-            // console.log(email);
             for (let key in email) {
                 let prop = email[key];
                 if (api.check.data.is_smartlabels_array(prop)) {
@@ -1880,7 +1864,6 @@ var Gmail = function (localJQuery) {
                 const actionType = api.tools.check_event_type(threads[0]);
 
                 if (actionType) {
-                    // console.log(threads[0]);
                     const threadsData = threads.map(thread => api.tools.get_thread_data(thread));
 
                     const new_thread_ids = threads.map(thread => api.tools.get_thread_id(thread));
@@ -1939,7 +1922,6 @@ var Gmail = function (localJQuery) {
                 response = response.substring(data.length, response.length);
             }
         } catch (e) {
-            // console.log("GmailJS post response-parsing failed.", e, originalResponse);
         }
 
         return parsedResponse;
@@ -2047,12 +2029,10 @@ var Gmail = function (localJQuery) {
         for (let email of email_data) {
             // cache email directly on IDs
             if (c.emailIdCache[email.id] === undefined) {
-                //console.log("ADD email cache",data_source,email);
                 c.emailIdCache[email.id] = email;
                 c.emailLegacyIdCache[email.legacy_email_id] = email;
             }
             else if (isUpdateAuthorized) {
-                //console.log("UPDATE email cache",data_source,email);
                 c.emailIdCache[email.id] = email;
                 c.emailLegacyIdCache[email.legacy_email_id] = email;
             }
@@ -2069,13 +2049,11 @@ var Gmail = function (localJQuery) {
 
             // only append email to cache if not already there.
             if (thread.emails.filter(i => i.id === email.id).length === 0) {
-                //console.log("append email to thread cache",data_source, email) ;
                 thread.emails.push(email);
             }
             // Only update cache with data source fd_request_payload and fd_embedded_json
             else if (isUpdateAuthorized) {
                 let index = thread.emails.findIndex(i => i.id === email.id);
-                //console.log("update email in thread cache",data_source,email);
                 thread.emails[index] = email;
             }
         }
@@ -2207,7 +2185,6 @@ var Gmail = function (localJQuery) {
         window._GM_setData = function (data) {
 
             if (data !== undefined && data.Cl6csf !== undefined && data.Cl6csf[0] !== undefined && data.Cl6csf[0][2] !== undefined) {
-                //console.log('Cl6csf',JSON.parse(data.Cl6csf[0][2]));
                 let parsed_emails = api.tools.parse_fd_embedded_json(JSON.parse(data.Cl6csf[0][2]));
                 api.tools.cache_email_data(parsed_emails, "fd_embedded_json");
                 //TODO : event is not load yet at this time of workflow, addon is necessary to observe load email event for this case
@@ -2215,7 +2192,6 @@ var Gmail = function (localJQuery) {
 
             }
             if (data !== undefined && data.a6jdv !== undefined && data.a6jdv[0] !== undefined && data.a6jdv[0][2] !== undefined) {
-                //console.log('a6jdv',JSON.parse(data.a6jdv[0][2]));
                 let parsed_emails = api.tools.parse_bv_embedded_json(JSON.parse(data.a6jdv[0][2]));
                 api.tools.cache_email_data(parsed_emails, "bv_embedded_json");
                 //TODO : event is not load yet at this time of workflow, addon is necessary to observe load email event for this case
@@ -2461,7 +2437,6 @@ var Gmail = function (localJQuery) {
     // TODO: current limitation allows only 1 action per watched className (i.e. each watched class must be
     //       unique). If this functionality is needed this can be worked around by pushing actions to an array
     //       in api.tracker.dom_observer_map below
-    // console.log( "Observer set for", action, callback);
     api.observe.initialize_dom_observers = function () {
         api.tracker.dom_observer_init = true;
         api.tracker.supported_observers = ["view_thread", "view_email", "load_email_menu", "recipient_change", "compose"];
@@ -2508,7 +2483,6 @@ var Gmail = function (localJQuery) {
             "recipient_change": {
                 class: ["vR", "afV"],
                 handler: function (match, callback) {
-                    // console.log("compose:recipient handler called",match,callback);
 
                     // we need to small delay on the execution of the handler as when the recipients field initialises on a reply (or reinstated compose/draft)
                     // then multiple DOM elements will be inserted for each recipient causing this handler to execute multiple times
@@ -2518,7 +2492,6 @@ var Gmail = function (localJQuery) {
                     }
                     api.tracker.recipient_matches.push(match);
                     setTimeout(function () {
-                        // console.log("recipient timeout handler", api.tracker.recipient_matches.length);
                         if (!api.tracker.recipient_matches.length) return;
 
                         let composeRoot = [];
@@ -2548,7 +2521,6 @@ var Gmail = function (localJQuery) {
             "compose": {
                 class: "An", // M9 would be better but this isn"t set at the point of insertion
                 handler: function (match, callback) {
-                    // console.log("reply_forward handler called", match, callback);
 
                     var originalMatch = match;
                     // look back up the DOM tree for M9 (the main reply/forward node)
@@ -2587,7 +2559,6 @@ var Gmail = function (localJQuery) {
                 api.tracker.dom_observer_map[className].push(act);
             }
         }
-        //console.log( "observer_config", api.tracker.dom_observers, "dom_observer_map", api.tracker.dom_observer_map);
     };
 
     /**
@@ -2670,7 +2641,6 @@ var Gmail = function (localJQuery) {
         // support for DOM observers
         if (api.tracker.supported_observers.includes(action)) {
 
-            //console.log("observer found",api.tracker.dom_observers[action]);
 
             // if we haven"t yet bound the DOM insertion observer, do it now
             if (!api.tracker.observing_dom) {
@@ -2710,13 +2680,11 @@ var Gmail = function (localJQuery) {
 
             }
             api.observe.bind("dom", action, callback);
-            // console.log(api.tracker.observing_dom,"dom_watchdog is now:",api.tracker.dom_watchdog);
             return true;
 
             // support for gmail interface load event
         }
         else if (action === "compose_cancelled") {
-            //console.log("set compose cancelled callback");
             api.tracker.composeCancelledCallback = callback;
             return true;
         }
@@ -2740,7 +2708,6 @@ var Gmail = function (localJQuery) {
                     return callback();
                 } else if (++load_count > attempts) {
                     clearInterval(timer);
-                    //console.log("Failed to detect interface load in " + (delay*attempts/1000) + " seconds. Will automatically fire event in 5 further seconds.");
                     setTimeout(callback, 5000);
                 }
             }, delay);
@@ -2752,7 +2719,6 @@ var Gmail = function (localJQuery) {
     // observes every element inserted into the DOM by Gmail and looks at the classes on those elements,
     // checking for any configured observers related to those classes
     api.tools.insertion_observer = function (target, dom_observers, dom_observer_map, sub) {
-        //console.log("insertion", target, target.className);
         if (!dom_observer_map) return;
 
         // loop through each of the inserted elements classes & check for a defined observer on that class
@@ -2781,14 +2747,12 @@ var Gmail = function (localJQuery) {
                     // if found, then set the matching element to be the one that matches the sub_selector
                     if (config.sub_selector) {
                         element = element.find(config.sub_selector);
-                        // console.log("checking for subselector", config.sub_selector, element);
                     }
 
                     // if an element has been found, execute the observer handler (or if none defined, execute the callback)
                     if (element.length) {
 
                         var handler = config.handler ? config.handler : function (match, callback) { callback(match); };
-                        // console.log( "inserted DOM: class match in watchdog",observer,api.tracker.watchdog.dom[observer] );
                         api.observe.trigger_dom(observer, element, handler);
                     }
                 }
