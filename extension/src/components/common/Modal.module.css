@@ -17,7 +17,7 @@
 .modal {
     background: var(--bg-card);
     width: 100%;
-    max-width: 320px;
+    max-width: 360px;
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
     border: 1px solid var(--border-color);
@@ -79,6 +79,14 @@
     line-height: 1.5;
     font-size: 14px;
     background: var(--bg-card);
+    max-height: 380px;
+    overflow-y: auto;
+}
+
+.message {
+    word-break: break-all;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
 }
 
 .footer {

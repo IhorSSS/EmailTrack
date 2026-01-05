@@ -210,13 +210,6 @@ export class DashboardService {
             }
         });
 
-        return data.map(item => {
-            const decrypted: any = { ...item };
-            if (decrypted.recipient) decrypted.recipient = decrypt(decrypted.recipient);
-            if (decrypted.user) decrypted.user = decrypt(decrypted.user);
-            if (decrypted.cc) decrypted.cc = decrypt(decrypted.cc);
-            if (decrypted.bcc) decrypted.bcc = decrypt(decrypted.bcc);
-            return decrypted;
-        });
+        return data;
     }
 }
