@@ -10,47 +10,69 @@ export function handleOptimisticBadge(trackId: string, currentUserEmail: string 
     const messages = document.querySelectorAll('div.adn');
     if (messages.length === 0) return false;
 
-    // Target the last message (most recent)
-    const lastMessage = messages[messages.length - 1];
+    // Search for the message that actually contains this trackId
+    // We search from newest to oldest for better performance
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const lastMessage = messages[i];
 
-    if (lastMessage.classList.contains(STATS_INJECT_CLASS)) return true;
+        // Skip if already injected
+        if (lastMessage.classList.contains(STATS_INJECT_CLASS)) continue;
 
-    // Check ownership if email is available
-    if (currentUserEmail) {
-        const senderElement = lastMessage.querySelector('span.gD');
-        const senderEmail = senderElement?.getAttribute('email');
+        // Verify content - Look for the specific pixel ID
+        const body = lastMessage.querySelector('.a3s');
+        if (!body) continue;
 
-        if (senderEmail && senderEmail !== currentUserEmail) {
-            // This is likely a received message (reply), not our sent message
-            return false;
-        }
-    }
+        const imgs = body.querySelectorAll('img');
+        let hasPixel = false;
+        for (const img of imgs) {
+            // Important: don't check quotes or replies
+            if (img.closest('.gmail_quote') || img.closest('.im') || img.closest('blockquote')) continue;
 
-    // Find Anchor
-    const dateElement = lastMessage.querySelector('.gH');
-    const subjectHeader = lastMessage.closest('.gs')?.parentElement?.querySelector('h2.hP');
-    const anchor = dateElement || subjectHeader;
-
-    if (anchor && anchor.parentElement) {
-        logger.log('EmailTrack: [UI] Optimistically injecting badge for', trackId);
-        const statsContainer = document.createElement('span');
-        statsContainer.style.marginLeft = '10px';
-        statsContainer.style.display = 'inline-flex';
-        statsContainer.style.alignItems = 'center';
-        statsContainer.style.verticalAlign = 'middle';
-        statsContainer.style.position = 'relative';
-
-        statsContainer.onclick = (e) => e.stopPropagation();
-
-        if (anchor.nextSibling) {
-            anchor.parentElement.insertBefore(statsContainer, anchor.nextSibling);
-        } else {
-            anchor.parentElement.appendChild(statsContainer);
+            if (img.src.includes(trackId)) {
+                hasPixel = true;
+                break;
+            }
         }
 
-        lastMessage.classList.add(STATS_INJECT_CLASS);
-        createRoot(statsContainer).render(<StatsDisplay trackId={trackId} senderHint={currentUserEmail || undefined} />);
-        return true;
+        if (!hasPixel) continue;
+
+        // Check ownership if email is available
+        if (currentUserEmail) {
+            const senderElement = lastMessage.querySelector('span.gD');
+            const senderEmail = senderElement?.getAttribute('email');
+
+            if (senderEmail && senderEmail !== currentUserEmail) {
+                // This is likely a received message (reply) that somehow quotes our pixel
+                continue;
+            }
+        }
+
+        // Find Anchor
+        const dateElement = lastMessage.querySelector('.gH');
+        const subjectHeader = lastMessage.closest('.gs')?.parentElement?.querySelector('h2.hP');
+        const anchor = dateElement || subjectHeader;
+
+        if (anchor && anchor.parentElement) {
+            logger.log('EmailTrack: [UI] Optimistically injecting badge for', trackId);
+            const statsContainer = document.createElement('span');
+            statsContainer.style.marginLeft = '10px';
+            statsContainer.style.display = 'inline-flex';
+            statsContainer.style.alignItems = 'center';
+            statsContainer.style.verticalAlign = 'middle';
+            statsContainer.style.position = 'relative';
+
+            statsContainer.onclick = (e) => e.stopPropagation();
+
+            if (anchor.nextSibling) {
+                anchor.parentElement.insertBefore(statsContainer, anchor.nextSibling);
+            } else {
+                anchor.parentElement.appendChild(statsContainer);
+            }
+
+            lastMessage.classList.add(STATS_INJECT_CLASS);
+            createRoot(statsContainer).render(<StatsDisplay trackId={trackId} senderHint={currentUserEmail || undefined} />);
+            return true;
+        }
     }
 
     return false;

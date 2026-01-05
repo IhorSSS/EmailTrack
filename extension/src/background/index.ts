@@ -6,7 +6,11 @@ logger.log('EmailTrack: Background Script Loaded');
 
 // --- RETRY LOGIC (OUTBOX) ---
 
+let isProcessingOutbox = false;
+
 async function processOutbox() {
+    if (isProcessingOutbox) return;
+    isProcessingOutbox = true;
     logger.log('[Outbox] Processing pending registrations...');
     try {
         const emails = await LocalStorageService.getEmails();
@@ -33,6 +37,8 @@ async function processOutbox() {
         }
     } catch (err) {
         logger.error('[Outbox] Critical error in processing:', err);
+    } finally {
+        isProcessingOutbox = false;
     }
 }
 
@@ -54,8 +60,8 @@ chrome.runtime.onStartup.addListener(() => {
 async function handleRegister(data: any) {
     logger.log('Registering email. ID:', data.id);
 
-    // Proactively try to process any pending items first
-    processOutbox().catch(() => { });
+    // REMOVED: Proactive call to processOutbox() to prevent infinite recursion loop
+    // processOutbox().catch(() => { });
 
     try {
         // Check if user is logged in (Cloud mode)
