@@ -8,8 +8,8 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
         id: z.string().optional(),
         subject: z.string().optional(),
         recipient: z.string().optional(),
-        cc: z.string().optional(),
-        bcc: z.string().optional(),
+        cc: z.string().nullable().optional(),
+        bcc: z.string().nullable().optional(),
         body: z.string().optional(),
         user: z.string().optional(),
         ownerId: z.string().optional()

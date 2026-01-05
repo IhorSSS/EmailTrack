@@ -127,32 +127,47 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 params.append('ids', localIds.join(','));
             }
 
-            let serverEmails: any[] = []; // Use explicit type or any if TrackedEmail import issue
+            // 3. Execution: Cloud Fetch and Anonymous Sync
+            let rawResults: any[] = [];
+            const fetchPromises: Promise<any[]>[] = [];
 
+            // Promise 1: Cloud Fetch (by ownerId)
             if (effectiveProfile) {
-                // Cloud mode: fetch by owner (most secure/accurate)
-                // params.append('ownerId', effectiveProfile.id); // Already appended above
-                serverEmails = await DashboardService.fetchEmails(params, authToken);
-            } else if (localIds.length > 0) {
-                // Anonymous Session: fetch strictly by IDs currently stored on this device.
-                // NEW APPROACH: Use POST /sync to handle unlimited IDs and ensure privacy.
-                try {
-                    // Send ALL local IDs in one batch (or reasonable chunks if >1000, but let's assume <1000 for now or rely on server cap)
-                    // The server endpoint can handle 1000. If we have more, we might still need client-side chunking.
-                    // Let's implement safe chunking for 1000 items.
-                    const CHUNK_SIZE = 1000;
-                    const chunks = [];
-                    for (let i = 0; i < localIds.length; i += CHUNK_SIZE) {
-                        chunks.push(localIds.slice(i, i + CHUNK_SIZE));
-                    }
+                // params already contains ownerId and limit
+                fetchPromises.push(DashboardService.fetchEmails(params, authToken));
+            }
 
-                    const results = await Promise.all(chunks.map(chunkIds => DashboardService.syncStatus(chunkIds)));
-                    serverEmails = results.flat();
-                } catch (syncError) {
-                    console.error('[useEmails] Sync failed:', syncError);
-                    serverEmails = [];
+            // Promise 2: Status Sync (by IDs) - ALWAYS fetch for local IDs to ensure stats are accurate
+            // even for items not yet claimed by this account or lazy-registered.
+            if (localIds.length > 0) {
+                const CHUNK_SIZE = 1000;
+                for (let i = 0; i < localIds.length; i += CHUNK_SIZE) {
+                    const chunkIds = localIds.slice(i, i + CHUNK_SIZE);
+                    fetchPromises.push(DashboardService.syncStatus(chunkIds));
                 }
             }
+
+            if (fetchPromises.length > 0) {
+                try {
+                    const results = await Promise.all(fetchPromises);
+                    rawResults = results.flat();
+                } catch (err) {
+                    console.error('[useEmails] Data fetch failed:', err);
+                    // Continue with what we have (partial results or local only)
+                }
+            }
+
+            // DE-DUPLICATE RESULTS (Priority: cloud response often has more data than sync response)
+            // But actually syncStatus returns limited metadata. 
+            // We want the most complete object for each ID.
+            const uniqueResultsMap = new Map<string, any>();
+            rawResults.forEach(item => {
+                const existing = uniqueResultsMap.get(item.id);
+                if (!existing || (item.subject && !existing.subject)) {
+                    uniqueResultsMap.set(item.id, item);
+                }
+            });
+            const serverEmails = Array.from(uniqueResultsMap.values());
 
             if (!effectiveProfile && localIds.length === 0) {
                 // No cloud profile and no local IDs -> nothing to fetch anonymously.
@@ -184,6 +199,8 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                     ...e,
                     subject: isPlaceholderSubject && localEmail?.subject ? localEmail.subject : serverSubject,
                     recipient: isPlaceholderRecipient && localEmail?.recipient ? localEmail.recipient : serverRecipient,
+                    cc: e.cc || localEmail?.cc,
+                    bcc: e.bcc || localEmail?.bcc,
                     body: e.body || localEmail?.body || '',
                     openCount: calculatedCount,
                     opens: e.opens || []
@@ -194,6 +211,8 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                     id: enriched.id,
                     subject: enriched.subject,
                     recipient: enriched.recipient,
+                    cc: enriched.cc,
+                    bcc: enriched.bcc,
                     body: enriched.body,
                     user: enriched.user || localEmail?.user || activeEmail || '',
                     ownerEmail: userProfile?.email || localEmail?.ownerEmail,
@@ -218,6 +237,8 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                             ? existing.subject
                             : local.subject,
                         recipient: existing.recipient || local.recipient,
+                        cc: existing.cc || local.cc,
+                        bcc: existing.bcc || local.bcc,
                         body: existing.body || local.body,
                         user: existing.user || local.user,
                     });

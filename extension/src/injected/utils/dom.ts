@@ -133,22 +133,50 @@ function injectVisualIndicator(editable: Element, enabled: boolean, logger: any)
         return;
     }
 
-    if (indicator) return; // Already exists
+    if (indicator) {
+        // Update existing indicator state
+        const configEl = document.getElementById('emailtrack-config');
+        const heartbeat = parseInt(configEl?.getAttribute('data-heartbeat') || '0', 10);
+        const trackingEnabledAttr = configEl?.getAttribute('data-tracking-enabled') !== 'false';
+        const isOrphaned = !configEl || (Date.now() - heartbeat > 10000);
+
+        const diode = indicator.firstElementChild as HTMLElement;
+        if (diode) {
+            if (isOrphaned) {
+                diode.style.background = '#ef4444'; // Red
+                diode.style.boxShadow = '0 0 6px rgba(239, 68, 68, 0.4)';
+                indicator.setAttribute('title', 'EmailTrack: ERROR - Extension reloaded. Please refresh page to resume tracking.');
+            } else if (!trackingEnabledAttr) {
+                diode.style.background = '#f59e0b'; // Amber/Yellow
+                diode.style.boxShadow = '0 0 6px rgba(245, 158, 11, 0.4)';
+                indicator.setAttribute('title', 'EmailTrack: Tracking Disabled in Settings');
+            } else {
+                diode.style.background = '#22c55e'; // Green
+                diode.style.boxShadow = '0 0 6px rgba(34, 197, 94, 0.4)';
+                indicator.setAttribute('title', 'EmailTrack: Active & Tracking');
+            }
+        }
+        return;
+    }
 
     // Create minimalist indicator
     indicator = document.createElement('div');
     indicator.className = 'emailtrack-visual-indicator';
-    // Style it to be minimalist and fixed at the bottom right of the compose window but NOT in the editable area
-    // Find the toolbar or a safe place to attach
-    // Search for all potential Send buttons and pick the last one (especially important for inline replies)
-    const sendButtons = composeWindow.querySelectorAll('[role="button"][aria-label^="Send"], .T-I.J-J5-Ji.aoO.v7.T-I-atl.L3');
+
+    // Robust selector for Send button across locales (English, Ukrainian, etc.)
+    const sendButtons = composeWindow.querySelectorAll([
+        '[role="button"][aria-label^="Send"]',
+        '[role="button"][aria-label^="Надіслати"]',
+        '[role="button"][data-tooltip^="Send"]',
+        '[role="button"][data-tooltip^="Надіслати"]',
+        '.aoO', // Standard Gmail Send button class
+        '.T-I.J-J5-Ji.aoO.v7.T-I-atl.L3'
+    ].join(', '));
     const sendButton = sendButtons.length > 0 ? sendButtons[sendButtons.length - 1] : null;
 
     if (sendButton) {
-        // Find the absolute last element in this group (e.g. Schedule arrow)
         let lastInGroup: Element = sendButton;
         let next = sendButton.nextElementSibling;
-
         while (next && (
             next.getAttribute('role') === 'button' ||
             next.classList.contains('T-I') ||
@@ -160,7 +188,6 @@ function injectVisualIndicator(editable: Element, enabled: boolean, logger: any)
             next = next.nextElementSibling;
         }
 
-        // Style the indicator
         Object.assign((indicator as HTMLElement).style, {
             display: 'inline-flex',
             alignItems: 'center',
@@ -172,8 +199,27 @@ function injectVisualIndicator(editable: Element, enabled: boolean, logger: any)
             flexShrink: '0'
         });
 
+        const configEl = document.getElementById('emailtrack-config');
+        const heartbeat = parseInt(configEl?.getAttribute('data-heartbeat') || '0', 10);
+        const trackingEnabledAttr = configEl?.getAttribute('data-tracking-enabled') !== 'false';
+        const isOrphaned = !configEl || (Date.now() - heartbeat > 10000);
+
+        let color = '#22c55e';
+        let shadow = 'rgba(34, 197, 94, 0.4)';
+        let title = 'EmailTrack: Active & Tracking';
+
+        if (isOrphaned) {
+            color = '#ef4444';
+            shadow = 'rgba(239, 68, 68, 0.4)';
+            title = 'EmailTrack: ERROR - Extension reloaded. Please refresh page to resume tracking.';
+        } else if (!trackingEnabledAttr) {
+            color = '#f59e0b';
+            shadow = 'rgba(245, 158, 11, 0.4)';
+            title = 'EmailTrack: Tracking Disabled in Settings';
+        }
+
         const html = `
-            <div style="width: 10px; height: 10px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 6px rgba(34, 197, 94, 0.4); border: 2px solid white;"></div>
+            <div style="width: 10px; height: 10px; background: ${color}; border-radius: 50%; box-shadow: 0 0 6px ${shadow}; border: 2px solid white; transition: background 0.3s ease;"></div>
         `;
 
         if (window.__emailTrackPolicy) {
@@ -181,13 +227,11 @@ function injectVisualIndicator(editable: Element, enabled: boolean, logger: any)
         } else {
             indicator.innerHTML = html;
         }
-        indicator.setAttribute('title', 'EmailTrack: Tracking Active');
+        indicator.setAttribute('title', title);
 
-        // Insert after the group container if possible, otherwise after the last button
         const groupContainer = lastInGroup.closest('.dC') || lastInGroup.closest('.HP') || lastInGroup.closest('[role="group"]');
         const anchor = groupContainer || lastInGroup;
-
         anchor.insertAdjacentElement('afterend', indicator);
-        logger.log('EmailTrack: [Logic] Visual Indicator injected (Outside group)');
+        logger.log('EmailTrack: [Logic] Visual Indicator injected');
     }
 }

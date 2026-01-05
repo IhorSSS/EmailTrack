@@ -7,8 +7,8 @@ const GetDashboardQuerySchema = z.object({
     page: z.coerce.number().min(1).default(1),
     limit: z.coerce.number().min(1).max(1000).default(20), // Cap limit at 1000 for safety
     user: z.string().optional(),
-    ownerId: z.string().optional(),
-    ids: z.string().optional()
+    ownerId: z.union([z.string(), z.array(z.string())]).transform(val => Array.isArray(val) ? val[0] : val).optional(),
+    ids: z.union([z.string(), z.array(z.string())]).transform(val => Array.isArray(val) ? val[0] : val).optional()
 });
 
 const DeleteDashboardQuerySchema = z.object({

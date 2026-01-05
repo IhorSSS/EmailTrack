@@ -56,11 +56,12 @@ export const sendConfigToMainWorld = () => {
                     configEl.setAttribute('data-api-url', apiUrl);
                     logger.log('EmailTrack: [Content] synced config. API:', apiUrl);
                 }
+
+                // Heartbeat to detect orphaned state in main world
+                configEl.setAttribute('data-heartbeat', Date.now().toString());
             };
 
             ensureConfig();
-            // Re-check periodically to ensure Gmail didn't wipe it
-            setTimeout(ensureConfig, 1000);
         });
     } catch (e) {
         // Ignore context errors

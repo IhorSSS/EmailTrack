@@ -17,6 +17,8 @@ export class LocalStorageService {
             map.set(email.id, {
                 id: email.id,
                 recipient: email.recipient,
+                cc: email.cc,
+                bcc: email.bcc,
                 subject: email.subject,
                 body: email.body, // Now optional
                 user: email.user || '',

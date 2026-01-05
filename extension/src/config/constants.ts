@@ -26,7 +26,7 @@ export const CONSTANTS = {
     // Content Script
     CONTENT: {
         CONFIG_SYNC_DELAY_MS: 2000,
-        CONFIG_HEARTBEAT_MS: 5000,
+        CONFIG_HEARTBEAT_MS: 2000,
         INJECTION_DELAY_MS: 200
     }
 } as const;
