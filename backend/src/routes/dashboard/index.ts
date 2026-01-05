@@ -118,44 +118,48 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
             // We did that with `whereClause.ownerId = null` in the `user` block.
         }
 
+        // Explicitly define the query options to satisfy TypeScript union resolution
         // SECURITY: If Anonymous (no ownerId), DO NOT return sensitive content.
         const isAnonymous = !resolvedOwnerUuid;
 
-        const selectClause = isAnonymous ? {
-            id: true,
-            ownerId: true,
-            createdAt: true,
-            opens: {
-                orderBy: { openedAt: 'desc' as const },
-                select: {
-                    openedAt: true,
-                    location: true,
-                    device: true
+        const queryOptions: any = {
+            where: whereClause,
+            skip,
+            take,
+            orderBy: { createdAt: 'desc' }
+        };
+
+        if (isAnonymous) {
+            queryOptions.select = {
+                id: true,
+                ownerId: true,
+                createdAt: true,
+                opens: {
+                    orderBy: { openedAt: 'desc' as const },
+                    select: {
+                        openedAt: true,
+                        location: true,
+                        device: true
+                    }
+                },
+                _count: {
+                    select: { opens: true }
                 }
-            },
-            _count: {
-                select: { opens: true }
-            }
-            // EXPLICITLY OMIT: body, subject, recipient, user
-        } : undefined; // undefined = select all
+            };
+        } else {
+            // Authenticated: Return full object (include relations)
+            queryOptions.include = {
+                opens: {
+                    orderBy: { openedAt: 'desc' as const }
+                },
+                _count: {
+                    select: { opens: true }
+                }
+            };
+        }
 
         const [data, total] = await Promise.all([
-            prisma.trackedEmail.findMany({
-                where: whereClause,
-                skip,
-                take,
-                orderBy: { createdAt: 'desc' },
-                ...(selectClause ? { select: selectClause } : {
-                    include: {
-                        opens: {
-                            orderBy: { openedAt: 'desc' }
-                        },
-                        _count: {
-                            select: { opens: true }
-                        }
-                    }
-                })
-            }),
+            prisma.trackedEmail.findMany(queryOptions),
             prisma.trackedEmail.count({ where: whereClause })
         ]);
 
