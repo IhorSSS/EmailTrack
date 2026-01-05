@@ -2,6 +2,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import { logger } from '../utils/logger';
 dotenv.config();
 
 const pkgPath = path.resolve(__dirname, '../../package.json');
@@ -14,7 +15,7 @@ const getEnv = (key: string, required: boolean = false): string => {
         if (process.env.NODE_ENV === 'production') {
             throw new Error(`MISSING_ENV: ${key} is required in production`);
         }
-        console.warn(`WARNING: Missing ${key} in ${process.env.NODE_ENV} environment.`);
+        logger.warn(`WARNING: Missing ${key} in ${process.env.NODE_ENV} environment.`);
     }
     return value || '';
 };

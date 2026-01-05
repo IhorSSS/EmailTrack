@@ -1,12 +1,9 @@
-/**
- * API Configuration
- * Single source of truth for all API endpoints
- */
+import { logger } from '../utils/logger';
 
 export const API_CONFIG = {
     BASE_URL: import.meta.env.VITE_API_URL || (() => {
         if (import.meta.env.PROD) {
-            console.error('CRITICAL: VITE_API_URL is missing in production build!');
+            logger.error('CRITICAL: VITE_API_URL is missing in production build!');
             return ''; // Fail secure/silent
         }
         return 'http://localhost:3000';

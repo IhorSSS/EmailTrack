@@ -30,8 +30,10 @@ export default defineConfig(({ mode }) => {
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),
     },
+    esbuild: {
+      drop: mode === 'production' ? ['console', 'debugger'] : [],
+    },
     build: {
-
       rollupOptions: {
         input: {
           logic: 'src/injected/logic.ts'

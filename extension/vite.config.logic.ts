@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import path from 'path';
 
 // Dedicated build for the injected logic script (IIFE format)
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
     build: {
         emptyOutDir: false, // Don't wipe dist (main build puts files there)
         lib: {
@@ -18,7 +18,11 @@ export default defineConfig({
             }
         }
     },
+    esbuild: {
+        drop: mode === 'production' ? ['console', 'debugger'] : [],
+    },
     define: {
         'process.env': {} // Polyfill to prevent crashes if libs access it
     }
-});
+}));
+

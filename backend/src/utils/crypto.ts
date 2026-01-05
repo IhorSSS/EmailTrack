@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { CONFIG } from '../config';
+import { logger } from './logger';
 
 const ALGORITHM = 'aes-256-cbc';
 const IV_LENGTH = 16;
@@ -55,7 +56,7 @@ export function decrypt(text: string): string {
         return decrypted.toString('utf8');
     } catch (e) {
         // Log error but return original text to avoid breaking UI for legacy data
-        console.error('[Crypto] Decryption failed:', e);
+        logger.error('[Crypto] Decryption failed:', e);
         return text;
     }
 }

@@ -7,16 +7,8 @@ import { getConfig } from './utils/pixel';
 import { scanComposeWindows } from './utils/dom';
 import { GmailWrapper } from './utils/gmail';
 import { handleSendInterceptor } from './utils/interceptor';
+import { logger } from '../utils/logger';
 
-const DEBUG = import.meta.env.DEV || import.meta.env.VITE_DEBUG === 'true';
-
-const logger = {
-    log: (...args: any[]) => DEBUG && console.log(...args),
-    warn: (...args: any[]) => DEBUG && console.warn(...args),
-    error: (...args: any[]) => console.error(...args)
-};
-
-// --- Main Logic ---
 const MAX_INIT_RETRIES = 5;
 let initRetries = 0;
 let observer: MutationObserver | null = null;
@@ -83,7 +75,7 @@ function initialize() {
     // --- GMAIL.JS INTEGRATION ---
     gmailWrapper.init((gmail) => {
         // Expose for debugging if needed
-        if (DEBUG) window.GmailInstance = gmail;
+        if (logger.isDebug()) window.GmailInstance = gmail;
 
         gmail.observe.before('send_message', (_url: string, _body: any, data: any, xhr: any) => {
             return handleSendInterceptor(CONFIG, data, xhr, logger);
