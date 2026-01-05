@@ -196,8 +196,8 @@ export class DashboardService {
                 id: true,
                 ownerId: true,
                 createdAt: true,
-                subject: true, // Need to include to decrypt
-                body: true,    // Need to include to decrypt
+                subject: true,
+                body: true,
                 opens: {
                     orderBy: { openedAt: 'desc' },
                     select: {

@@ -1,7 +1,8 @@
 {
     "manifest_version": 3,
+    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtCIssFUlTyotKoIvon4rhFTWR7rPZjCCV5jKfR1wkxc3qizdHWxJ/3BCE/K1tgMIerRFnrjou8vPk4+LX0+0RYliaz17R98A2hOqbrh03Jeku/oQQufH40VZoAFFJwGvpZBSUmw4E7PGhEzC7Q2ScIsm1OZCqBZPKfIO8ttshjqcl88GwiMns+di4NUuK7pagqR13zwF+IXyz2vZ/bw7HgK0Xu+fsAnzkncbkEpwNxNUXS2SfkcyptB9u8+vzWeVgRvgPFzfJ+MlczcVigmg8P50ZTRpJZsBq845sVI/S5y/d7Yt4qBBU3OywK0CHjtSYziWPphcghdaLcGcTf72ZwIDAQAB",
     "name": "EmailTrack",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Track email opens for Gmail",
     "icons": {
         "16": "icon.png",

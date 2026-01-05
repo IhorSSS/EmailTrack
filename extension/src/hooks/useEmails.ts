@@ -197,12 +197,14 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 const calculatedCount = Math.max(serverCount, localCount);
 
                 const enriched = {
-                    ...e,
+                    ...localEmail, // Start with local metadata (identity, subject, recipient)
+                    ...e,          // Overwrite with server status (id, ownerId, opens)
                     subject: isPlaceholderSubject && localEmail?.subject ? localEmail.subject : serverSubject,
                     recipient: isPlaceholderRecipient && localEmail?.recipient ? localEmail.recipient : serverRecipient,
                     cc: e.cc || localEmail?.cc,
                     bcc: e.bcc || localEmail?.bcc,
                     body: e.body || localEmail?.body || '',
+                    user: localEmail?.user || e.user || activeEmail || '', // Use local identity as priority
                     openCount: calculatedCount,
                     opens: e.opens || []
                 };
@@ -215,23 +217,19 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                     cc: enriched.cc,
                     bcc: enriched.bcc,
                     body: enriched.body,
-                    user: enriched.user || localEmail?.user || activeEmail || '',
+                    user: enriched.user,
                     ownerEmail: userProfile?.email || localEmail?.ownerEmail,
                     createdAt: enriched.createdAt,
-                    opens: e.opens || [],
+                    opens: enriched.opens,
                     openCount: enriched.openCount
                 } as TrackedEmail);
             });
 
-            // Batch save
-            if (emailsToSave.length > 0) {
-                await LocalStorageService.saveEmails(emailsToSave);
-            }
-
-            // Priority 2: Local Data (Already filtered by identity above)
+            // Priority 2: Local Data (Items NOT found on server during this fetch)
             localEmails.forEach(local => {
                 const existing = emailMap.get(local.id);
                 if (existing) {
+                    // Update existing with better local metadata if needed
                     emailMap.set(local.id, {
                         ...existing,
                         subject: (existing.subject && !existing.subject.includes('Subject Unavailable'))
@@ -244,13 +242,13 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                         user: existing.user || local.user,
                     });
                 } else {
-                    // Only keep local if it belongs to current active user (checked in Step 2)
+                    // Item exists locally but NOT on server (or server fetch missed it)
                     emailMap.set(local.id, {
                         ...local,
                         opens: [],
-                        openCount: 0,
+                        openCount: local.openCount || 0,
                         createdAt: local.createdAt || new Date().toISOString()
-                    } as TrackedEmail);
+                    } as unknown as TrackedEmail);
                 }
             });
 
