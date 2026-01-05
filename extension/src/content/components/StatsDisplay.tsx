@@ -168,16 +168,15 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
 
     if (loading) return <span className="email-track-badge loading">...</span>;
 
-    // OWNERSHIP CHECK: If 404, email is deleted or not owned by current user -> hide badge
-    if (stats && (stats as any).status === 404) {
-        return null;
-    }
+    // OWNERSHIP CHECK: If 404, email might not be opened yet or registration is pending.
+    // We show 'Tracked' as fallback instead of hiding the badge.
+    const isNotFound = stats && (stats as any).status === 404;
 
-    // OFFLINE FIX: If network error (not 404), show "Sent" as fallback
-    const effectiveStats = (!stats || (stats as any).error) ? { opens: [] } : stats;
+    // OFFLINE / NOT FOUND FIX: Show "Tracked" as fallback
+    const effectiveStats = (isNotFound || !stats || (stats as any).error) ? { opens: [] } : stats;
 
     const openCount = Array.isArray(effectiveStats.opens) ? effectiveStats.opens.length : (typeof effectiveStats.opens === 'number' ? effectiveStats.opens : 0);
-    const openText = openCount > 0 ? `${openCount} Open${openCount === 1 ? '' : 's'}` : 'Unopened';
+    const openText = openCount > 0 ? `${openCount} Open${openCount === 1 ? '' : 's'}` : (isNotFound ? 'Tracked' : 'Sent');
     const statusClass = openCount > 0 ? 'opened' : 'sent';
 
     const getDeviceIcon = (deviceStr: string) => {

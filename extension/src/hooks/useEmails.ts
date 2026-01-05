@@ -454,6 +454,14 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
     useEffect(() => {
         if (settingsLoaded) {
             fetchEmails();
+
+            // Set up periodic polling for real-time updates
+            const pollInterval = setInterval(() => {
+                logger.log('[useEmails] Periodic sync starting...');
+                fetchEmails();
+            }, 30000); // Poll every 30 seconds
+
+            return () => clearInterval(pollInterval);
         }
     }, [userProfile, currentUser, settingsLoaded]);
 
