@@ -1,3 +1,13 @@
+export interface OpenEvent {
+    id: string;
+    ip: string;
+    userAgent: string;
+    device?: string; // JSON string
+    location?: string;
+    openedAt?: string;
+    timestamp?: string; // Fallback
+}
+
 export interface TrackedEmail {
     id: string;
     recipient: string;
@@ -7,7 +17,7 @@ export interface TrackedEmail {
     body?: string;
     user?: string; // Sender identity
     createdAt: string;
-    opens: any[];
+    opens: OpenEvent[];
     openCount: number;
     ownerEmail?: string; // Grouping ID for multi-sender accounts
     ownerId?: string | null;  // Backend UUID (presence means owned)

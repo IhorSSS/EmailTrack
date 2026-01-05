@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { API_CONFIG } from '../config/api';
 import { LocalStorageService } from '../services/LocalStorageService';
 import { DashboardService } from '../services/DashboardService';
+import { logger } from '../utils/logger';
 import type { TrackedEmail } from '../types';
 import type { UserProfile } from '../services/AuthService';
 
@@ -22,7 +23,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
         try {
             const pending = await LocalStorageService.getPendingDeletes();
             if (pending.length > 0) {
-                console.log(`[SYNC] Processing ${pending.length} pending delete requests...`);
+                logger.log(`[SYNC] Processing ${pending.length} pending delete requests...`);
                 // Assume API_CONFIG is imported or passed
                 const urlBase = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}`;
 
@@ -48,18 +49,18 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                         await LocalStorageService.queuePendingDelete(task.ids, task.user);
                     }
                 } else {
-                    console.log('[SYNC] All pending deletions processed.');
+                    logger.log('[SYNC] All pending deletions processed.');
                 }
             }
         } catch (e) {
-            console.error('Failed to process pending deletes', e);
+            logger.error('Failed to process pending deletes', e);
         }
     };
 
     const fetchEmails = useCallback(async (overrideProfile?: UserProfile | null) => {
-        console.log('[useEmails] fetchEmails started', { profile: !!overrideProfile, currentUser, authToken: !!authToken });
+        logger.log('[useEmails] fetchEmails started', { profile: !!overrideProfile, currentUser, authToken: !!authToken });
         if (!settingsLoaded) {
-            console.log('[useEmails] fetchEmails deferred: settings not loaded');
+            logger.log('[useEmails] fetchEmails deferred: settings not loaded');
             setLoading(false);
             return;
         }
@@ -89,13 +90,13 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                         return acc;
                     }, {} as Record<string, number>);
                     activeEmail = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-                    console.log(`[useEmails] Fallback: Inferred identity from ownerEmail: ${activeEmail}`);
+                    logger.log(`[useEmails] Fallback: Inferred identity from ownerEmail: ${activeEmail}`);
                 }
             }
 
-            console.log(`[useEmails] Step 2: rawLocal=${rawLocalEmails.length}, active=${activeEmail}, profile=${effectiveProfile?.email}`);
+            logger.log(`[useEmails] Step 2: rawLocal=${rawLocalEmails.length}, active=${activeEmail}, profile=${effectiveProfile?.email}`);
             if (rawLocalEmails.length > 0) {
-                console.log('[useEmails] Sample local email:', {
+                logger.log('[useEmails] Sample local email:', {
                     id: rawLocalEmails[0].id,
                     user: rawLocalEmails[0].user,
                     ownerEmail: rawLocalEmails[0].ownerEmail
@@ -109,7 +110,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
             const localEmails = rawLocalEmails;
 
             const localIds = localEmails.map(e => e.id);
-            console.log(`[useEmails] Step 3: filteredLocal=${localEmails.length}, localIds=${localIds.length}`);
+            logger.log(`[useEmails] Step 3: filteredLocal=${localEmails.length}, localIds=${localIds.length}`);
 
 
 
@@ -152,7 +153,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                     const results = await Promise.all(fetchPromises);
                     rawResults = results.flat();
                 } catch (err) {
-                    console.error('[useEmails] Data fetch failed:', err);
+                    logger.error('[useEmails] Data fetch failed:', err);
                     // Continue with what we have (partial results or local only)
                 }
             }
@@ -265,7 +266,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
             setStats({ tracked, opened, rate });
 
         } catch (e: any) {
-            console.error('Failed to fetch emails:', e);
+            logger.error('Failed to fetch emails:', e);
             setError(e.message || 'Failed to load data');
         } finally {
             setLoading(false);
@@ -298,7 +299,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 const isForbidden = status === 403;
 
                 if (isForbidden) {
-                    console.info('[useEmails] Delete forbidden (owned by account)');
+                    logger.log('[useEmails] Delete forbidden (owned by account)');
                     return {
                         success: true,
                         message: 'Email removed from this device. Please sign in to delete it from the cloud.',
@@ -306,7 +307,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                     };
                 }
 
-                console.error('[useEmails] Remote delete failed:', apiErr);
+                logger.error('[useEmails] Remote delete failed:', apiErr);
                 // Queue for later retry (transient failures)
                 await LocalStorageService.queuePendingDelete([id], userProfile?.email);
 
@@ -319,7 +320,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
 
             return { success: true };
         } catch (e: any) {
-            console.error('[useEmails] Failed to delete email:', e);
+            logger.error('[useEmails] Failed to delete email:', e);
             // Rollback optimistic update
             setEmails(previousEmails);
             return {
@@ -395,7 +396,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                         if (isForbidden) {
                             remoteFailedWithForbidden = true;
                         } else {
-                            console.warn('[useEmails] anonymous bulk delete failed on server (transient)', apiErr);
+                            logger.warn('[useEmails] anonymous bulk delete failed on server (transient)', apiErr);
                         }
                     }
                 }
@@ -437,7 +438,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
             };
 
         } catch (e: any) {
-            console.error('Delete failed', e);
+            logger.error('Delete failed', e);
             throw e;
         } finally {
             setLoading(false);

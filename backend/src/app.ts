@@ -51,12 +51,18 @@ export function buildApp(): FastifyInstance {
     app.register(authRoutes, { prefix: '/auth' });
 
     app.get('/', async () => {
-        return { message: 'EmailTrack Backend is Running 🚀' };
+        return { message: 'EmailTrack Backend is Running 🚀', version: CONFIG.VERSION };
     });
 
-    app.get('/health', async () => {
-        return { status: 'ok' };
+    app.get('/version', async () => {
+        return { version: CONFIG.VERSION };
     });
+
+
+    app.get('/health', async () => {
+        return { status: 'ok', version: CONFIG.VERSION };
+    });
+
 
     return app;
 }

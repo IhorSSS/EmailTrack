@@ -45,7 +45,7 @@ export function handleSendInterceptor(
                         ? plainText.substring(0, currentPreviewLength) + '...'
                         : plainText;
                 }
-            } catch (e: any) { console.error(e); }
+            } catch (e: any) { logger.error(e); }
         }
 
         const senderEmail = extractSenderEmail();

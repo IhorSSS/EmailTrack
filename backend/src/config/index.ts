@@ -1,6 +1,12 @@
 
 import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
 dotenv.config();
+
+const pkgPath = path.resolve(__dirname, '../../package.json');
+const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+
 
 const getEnv = (key: string, required: boolean = false): string => {
     const value = process.env[key];
@@ -40,4 +46,7 @@ export const CONFIG = {
     },
     // Add other secrets here as needed
     JWT_SECRET: getEnv('JWT_SECRET', process.env.NODE_ENV === 'production'),
+    ENCRYPTION_KEY: getEnv('ENCRYPTION_KEY', process.env.NODE_ENV === 'production') || 'dev_encryption_key_32_chars_long_!!',
+    VERSION: pkg.version || '1.0.0',
 };
+

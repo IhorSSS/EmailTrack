@@ -83,24 +83,24 @@ export class AuthService {
             })
                 .then(async (res) => {
                     if (res.ok) {
-                        console.log('Token revoked successfully');
+                        logger.log('Token revoked successfully');
                     } else {
-                        console.warn('Token revocation failed:', res.status, await res.text());
+                        logger.warn('Token revocation failed:', res.status, await res.text());
                     }
                 })
                 .catch((err) => {
-                    console.error('Token revocation network error:', err);
+                    logger.error('Token revocation network error:', err);
                 })
                 .finally(() => {
                     // 2. Remove specific token from Chrome Identity Cache
                     chrome.identity.removeCachedAuthToken({ token }, () => {
-                        console.log('Token removed from cache');
+                        logger.log('Token removed from cache');
 
                         // 3. Clear ALL cached tokens to reset account selection
                         // This forces the account picker to show on next login
                         if (chrome.identity.clearAllCachedAuthTokens) {
                             chrome.identity.clearAllCachedAuthTokens(() => {
-                                console.log('All cached tokens cleared');
+                                logger.log('All cached tokens cleared');
                                 finishLogout();
                             });
                         } else {

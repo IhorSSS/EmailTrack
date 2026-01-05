@@ -8,8 +8,6 @@ import './components/StatsDisplay.css';
 logger.log('EmailTrack: Content Script UI Loaded');
 
 // 1. Inject Scripts (jQuery, Gmail.js, logic.js)
-// 1. Inject Scripts (jQuery, Gmail.js, logic.js)
-// 1. Inject Scripts (jQuery, Gmail.js, logic.js)
 const injectCoreScripts = async () => {
     // 0. Ensure Config is there before logic loads
     sendConfigToMainWorld();

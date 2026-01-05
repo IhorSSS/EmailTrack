@@ -7,6 +7,7 @@ import { useExtensionSettings } from './useExtensionSettings';
 import { useStatusModal } from './useStatusModal';
 import { useHistoryManager } from './useHistoryManager';
 import { LocalStorageService } from '../services/LocalStorageService';
+import { logger } from '../utils/logger';
 
 export const useAppController = () => {
     const [view, setView] = useState<'dashboard' | 'activity' | 'settings'>('dashboard');
@@ -142,7 +143,7 @@ export const useAppController = () => {
             // Re-fetch all or at least trigger a global sync
             await fetchEmails();
         } catch (e: any) {
-            console.error('Failed to refresh email', e);
+            logger.error('Failed to refresh email', e);
         }
     };
 

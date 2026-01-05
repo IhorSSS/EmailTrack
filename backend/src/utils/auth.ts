@@ -1,6 +1,7 @@
 
 import { OAuth2Client } from 'google-auth-library';
 import { CONFIG } from '../config';
+import { logger } from './logger';
 
 const client = new OAuth2Client(CONFIG.GOOGLE.CLIENT_ID);
 
@@ -22,7 +23,7 @@ export async function verifyGoogleToken(token: string): Promise<GoogleAuthInfo> 
             email: tokenInfo.email
         };
     } catch (error) {
-        console.error('Token verification failed:', error);
+        logger.error('Token verification failed:', error);
         throw new Error('Token verification failed');
     }
 }

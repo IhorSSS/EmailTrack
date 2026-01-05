@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { prisma } from '../../db';
 import { getAuthenticatedUser } from '../../middleware/authMiddleware';
 import { logger } from '../../utils/logger';
+import { encrypt } from '../../utils/crypto';
+
 
 const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
     const RegisterBodySchema = z.object({
@@ -103,24 +105,25 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
         const email = await prisma.trackedEmail.upsert({
             where: { id: id || 'never-exists' }, // Fallback for auto-generated IDs
             update: {
-                subject,
+                subject: subject ? encrypt(subject) : subject,
                 recipient,
                 cc,
                 bcc,
-                body,
+                body: body ? encrypt(body) : body,
                 user,
                 ownerId: validOwnerUuid // Use resolved UUID
             },
             create: {
                 id,
-                subject,
+                subject: subject ? encrypt(subject) : subject,
                 recipient,
                 cc,
                 bcc,
-                body,
+                body: body ? encrypt(body) : body,
                 user,
                 ownerId: validOwnerUuid // Use resolved UUID
             }
+
         });
 
         logger.info(`[REGISTER] Registering email. ID: ${id}, User: ${user}, Owner: ${email.ownerId || 'None'}`);

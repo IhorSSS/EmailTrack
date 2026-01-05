@@ -15,7 +15,7 @@ export const injectScript = (fileName: string) => {
         (document.head || document.documentElement).appendChild(script);
     } catch (e) {
         // Context invalidated or other runtime error
-        console.warn('EmailTrack: Failed to inject script (context invalidated?)', fileName);
+        logger.warn('EmailTrack: Failed to inject script (context invalidated?)', fileName);
     }
 };
 

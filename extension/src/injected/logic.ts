@@ -17,11 +17,21 @@ const logger = {
 };
 
 // --- Main Logic ---
-(function () {
+const MAX_INIT_RETRIES = 5;
+let initRetries = 0;
+let observer: MutationObserver | null = null;
+
+function initialize() {
     const CONFIG = getConfig();
     if (!CONFIG.HOST) {
-        logger.warn("EmailTrack: [Logic] Missing API Host Config. Retrying initialization...");
-        setTimeout(() => location.reload(), 2000);
+        if (initRetries < MAX_INIT_RETRIES) {
+            initRetries++;
+            const delay = Math.pow(2, initRetries) * 1000;
+            logger.warn(`EmailTrack: [Logic] Missing API Host Config. Retrying in ${delay}ms (Attempt ${initRetries}/${MAX_INIT_RETRIES})`);
+            setTimeout(initialize, delay);
+        } else {
+            logger.error("EmailTrack: [Logic] Failed to initialize after maximum retries. Tracking disabled for this session.");
+        }
         return;
     }
 
@@ -39,12 +49,17 @@ const logger = {
                 });
             }
         } catch (e) {
-            console.warn('EmailTrack: [Logic] Failed to manage TrustedTypes policy:', e);
+            logger.warn('EmailTrack: [Logic] Failed to manage TrustedTypes policy:', e);
         }
     }
 
+    // Cleanup existing observer if any
+    if (observer) {
+        observer.disconnect();
+    }
+
     // DOM Observer
-    const observer = new MutationObserver(() => {
+    observer = new MutationObserver(() => {
         const currentConfig = getConfig();
         if (currentConfig.HOST && currentConfig.HOST !== CONFIG.HOST) {
             CONFIG.HOST = currentConfig.HOST;
@@ -53,8 +68,10 @@ const logger = {
     });
 
     const startObserver = () => {
-        observer.observe(document.body, { childList: true, subtree: true });
-        scanComposeWindows(injectedDrafts, logger);
+        if (observer) {
+            observer.observe(document.body, { childList: true, subtree: true });
+            scanComposeWindows(injectedDrafts, logger);
+        }
     };
 
     if (document.body) {
@@ -72,5 +89,15 @@ const logger = {
             return handleSendInterceptor(CONFIG, data, xhr, logger);
         });
     });
+}
 
-})();
+// Start initialization
+initialize();
+
+// Handle cleanup (if extension reloads)
+window.addEventListener('unload', () => {
+    if (observer) {
+        observer.disconnect();
+        observer = null;
+    }
+});

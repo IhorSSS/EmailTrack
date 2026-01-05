@@ -1,10 +1,12 @@
 import { Badge } from '../common/Badge';
 import { formatRecipient, formatFullDate } from '../../utils/formatter';
 import { RefreshButton } from '../common/RefreshButton';
+import { logger } from '../../utils/logger';
+import type { TrackedEmail, OpenEvent } from '../../types';
 import styles from './DetailView.module.css';
 
 interface DetailViewProps {
-    email: any;
+    email: TrackedEmail;
     onBack: () => void;
     onRefresh: () => void;
     loading: boolean;
@@ -87,7 +89,7 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                         </div>
                     ) : (
                         <div className={styles.opensList}>
-                            {email.opens.map((open: any, idx: number) => {
+                            {email.opens.map((open: OpenEvent, idx: number) => {
                                 // Parse device JSON
                                 let deviceInfo = { device: 'Unknown', os: 'Unknown', browser: 'Unknown', isBot: false };
                                 try {
@@ -95,7 +97,7 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                                         deviceInfo = JSON.parse(open.device);
                                     }
                                 } catch (e) {
-                                    console.warn('Failed to parse device:', e);
+                                    logger.warn('Failed to parse device:', e);
                                 }
 
                                 return (
@@ -106,7 +108,7 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                                         <div className={styles.openRow}>
                                             <Badge variant="success">Opened</Badge>
                                             <span className={styles.openTimestamp}>
-                                                {formatFullDate(open.openedAt || open.timestamp || new Date())}
+                                                {formatFullDate(open.openedAt || open.timestamp || new Date().toISOString())}
                                             </span>
                                         </div>
 

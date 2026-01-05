@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logger } from '../utils/logger';
 
 export interface ExtensionSettings {
     currentUser: string | null;
@@ -36,20 +37,20 @@ export function useExtensionSettings(): ExtensionSettings {
     // Initial Load
     useEffect(() => {
         const loadSettings = async () => {
-            console.log('[useExtensionSettings] Starting settings load...');
+            logger.log('[useExtensionSettings] Starting settings load...');
             if (typeof chrome !== 'undefined' && chrome.storage) {
                 const results = await new Promise<any>((resolve) => {
                     chrome.storage.local.get(['currentUser'], (res) => {
-                        console.log('[useExtensionSettings] Loaded from storage:', res);
+                        logger.log('[useExtensionSettings] Loaded from storage:', res);
                         resolve(res);
                     });
                 });
 
                 if (results.currentUser) {
-                    console.log('[useExtensionSettings] Setting currentUser to:', results.currentUser);
+                    logger.log('[useExtensionSettings] Setting currentUser to:', results.currentUser);
                     setLocalCurrentUser(results.currentUser);
                 } else {
-                    console.log('[useExtensionSettings] No currentUser in storage');
+                    logger.log('[useExtensionSettings] No currentUser in storage');
                 }
 
                 if (chrome.storage.sync) {
@@ -71,7 +72,7 @@ export function useExtensionSettings(): ExtensionSettings {
                     }
                 }
             }
-            console.log('[useExtensionSettings] Settings loaded, setting settingsLoaded=true');
+            logger.log('[useExtensionSettings] Settings loaded, setting settingsLoaded=true');
             setSettingsLoaded(true);
         };
 

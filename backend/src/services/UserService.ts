@@ -1,5 +1,6 @@
 import { prisma } from '../db';
 import { User } from '@prisma/client';
+import { logger } from '../utils/logger';
 
 export class UserService {
     /**
@@ -75,7 +76,7 @@ export class UserService {
         });
 
         if (conflicts.length > 0) {
-            console.warn(`[Security] User ${userId} attempted to claim owned emails: ${conflicts.map(c => c.id).join(', ')}`);
+            logger.warn(`[Security] User ${userId} attempted to claim owned emails: ${conflicts.map(c => c.id).join(', ')}`);
             throw new Error(`Ownership Conflict: ${conflicts.length} emails already belong to another user.`);
         }
 

@@ -2,6 +2,8 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { crx } from '@crxjs/vite-plugin'
 import manifest from './manifest.json'
+import pkg from './package.json'
+
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -25,7 +27,11 @@ export default defineConfig(({ mode }) => {
       react(),
       crx({ manifest: manifestWithEnv }),
     ],
+    define: {
+      __APP_VERSION__: JSON.stringify(pkg.version),
+    },
     build: {
+
       rollupOptions: {
         input: {
           logic: 'src/injected/logic.ts'

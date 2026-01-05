@@ -1,4 +1,6 @@
 
+import { logger } from './logger';
+
 /**
  * Tries to parse the recipient field.
  * The backend might return a JSON string like:
@@ -22,7 +24,7 @@ export const formatRecipient = (recipientRaw: string): string => {
         }
     } catch (e) {
         // If parse fails, fall back to returning raw string
-        console.warn('Failed to parse recipient:', e);
+        logger.warn('Failed to parse recipient:', e);
     }
 
     // Fallback: remove any array brackets if they exist as string text but failed parse

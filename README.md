@@ -2,8 +2,6 @@
 
 **EmailTrack** is a privacy-first Chrome Extension and Backend service for tracking email opens directly within Gmail. It empowers users with real-time analytics on who opens their emails, when, and from where, without relying on third-party SaaS subscriptions or sharing data with external providers.
 
-![EmailTrack Screenshot](https://via.placeholder.com/800x400?text=EmailTrack+Preview) *<!-- Replace with actual screenshot if available -->*
-
 ## ✨ Features
 
 - **Seamless Gmail Integration**: Adds a native "Track" toggle to the Gmail Compose window.

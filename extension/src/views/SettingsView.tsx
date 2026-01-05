@@ -236,7 +236,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             {/* Danger Zone */}
             <div style={{
-                marginTop: 'auto',
                 padding: 'var(--spacing-lg)',
                 background: 'var(--color-danger-bg)',
                 borderRadius: 'var(--radius-lg)',
@@ -259,6 +258,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 >
                     Clear Tracking Data
                 </Button>
+            </div>
+
+            {/* Version Footer */}
+            <div style={{
+                textAlign: 'center',
+                padding: 'var(--spacing-sm)',
+                fontSize: '10px',
+                color: 'var(--text-muted)',
+                opacity: 0.6,
+                marginTop: 'auto'
+            }}>
+                EmailTrack v{__APP_VERSION__}
             </div>
         </div>
     );

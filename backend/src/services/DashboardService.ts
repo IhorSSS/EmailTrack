@@ -1,4 +1,6 @@
 import { prisma } from '../db';
+import { decrypt } from '../utils/crypto';
+
 
 export interface DashboardFilter {
     page: number;
@@ -101,11 +103,16 @@ export class DashboardService {
         ]);
 
         return {
-            data,
+            data: data.map(item => ({
+                ...item,
+                subject: item.subject ? decrypt(item.subject) : item.subject,
+                body: (item as any).body ? decrypt((item as any).body) : (item as any).body
+            })),
             total,
             page,
             limit
         };
+
     }
 
     static async deleteDashboardData(filter: DeleteFilter) {
@@ -176,7 +183,7 @@ export class DashboardService {
     }
 
     static async syncDashboardData(ids: string[]) {
-        return await prisma.trackedEmail.findMany({
+        const data = await prisma.trackedEmail.findMany({
             where: {
                 id: { in: ids }
             },
@@ -184,6 +191,8 @@ export class DashboardService {
                 id: true,
                 ownerId: true,
                 createdAt: true,
+                subject: true, // Need to include to decrypt
+                body: true,    // Need to include to decrypt
                 opens: {
                     orderBy: { openedAt: 'desc' },
                     select: {
@@ -197,5 +206,11 @@ export class DashboardService {
                 }
             }
         });
+
+        return data.map(item => ({
+            ...item,
+            subject: item.subject ? decrypt(item.subject) : item.subject,
+            body: item.body ? decrypt(item.body) : item.body
+        }));
     }
 }
