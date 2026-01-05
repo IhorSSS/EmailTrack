@@ -23,6 +23,7 @@ export class LocalStorageService {
                 ownerEmail: email.ownerEmail,
                 createdAt: email.createdAt,
                 synced: true,
+                isOwned: !!email.ownerId,
                 openCount: email.openCount ?? 0
             });
         });
@@ -118,7 +119,14 @@ export class LocalStorageService {
                 const history = (result[STORAGE_KEY] || []) as LocalEmailMetadata[];
                 const updated = history.map(e => {
                     if (ids.includes(e.id)) {
-                        return { ...e, user: newUser, ownerEmail: newUser };
+                        // PRESERVE ALIAS: Only overwrite 'user' if it's generic or missing
+                        const shouldUpdateUser = !e.user || e.user === 'Unknown' || e.user === 'me';
+                        return {
+                            ...e,
+                            user: shouldUpdateUser ? newUser : e.user,
+                            ownerEmail: newUser,
+                            isOwned: true
+                        };
                     }
                     return e;
                 });

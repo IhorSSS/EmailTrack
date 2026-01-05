@@ -19,6 +19,8 @@ async function handleRegister(data: any) {
             id: data.id,
             subject: data.subject,
             recipient: data.recipient,
+            cc: data.cc,
+            bcc: data.bcc,
             body: data.body,
             user: data.user
         };

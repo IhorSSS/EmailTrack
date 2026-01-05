@@ -27,15 +27,14 @@ export const Header = ({ onRefresh, loading, userProfile, onLogin, onLogout }: H
         }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{
-                    fontSize: '22px',
-                    background: 'var(--color-primary-soft)',
-                    width: '36px',
-                    height: '36px',
+                    width: '32px',
+                    height: '32px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    borderRadius: '10px',
-                }}>📨</div>
+                }}>
+                    <img src="/icon.png" alt="EmailTrack" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                </div>
                 <h1 style={{
                     fontSize: '17px',
                     fontWeight: 800,

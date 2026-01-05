@@ -36,13 +36,6 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
 
                         const res = await fetch(`${urlBase}?${params.toString()}`, { method: 'DELETE' });
                         if (!res.ok) {
-                            if (res.status === 403 || res.status === 401) {
-                                console.warn('[SYNC] Delete forbidden (403/401), discarding from queue:', task);
-                                // Do not retry - we are not authorized
-                            } else {
-                                console.warn('[SYNC] Retry delete failed, keeping in queue', res.status);
-                                remaining.push(task);
-                            }
                         }
                     } catch (e) {
                         remaining.push(task);
@@ -258,9 +251,66 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
         }
     }, [userProfile, currentUser, authToken, settingsLoaded]);
 
+    const deleteSingleEmail = useCallback(async (id: string): Promise<{ success: boolean, message?: string, type?: 'success' | 'warning' }> => {
+        // Optimistic Update
+        const previousEmails = [...emails];
+        setEmails(prev => prev.filter(e => e.id !== id));
+
+        try {
+            // 1. Local Delete
+            await LocalStorageService.deleteEmail(id);
+
+            // 2. Remote Delete
+            const params = new URLSearchParams();
+            params.append('ids', id);
+            if (userProfile) {
+                params.append('ownerId', userProfile.id);
+            }
+
+            try {
+                await DashboardService.deleteEmails(params, authToken);
+            } catch (apiErr: any) {
+                // If 403 Forbidden: Ownership issues (anonymous trying to delete owned data)
+                const status = apiErr.status || (apiErr.message?.includes('403') ? 403 : null);
+
+                // EXTRA SAFETY: If we know it's owned locally but server said 403, it's definitely an ownership issue.
+                const isForbidden = status === 403;
+
+                if (isForbidden) {
+                    console.info('[useEmails] Delete forbidden (owned by account)');
+                    return {
+                        success: true,
+                        message: 'Email removed from this device. Please sign in to delete it from the cloud.',
+                        type: 'warning'
+                    };
+                }
+
+                console.error('[useEmails] Remote delete failed:', apiErr);
+                // Queue for later retry (transient failures)
+                await LocalStorageService.queuePendingDelete([id], userProfile?.email);
+
+                return {
+                    success: true,
+                    message: 'Email removed from this device. Cloud deletion will be retried later.',
+                    type: 'warning'
+                };
+            }
+
+            return { success: true };
+        } catch (e: any) {
+            console.error('[useEmails] Failed to delete email:', e);
+            // Rollback optimistic update
+            setEmails(previousEmails);
+            return {
+                success: false,
+                message: 'Failed to delete email: ' + e.message
+            };
+        }
+    }, [emails, userProfile, authToken]);
+
     const deleteEmails = useCallback(async (
         filterSender: string = 'all'
-    ): Promise<{ success: boolean, message: string }> => {
+    ): Promise<{ success: boolean, message: string, type?: 'success' | 'warning' }> => {
         setLoading(true);
         try {
             const params = new URLSearchParams();
@@ -272,20 +322,60 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 // Maintain legacy behavior for safety
                 if (userProfile.email) params.append('user', userProfile.email);
 
-                await DashboardService.deleteEmails(params, authToken);
-                await LocalStorageService.deleteAll();
             } else {
-                // Incognito Mode: Local-only deletion. Server data requires authentication.
+                // Incognito Mode: Attempt anonymous remote deletion for unowned data
                 const targetSender: string | null = filterSender !== 'all' ? filterSender : null;
 
-                // Local Delete only
+                // Collect IDs to satisfy backend validation and prove ownership
+                const localEmails = await LocalStorageService.getEmails();
+                const targetEmails = targetSender
+                    ? localEmails.filter(e => e.user === targetSender)
+                    : localEmails;
+
+                // SPLIT: Only unowned can be deleted anonymously
+                // NOTE: Use ownerEmail OR isOwned to capture legacy data correctly
+                const unownedIds = targetEmails.filter(e => !e.isOwned && !e.ownerEmail).map(e => e.id);
+                const ownedCount = targetEmails.filter(e => !!e.isOwned || !!e.ownerEmail).length;
+
+                let remoteFailedWithForbidden = false;
+
+                // 2. Perform Local Deletion (Immediate UI feedback)
                 if (targetSender) {
                     await LocalStorageService.deleteBySender(targetSender);
                 } else {
                     await LocalStorageService.deleteAll();
                 }
 
-                // No server call in Incognito - this is by design for security
+                // 3. Perform Remote Deletion (For Unowned Items Only)
+                if (unownedIds.length > 0) {
+                    params.append('ids', unownedIds.join(','));
+                    try {
+                        // Call server anonymously
+                        await DashboardService.deleteEmails(params, null);
+                    } catch (apiErr: any) {
+                        const isForbidden = apiErr.status === 403 || apiErr.message?.includes('403');
+                        if (isForbidden) {
+                            remoteFailedWithForbidden = true;
+                        } else {
+                            console.warn('[useEmails] anonymous bulk delete failed on server (transient)', apiErr);
+                        }
+                    }
+                }
+
+                // 4. Return correct UI feedback
+                if (ownedCount > 0 || remoteFailedWithForbidden) {
+                    // Refresh UI
+                    setEmails([]);
+                    setStats({ tracked: 0, opened: 0, rate: 0 });
+                    fetchEmails();
+
+                    return {
+                        success: true,
+                        message: 'Local history cleared. Some data on the server belongs to an account and requires sign-in to delete.',
+                        type: 'warning'
+                    };
+                }
+
                 // Refresh
                 setEmails([]);
                 setStats({ tracked: 0, opened: 0, rate: 0 });
@@ -294,8 +384,9 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 return {
                     success: true,
                     message: targetSender
-                        ? `Local history for "${targetSender}" cleared. Sign in to manage server data.`
-                        : 'Local history cleared from this device. Sign in to manage server data.'
+                        ? `History for "${targetSender}" has been cleared.`
+                        : 'Tracking history has been cleared from this device and the cloud.',
+                    type: 'success'
                 };
             }
 
@@ -306,7 +397,8 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
 
             return {
                 success: true,
-                message: 'Tracking history has been cleared successfully.'
+                message: 'Tracking history has been cleared successfully.',
+                type: 'success'
             };
 
         } catch (e: any) {
@@ -333,6 +425,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
         error,
         fetchEmails,
         deleteEmails,
+        deleteSingleEmail,
         setEmails // Exposed for optimistic updates
     };
 };

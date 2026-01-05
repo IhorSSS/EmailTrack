@@ -5,7 +5,7 @@
  * Decouples this logic from the main App component
  */
 export const useHistoryManager = (
-    deleteEmails: (filter: string, ids: string[]) => Promise<{ success: boolean; message: string }>,
+    deleteEmails: (filter: string) => Promise<{ success: boolean; message: string; type?: 'success' | 'warning' }>,
     senderFilter: string,
     userProfile: any,
     showStatus: (title: string, message: string, type: any) => void,
@@ -21,12 +21,12 @@ export const useHistoryManager = (
         }
 
         try {
-            const result = await deleteEmails(senderFilter, []);
+            const result = await deleteEmails(senderFilter);
 
             showStatus(
-                result.success ? 'History Deleted' : 'Data Queued',
+                result.type === 'warning' ? 'Note' : (result.success ? 'History Deleted' : 'Data Queued'),
                 result.message,
-                result.success ? 'success' : 'warning'
+                result.type || (result.success ? 'success' : 'warning')
             );
 
             // If local delete happened and it matched currentUser, clear it

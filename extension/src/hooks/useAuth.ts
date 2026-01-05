@@ -122,12 +122,18 @@ export const useAuth = () => {
 
             // 3. Sync & Upload
             await AuthService.syncUser(profile.email, profile.id, token);
-            if (localEmails.length > 0) {
+
+            // FRESH FETCH: Get all emails including those tracked during login popup
+            const freshLocalEmails = await LocalStorageService.getEmails();
+
+            if (freshLocalEmails.length > 0) {
                 try {
-                    const count = await AuthService.uploadHistory(localEmails, profile.id, profile.email, token);
+                    const count = await AuthService.uploadHistory(freshLocalEmails, profile.id, profile.email, token);
                     if (count > 0) {
-                        await LocalStorageService.markAsSynced(localEmails.map(e => e.id));
+                        await LocalStorageService.markAsSynced(freshLocalEmails.map(e => e.id));
                     }
+                    // CRITICAL: Ensure local identity is updated for filtered views
+                    await LocalStorageService.updateOwnership(freshLocalEmails.map(e => e.id), profile.email);
                 } catch (syncErr) {
                     console.warn('History upload failed:', syncErr);
                 }

@@ -26,7 +26,9 @@ export const DashboardService = {
         });
 
         if (!res.ok) {
-            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            const err: any = new Error(`HTTP ${res.status}: ${res.statusText}`);
+            err.status = res.status;
+            throw err;
         }
 
         const { data } = await res.json();
@@ -49,7 +51,9 @@ export const DashboardService = {
         });
 
         if (!res.ok) {
-            throw new Error('Failed to delete history on server');
+            const err: any = new Error(`API_ERROR: Failed to delete tracking (Status ${res.status})`);
+            err.status = res.status;
+            throw err;
         }
     },
 

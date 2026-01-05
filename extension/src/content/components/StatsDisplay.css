@@ -1,49 +1,65 @@
 :root {
-    --et-primary: #6366f1;
-    /* Match extension primary */
-    --et-primary-soft: rgba(99, 102, 241, 0.1);
-    --et-bg-card: #ffffff;
-    --et-bg-header: #f8fafc;
-    --et-text-primary: #0f172a;
-    --et-text-secondary: #475569;
-    --et-text-muted: #94a3b8;
-    --et-border: #e2e8f0;
+    --color-primary: #6366f1;
+    --color-primary-soft: rgba(99, 102, 241, 0.1);
+
+    /* Light Theme Defaults */
+    --bg-app: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-header: #f8fafc;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --border-color: #e2e8f0;
+
+    --color-success: #10b981;
+    --color-success-bg: rgba(16, 185, 129, 0.1);
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
 }
 
 /* Dark Mode logic: System OR Explicit Override */
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-        --et-bg-card: #1e293b;
-        --et-bg-header: #0f172a;
-        --et-text-primary: #f8fafc;
-        --et-text-secondary: #94a3b8;
-        --et-text-muted: #64748b;
-        --et-border: #334155;
+        --bg-app: #0f172a;
+        --bg-card: #1e293b;
+        --bg-header: #0f172a;
+        --text-primary: #f8fafc;
+        --text-secondary: #94a3b8;
+        --text-muted: #64748b;
+        --border-color: #334155;
+        --color-success-bg: rgba(16, 185, 129, 0.15);
+        --color-success: #34d399;
+        --color-warning: #fbbf24;
+        --color-danger: #f87171;
     }
 }
 
 /* Explicit Dark Mode Override via data-theme */
-.email-track-stats-container[data-theme="dark"],
-.email-track-portal-overlay[data-theme="dark"] {
-    --et-bg-card: #1e293b;
-    --et-bg-header: #0f172a;
-    --et-text-primary: #f8fafc;
-    --et-text-secondary: #94a3b8;
-    --et-text-muted: #64748b;
-    --et-border: #334155;
+[data-theme="dark"] {
+    --bg-app: #0f172a;
+    --bg-card: #1e293b;
+    --bg-header: #0f172a;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --border-color: #334155;
+    --color-success-bg: rgba(16, 185, 129, 0.15);
+    --color-success: #34d399;
+    --color-warning: #fbbf24;
+    --color-danger: #f87171;
     color-scheme: dark;
-    /* Force browser default form controls to dark */
 }
 
 /* Explicit Light Mode Override via data-theme */
-.email-track-stats-container[data-theme="light"],
-.email-track-portal-overlay[data-theme="light"] {
-    --et-bg-card: #ffffff;
-    --et-bg-header: #f8fafc;
-    --et-text-primary: #0f172a;
-    --et-text-secondary: #475569;
-    --et-text-muted: #94a3b8;
-    --et-border: #e2e8f0;
+[data-theme="light"] {
+    --bg-app: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-header: #f8fafc;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --border-color: #e2e8f0;
+    --color-success-bg: rgba(16, 185, 129, 0.1);
     color-scheme: light;
 }
 
@@ -60,8 +76,10 @@
 }
 
 .email-track-badge {
-    background: var(--et-primary-soft);
-    color: var(--et-primary);
+    background: rgba(99, 102, 241, 0.1);
+    /* Primary Soft Light */
+    color: #6366f1;
+    /* Primary Light */
     padding: 3px 10px;
     border-radius: 6px;
     font-size: 11px;
@@ -77,7 +95,8 @@
 }
 
 .email-track-badge:hover {
-    background: var(--et-primary);
+    background: #6366f1;
+    /* Primary Light */
     color: #ffffff;
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
     transform: translateY(-1px);
@@ -85,11 +104,14 @@
 
 .email-track-badge.opened {
     background: rgba(16, 185, 129, 0.1);
+    /* Success BG Light */
     color: #059669;
+    /* Success Text Light */
 }
 
 .email-track-badge.opened:hover {
     background: #10b981;
+    /* Success Primary Light */
     color: #ffffff;
     box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
 }
@@ -116,14 +138,14 @@
 .email-track-details-popup {
     position: fixed;
     width: 320px;
-    background: var(--et-bg-card);
+    background: var(--bg-card);
     border-radius: 12px;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    border: 1px solid var(--et-border);
+    border: 1px solid var(--border-color);
     font-family: 'Inter', -apple-system, sans-serif;
     overflow: hidden;
     animation: et-fade-in 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    color: var(--et-text-primary);
+    color: var(--text-primary);
     backdrop-filter: blur(12px);
 }
 
@@ -141,9 +163,9 @@
 
 /* Header */
 .et-popup-header {
-    background: var(--et-bg-header);
+    background: var(--bg-header);
     padding: 14px 16px;
-    border-bottom: 1px solid var(--et-border);
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -172,14 +194,14 @@
 }
 
 .opens-list::-webkit-scrollbar-thumb {
-    background: var(--et-border);
+    background: var(--border-color);
     border-radius: 10px;
 }
 
 /* Timeline Item */
 .et-timeline-item {
     padding: 16px;
-    border-bottom: 1px solid var(--et-border);
+    border-bottom: 1px solid var(--border-color);
     transition: background 0.15s ease;
 }
 
@@ -188,7 +210,7 @@
 }
 
 .et-timeline-item:hover {
-    background: var(--et-bg-header);
+    background: var(--bg-header);
 }
 
 .et-timeline-item.et-grouped {
@@ -206,7 +228,7 @@
 .et-time {
     font-size: 14px;
     font-weight: 600;
-    color: var(--et-text-primary);
+    color: var(--text-primary);
 }
 
 .et-location,
@@ -228,56 +250,38 @@
 .et-empty {
     padding: 40px 24px;
     text-align: center;
-    color: var(--et-text-muted);
+    color: var(--text-muted);
     font-size: 13px;
 }
 
-/* Refresh Button */
+/* Refresh Button - Fixed color profile matching light theme */
 .et-refresh-btn {
-    background: var(--et-border);
-    border: none;
-    width: 28px;
-    height: 28px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--et-text-secondary);
+    color: #475569;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Dark Mode Refresh Button Override */
-@media (prefers-color-scheme: dark) {
-    .et-refresh-btn {
-        background: rgba(255, 255, 255, 0.15);
-        /* Lighter bg for visibility */
-        color: #e2e8f0;
-        /* Brighter icon */
-        border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-}
-
-/* Also apply if parent has dark theme forced */
-.email-track-stats-container[data-theme="dark"] .et-refresh-btn {
-    background: rgba(255, 255, 255, 0.15);
-    color: #e2e8f0;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
 }
 
 .et-refresh-btn:hover {
-    background: var(--et-primary);
+    background: var(--color-primary);
     color: #ffffff;
     transform: rotate(30deg);
-    border-color: var(--et-primary);
-    /* Ensure border doesn't clash on hover */
 }
 
 .et-refresh-btn.rotating {
     animation: et-spin 0.8s linear infinite;
     pointer-events: none;
-    background: var(--et-primary-soft);
-    color: var(--et-primary);
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
 }
 
 @keyframes et-spin {
@@ -296,12 +300,12 @@
     justify-content: space-between;
     align-items: center;
     padding: 10px 16px;
-    background: var(--et-primary-soft);
+    background: var(--color-primary-soft);
     cursor: pointer;
     font-weight: 600;
-    color: var(--et-primary);
+    color: var(--color-primary);
     font-size: 12px;
-    border-bottom: 1px solid var(--et-border);
+    border-bottom: 1px solid var(--border-color);
     transition: background 0.15s ease;
 }
 
@@ -311,9 +315,9 @@
 
 .et-group-item {
     padding: 12px 16px 12px 32px;
-    border-bottom: 1px solid var(--et-border);
+    border-bottom: 1px solid var(--border-color);
     position: relative;
-    background: var(--et-bg-card);
+    background: var(--bg-card);
 }
 
 .et-group-item::before {
@@ -323,7 +327,7 @@
     top: 0;
     bottom: 0;
     width: 2px;
-    background: var(--et-primary-soft);
+    background: var(--color-primary-soft);
 }
 
 .et-chevron {
@@ -336,5 +340,5 @@
 
 .et-chevron.expanded {
     transform: rotate(180deg);
-    color: var(--et-primary);
+    color: var(--color-primary);
 }

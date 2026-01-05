@@ -45,6 +45,20 @@ describe('pixel utils', () => {
             expect(config.PIXEL_BASE).toBe(API_CONFIG.ENDPOINTS.PIXEL_PATH);
         });
 
+        it('should read showTrackingIndicator from DOM', () => {
+            const div = document.createElement('div');
+            div.id = 'emailtrack-config';
+            div.setAttribute('data-show-tracking-indicator', 'false');
+            document.body.appendChild(div);
+
+            const config = getConfig();
+            expect(config.showTrackingIndicator).toBe(false);
+
+            div.setAttribute('data-show-tracking-indicator', 'true');
+            const config2 = getConfig();
+            expect(config2.showTrackingIndicator).toBe(true);
+        });
+
         it('should fallback to API_CONFIG if DOM element missing', () => {
             const config = getConfig();
             expect(config.HOST).toBe(API_CONFIG.BASE_URL);

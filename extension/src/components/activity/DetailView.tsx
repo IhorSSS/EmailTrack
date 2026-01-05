@@ -33,6 +33,24 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                     </div>
                 </div>
 
+                {email.cc && (
+                    <div className={styles.section}>
+                        <label className={styles.label}>CC</label>
+                        <div className={styles.value}>
+                            {formatRecipient(email.cc)}
+                        </div>
+                    </div>
+                )}
+
+                {email.bcc && (
+                    <div className={styles.section}>
+                        <label className={styles.label}>BCC</label>
+                        <div className={styles.value}>
+                            {formatRecipient(email.bcc)}
+                        </div>
+                    </div>
+                )}
+
                 <div className={styles.section}>
                     <label className={styles.label}>Subject</label>
                     <div className={styles.value}>
@@ -57,7 +75,12 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                 </div>
 
                 <div>
-                    <label className={styles.label} style={{ display: 'block', marginBottom: '8px' }}>Open History</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <label className={styles.label} style={{ margin: 0 }}>Open History</label>
+                        {email.openCount > 0 && (
+                            <Badge variant="success" shape="pill">{email.openCount}</Badge>
+                        )}
+                    </div>
                     {(!email.opens || email.opens.length === 0) ? (
                         <div className={styles.emptyState}>
                             No opens recorded yet.

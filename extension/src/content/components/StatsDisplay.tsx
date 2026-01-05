@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MapPin, Monitor, Smartphone, Clock, ShieldCheck, RefreshCw, ChevronDown } from 'lucide-react';
+import { MapPin, Monitor, Smartphone, Clock, RefreshCw, ChevronDown } from 'lucide-react';
 import './StatsDisplay.css';
 import { format } from 'date-fns';
 import { theme } from '../../config/theme';
@@ -226,7 +226,6 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
                     >
                         <div className="et-popup-header">
                             <h4>Read History</h4>
-                            <ShieldCheck size={16} color={theme.colors.success} />
                         </div>
                         <ul className="opens-list">
                             {(() => {

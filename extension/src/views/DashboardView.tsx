@@ -16,6 +16,7 @@ interface DashboardViewProps {
     setSenderFilter: (val: string) => void;
     processedEmails: TrackedEmail[];
     onEmailClick: (email: TrackedEmail) => void;
+    onDeleteClick?: (email: TrackedEmail) => void;
     onViewAllClick: () => void;
 }
 
@@ -28,6 +29,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     setSenderFilter,
     processedEmails,
     onEmailClick,
+    onDeleteClick,
     onViewAllClick
 }) => {
     return (
@@ -103,11 +105,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     }}>
                         Recent Activity
                     </h3>
-                    {!loading && (
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                            Top {CONSTANTS.DASHBOARD_RECENT_COUNT}
-                        </span>
-                    )}
                 </div>
 
                 <div style={{
@@ -140,6 +137,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 key={email.id}
                                 email={email}
                                 onClick={() => onEmailClick(email)}
+                                onDelete={() => onDeleteClick?.(email)}
                             />
                         ))
                     )}

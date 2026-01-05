@@ -7,7 +7,9 @@ export const getConfig = () => {
     // Fallback if DOM not ready yet
     return {
         HOST: domUrl || API_CONFIG.BASE_URL,
-        PIXEL_BASE: API_CONFIG.ENDPOINTS.PIXEL_PATH
+        PIXEL_BASE: API_CONFIG.ENDPOINTS.PIXEL_PATH,
+        showTrackingIndicator: configEl?.getAttribute('data-show-tracking-indicator') !== 'false',
+        trackingEnabled: configEl?.getAttribute('data-tracking-enabled') !== 'false'
     };
 };
 

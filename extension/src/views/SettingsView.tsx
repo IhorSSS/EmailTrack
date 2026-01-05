@@ -10,11 +10,12 @@ interface SettingsViewProps {
     bodyPreviewLength: number;
     handleBodyPreviewChange: (length: number) => void;
     userProfile: UserProfile | null;
-    senderFilter: string;
     loading: boolean;
     openDeleteConfirm: () => void;
     theme: 'light' | 'dark' | 'system';
     setTheme: (theme: 'light' | 'dark' | 'system') => void;
+    showTrackingIndicator: boolean;
+    setShowTrackingIndicator: (enabled: boolean) => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -23,11 +24,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     bodyPreviewLength,
     handleBodyPreviewChange,
     userProfile,
-    senderFilter,
     loading,
     openDeleteConfirm,
     theme,
-    setTheme
+    setTheme,
+    showTrackingIndicator,
+    setShowTrackingIndicator
 }) => {
     return (
         <div style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xl)' }}>
@@ -72,6 +74,54 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 content: '""',
                                 height: '20px', width: '20px',
                                 left: globalEnabled ? '22px' : '2px',
+                                bottom: '2px',
+                                backgroundColor: 'var(--bg-card)',
+                                transition: 'var(--transition-base)',
+                                borderRadius: '50%',
+                                boxShadow: 'var(--shadow-sm)'
+                            }} />
+                        </span>
+                    </label>
+                </div>
+
+                {/* Visual Indicator Toggle */}
+                <div style={{
+                    padding: 'var(--spacing-lg)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    borderBottom: '1px solid var(--border-color)',
+                    opacity: globalEnabled ? 1 : 0.5,
+                    pointerEvents: globalEnabled ? 'auto' : 'none',
+                    transition: 'opacity var(--transition-base)'
+                }}>
+                    <div style={{ flex: 1, paddingRight: 'var(--spacing-md)' }}>
+                        <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Visual Indicator</h4>
+                        <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            Show a minimalist icon in Gmail compose window when tracking is active.
+                        </p>
+                    </div>
+                    <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '40px', height: '20px', cursor: globalEnabled ? 'pointer' : 'not-allowed' }}>
+                        <input
+                            type="checkbox"
+                            disabled={!globalEnabled}
+                            checked={showTrackingIndicator && globalEnabled}
+                            onChange={(e) => setShowTrackingIndicator(e.target.checked)}
+                            style={{ opacity: 0, width: 0, height: 0 }}
+                        />
+                        <span style={{
+                            position: 'absolute',
+                            cursor: 'inherit',
+                            top: 0, left: 0, right: 0, bottom: 0,
+                            backgroundColor: (showTrackingIndicator && globalEnabled) ? 'var(--color-primary)' : 'var(--border-color)',
+                            transition: 'var(--transition-base)',
+                            borderRadius: 'var(--radius-full)',
+                        }}>
+                            <span style={{
+                                position: 'absolute',
+                                content: '""',
+                                height: '16px', width: '16px',
+                                left: (showTrackingIndicator && globalEnabled) ? '22px' : '2px',
                                 bottom: '2px',
                                 backgroundColor: 'var(--bg-card)',
                                 transition: 'var(--transition-base)',
@@ -197,9 +247,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             }}>
                 <h4 style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-danger-text)' }}>Danger Zone</h4>
                 <p style={{ fontSize: '11px', color: 'var(--color-danger-text)', opacity: 0.8 }}>
-                    {userProfile
-                        ? `Delete history for ${userProfile.email}`
-                        : (senderFilter !== 'all' ? `Delete history for ${senderFilter}` : 'Delete all tracking data')}
+                    Permanently delete tracking history from this device and the cloud (where applicable).
                 </p>
                 <Button
                     variant="danger"

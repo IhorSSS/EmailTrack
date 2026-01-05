@@ -31,11 +31,43 @@
     font-size: 14px;
     font-weight: 700;
     color: var(--text-primary);
-    margin-bottom: 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     letter-spacing: -0.01em;
+    flex: 1;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: 2px;
+}
+
+.deleteButton {
+    opacity: 0;
+    padding: 6px;
+    margin: -6px;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.container:hover .deleteButton {
+    opacity: 1;
+}
+
+.deleteButton:hover {
+    color: var(--status-danger);
+    background-color: var(--bg-danger-light);
 }
 
 .subject {

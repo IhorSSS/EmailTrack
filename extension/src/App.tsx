@@ -8,6 +8,7 @@ import { SettingsView } from './views/SettingsView';
 
 import { useAppController } from './hooks/useAppController';
 import { useThemeApplier } from './hooks/useThemeApplier';
+import { Select } from './components/common/Select';
 
 const App = () => {
   const { state, actions } = useAppController();
@@ -15,7 +16,8 @@ const App = () => {
     view, selectedEmail, userProfile, loading, error,
     stats, uniqueSenders, senderFilter, searchQuery, filterType,
     processedEmails, statusModal, globalEnabled, bodyPreviewLength,
-    logoutModalOpen, deleteConfirmModalOpen, conflictEmail, theme, authError
+    logoutModalOpen, deleteConfirmModalOpen, conflictEmail, theme, authError,
+    emailToDelete
   } = state;
 
   useThemeApplier(theme);
@@ -54,6 +56,7 @@ const App = () => {
             setSenderFilter={actions.setSenderFilter}
             processedEmails={processedEmails}
             onEmailClick={actions.setSelectedEmail}
+            onDeleteClick={actions.openDeleteSingleConfirm}
             onViewAllClick={() => actions.setView('activity')}
           />
         )}
@@ -68,6 +71,7 @@ const App = () => {
             setFilterType={actions.setFilterType}
             processedEmails={processedEmails}
             onEmailClick={actions.setSelectedEmail}
+            onDeleteClick={actions.openDeleteSingleConfirm}
             loading={loading}
           />
         )}
@@ -78,11 +82,12 @@ const App = () => {
             bodyPreviewLength={bodyPreviewLength}
             handleBodyPreviewChange={actions.setBodyPreviewLength}
             userProfile={userProfile}
-            senderFilter={senderFilter}
             loading={loading}
             openDeleteConfirm={actions.openDeleteConfirm}
             theme={theme}
             setTheme={actions.setTheme}
+            showTrackingIndicator={state.showTrackingIndicator}
+            setShowTrackingIndicator={actions.setShowTrackingIndicator}
           />
         )}
       </MainLayout>
@@ -119,18 +124,14 @@ const App = () => {
         onClose={actions.closeLogoutModal}
       />
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal (Bulk) */}
       <Modal
         isOpen={deleteConfirmModalOpen}
         title="Clear Tracking Data"
         message={
           <span>
-            Are you sure you want to delete the tracking history?
-            <br /><br />
-            {userProfile
-              ? `This will permanently clear history for ${userProfile.email} from this device.`
-              : (senderFilter !== 'all' ? `This will permanently clear history for ${senderFilter} from this device.` : 'This will permanently clear all tracking data from this device.')
-            }
+            Are you sure you want to permanently delete the tracking history?
+            This action cannot be undone.
           </span>
         }
         type="danger"
@@ -138,10 +139,46 @@ const App = () => {
         cancelLabel="Cancel"
         showCancel={true}
         onConfirm={() => {
-          actions.handleDeleteHistory();
+          actions.handleDeleteHistory(); // This will use the CURRENT senderFilter from state
           actions.closeDeleteConfirm();
         }}
         onCancel={actions.closeDeleteConfirm}
+      >
+        <div style={{ marginTop: '16px' }}>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+            Choose which sender's history to clear:
+          </p>
+          <Select
+            value={senderFilter}
+            onChange={(e) => actions.setSenderFilter(e.target.value)}
+            options={[
+              { value: 'all', label: 'All Senders' },
+              ...uniqueSenders.map(s => ({ value: s, label: s }))
+            ]}
+          />
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal (Single) */}
+      <Modal
+        isOpen={!!emailToDelete}
+        title="Remove from History"
+        message={
+          <span>
+            Are you sure you want to remove tracking data for:
+            <br /><br />
+            <b>{emailToDelete?.subject || '(No Subject)'}</b>
+            <br /><br />
+            This will permanently delete this record from your history and stop tracking its opens.
+          </span>
+        }
+        type="danger"
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        showCancel={true}
+        onConfirm={actions.handleDeleteSingleEmail}
+        onCancel={actions.closeDeleteSingleConfirm}
+        onClose={actions.closeDeleteSingleConfirm}
       />
 
       {/* Account Mismatch / Conflict Modal */}

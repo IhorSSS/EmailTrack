@@ -23,10 +23,12 @@ export const injectScript = (fileName: string) => {
 export const sendConfigToMainWorld = () => {
     try {
         if (!chrome.runtime?.id) return;
-        chrome.storage.sync.get(['bodyPreviewLength'], (res) => {
+        chrome.storage.sync.get(['bodyPreviewLength', 'showTrackingIndicator', 'trackingEnabled'], (res) => {
             if (chrome.runtime?.lastError) return; // Ignore errors
 
             const length = typeof res.bodyPreviewLength === 'number' ? res.bodyPreviewLength : 0;
+            const showIndicator = res.showTrackingIndicator !== false; // Default true
+            const trackingEnabled = res.trackingEnabled !== false; // Default true
             const apiUrl = API_CONFIG.BASE_URL;
 
             const ensureConfig = () => {
@@ -40,6 +42,14 @@ export const sendConfigToMainWorld = () => {
 
                 if (configEl.getAttribute('data-body-preview-length') !== length.toString()) {
                     configEl.setAttribute('data-body-preview-length', length.toString());
+                }
+
+                if (configEl.getAttribute('data-show-tracking-indicator') !== showIndicator.toString()) {
+                    configEl.setAttribute('data-show-tracking-indicator', showIndicator.toString());
+                }
+
+                if (configEl.getAttribute('data-tracking-enabled') !== trackingEnabled.toString()) {
+                    configEl.setAttribute('data-tracking-enabled', trackingEnabled.toString());
                 }
 
                 if (configEl.getAttribute('data-api-url') !== apiUrl) {

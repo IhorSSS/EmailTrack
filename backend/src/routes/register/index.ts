@@ -7,7 +7,9 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
     const RegisterBodySchema = z.object({
         id: z.string().optional(),
         subject: z.string().optional(),
-        recipient: z.string().optional(), // In V2 this might handle arrays, keeping string for now as per original type
+        recipient: z.string().optional(),
+        cc: z.string().optional(),
+        bcc: z.string().optional(),
         body: z.string().optional(),
         user: z.string().optional(),
         ownerId: z.string().optional()
@@ -19,7 +21,7 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
             return reply.status(400).send({ error: 'Invalid request body', details: parseResult.error.format() });
         }
 
-        const { id, subject, recipient, body, user, ownerId } = parseResult.data;
+        const { id, subject, recipient, cc, bcc, body, user, ownerId } = parseResult.data;
         console.log(`[REGISTER] Attempting to register email. ID: ${id}, User: ${user}`);
 
         // SECURITY: Verify the claimed ownerId against the actual Auth Token
@@ -102,6 +104,8 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
             update: {
                 subject,
                 recipient,
+                cc,
+                bcc,
                 body,
                 user,
                 ownerId: validOwnerUuid // Use resolved UUID
@@ -110,6 +114,8 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
                 id,
                 subject,
                 recipient,
+                cc,
+                bcc,
                 body,
                 user,
                 ownerId: validOwnerUuid // Use resolved UUID

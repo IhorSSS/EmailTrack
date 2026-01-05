@@ -9,6 +9,8 @@ export interface ExtensionSettings {
     setBodyPreviewLength: (length: number) => void;
     theme: 'light' | 'dark' | 'system';
     setTheme: (theme: 'light' | 'dark' | 'system') => void;
+    showTrackingIndicator: boolean;
+    setShowTrackingIndicator: (enabled: boolean) => void;
     settingsLoaded: boolean;
 }
 
@@ -18,6 +20,7 @@ export function useExtensionSettings(): ExtensionSettings {
     const [globalEnabled, setGlobalEnabled] = useState(true);
     const [bodyPreviewLength, setBodyPreviewLength] = useState(0);
     const [theme, setThemeState] = useState<'light' | 'dark' | 'system'>('system');
+    const [showTrackingIndicator, setShowTrackingIndicatorState] = useState(true);
 
     const setCurrentUser = (user: string | null) => {
         setLocalCurrentUser(user);
@@ -51,11 +54,14 @@ export function useExtensionSettings(): ExtensionSettings {
 
                 if (chrome.storage.sync) {
                     const syncResults = await new Promise<any>((resolve) => {
-                        chrome.storage.sync.get(['trackingEnabled', 'bodyPreviewLength', 'theme'], (res) => resolve(res));
+                        chrome.storage.sync.get(['trackingEnabled', 'bodyPreviewLength', 'theme', 'showTrackingIndicator'], (res) => resolve(res));
                     });
 
                     if (syncResults.trackingEnabled !== undefined) {
                         setGlobalEnabled(syncResults.trackingEnabled);
+                    }
+                    if (syncResults.showTrackingIndicator !== undefined) {
+                        setShowTrackingIndicatorState(syncResults.showTrackingIndicator);
                     }
                     if (syncResults.bodyPreviewLength !== undefined) {
                         setBodyPreviewLength(syncResults.bodyPreviewLength);
@@ -96,6 +102,13 @@ export function useExtensionSettings(): ExtensionSettings {
         }
     };
 
+    const handleShowTrackingIndicatorChange = (value: boolean) => {
+        setShowTrackingIndicatorState(value);
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
+            chrome.storage.sync.set({ showTrackingIndicator: value });
+        }
+    };
+
     return {
         currentUser,
         setCurrentUser,
@@ -105,6 +118,8 @@ export function useExtensionSettings(): ExtensionSettings {
         setBodyPreviewLength: handleBodyPreviewChange,
         theme,
         setTheme: handleThemeChange,
+        showTrackingIndicator,
+        setShowTrackingIndicator: handleShowTrackingIndicatorChange,
         settingsLoaded
     };
 }

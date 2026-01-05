@@ -22,7 +22,7 @@ export function setupRegistrationListener() {
         if (!event.data || event.data.type !== 'EMAILTRACK_REGISTER') return;
 
         logger.log('[Content] EMAILTRACK_REGISTER event received:', event.data.detail);
-        const { id, subject, recipient, body } = event.data.detail;
+        const { id, subject, recipient, cc, bcc, body } = event.data.detail;
 
         // Validation: Only require ID (subject can be empty in Gmail)
         if (!id) {
@@ -48,6 +48,8 @@ export function setupRegistrationListener() {
                 id,
                 subject: subject || 'No Subject',
                 recipient: recipient || 'Unknown',
+                cc,
+                bcc,
                 body: body || '',
                 user: userEmail || 'Unknown',
                 createdAt: new Date().toISOString()
@@ -65,6 +67,8 @@ export function setupRegistrationListener() {
                     id,
                     subject: subject || 'No Subject',
                     recipient: recipient || 'Unknown',
+                    cc,
+                    bcc,
                     body: body || '',
                     user: userEmail || 'Unknown' // Pass extracted sender
                 }

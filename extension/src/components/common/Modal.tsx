@@ -5,6 +5,7 @@ interface ModalProps {
     isOpen: boolean;
     title: string;
     message: React.ReactNode;
+    children?: React.ReactNode;
     type?: 'danger' | 'info' | 'success' | 'warning';
     confirmLabel?: string;
     cancelLabel?: string;
@@ -19,6 +20,7 @@ export const Modal: React.FC<ModalProps> = ({
     isOpen,
     title,
     message,
+    children,
     type = 'info',
     confirmLabel = 'Confirm',
     cancelLabel = 'Cancel',
@@ -55,7 +57,8 @@ export const Modal: React.FC<ModalProps> = ({
                     </button>
                 </div>
                 <div className={styles.body}>
-                    {message}
+                    <div className={styles.message}>{message}</div>
+                    {children}
                 </div>
                 <div className={styles.footer}>
                     {showCancel && (

@@ -23,6 +23,8 @@ model TrackedEmail {
   recipient String?
   body      String?     // Email body snippet
   user      String?     // Sender email address (Source Identity)
+  cc        String?
+  bcc       String?
   
   ownerId   String?     // Master Account ID (Nullable for Incognito/Legacy)
   owner     User?       @relation(fields: [ownerId], references: [id])

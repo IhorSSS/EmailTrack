@@ -134,15 +134,26 @@ export function injectStats() {
 
             // Load local manageable IDs (Dashboard Sync)
             let ownedLocalIds: Set<string> = new Set();
+            // We need to map TrackID -> SenderEmail to prevent badges on replies
+            const trackIdToSender = new Map<string, string>();
+
             try {
                 // OWNED ID FILTERING:
+                // OWNED ID FILTERING:
+                // We need to map TrackID -> SenderEmail to prevent badges on replies
+
                 if (userProfile) {
                     // Cloud Mode: strict sync
-                    ownedLocalIds = new Set(rawLocalEmails.map(e => e.id));
+                    rawLocalEmails.forEach(e => {
+                        ownedLocalIds.add(e.id);
+                        if (e.user) trackIdToSender.set(e.id, e.user.toLowerCase());
+                    });
                 } else {
                     // Local/Anonymous Mode: Show ALL local emails
-                    // The user explicitly requested to see badges for ANY tracked email in local mode
-                    ownedLocalIds = new Set(rawLocalEmails.map(e => e.id));
+                    rawLocalEmails.forEach(e => {
+                        ownedLocalIds.add(e.id);
+                        if (e.user) trackIdToSender.set(e.id, e.user.toLowerCase());
+                    });
                 }
 
                 // If no local history -> no access
@@ -182,6 +193,20 @@ export function injectStats() {
                     if (!ownedLocalIds.has(trackId)) {
                         logger.log(`[Stats] Skipping badge for ${trackId} - not in dashboard sync`);
                         return;
+                    }
+
+                    // SENDER CHECK:
+                    // Only show badge if the message sender matches the pixel owner.
+                    // This prevents badges from appearing on REPLIES that quote the original email.
+                    const messageSenderEl = row.querySelector('span.gD');
+                    const messageSenderEmail = messageSenderEl?.getAttribute('email')?.toLowerCase();
+                    const pixelOwnerEmail = trackIdToSender.get(trackId);
+
+                    if (messageSenderEmail && pixelOwnerEmail) {
+                        if (messageSenderEmail !== pixelOwnerEmail) {
+                            logger.log(`[Stats] Skipping badge for ${trackId} - Message Sender (${messageSenderEmail}) != Pixel Owner (${pixelOwnerEmail})`);
+                            return;
+                        }
                     }
 
                     const anchor = row.querySelector('.gH') || row.closest('.gs')?.parentElement?.querySelector('h2.hP');

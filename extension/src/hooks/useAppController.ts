@@ -18,6 +18,7 @@ export const useAppController = () => {
         currentUser, setCurrentUser,
         globalEnabled, toggleGlobal,
         bodyPreviewLength, setBodyPreviewLength,
+        showTrackingIndicator, setShowTrackingIndicator,
         theme, setTheme, settingsLoaded
     } = useExtensionSettings();
     const { statusModal, showStatus, closeStatus } = useStatusModal();
@@ -34,7 +35,10 @@ export const useAppController = () => {
         // Clearing currentUser is handled explicitly in logout(true) or deleteHistory.
     }, [userProfile, currentUser, setCurrentUser]);
 
-    const { emails, loading: dataLoading, error: dataError, fetchEmails, deleteEmails } = useEmails(userProfile, currentUser, authToken, settingsLoaded);
+    const {
+        emails, loading: dataLoading, error: dataError,
+        fetchEmails, deleteEmails, deleteSingleEmail
+    } = useEmails(userProfile, currentUser, authToken, settingsLoaded);
 
     const {
         searchQuery, setSearchQuery,
@@ -56,6 +60,7 @@ export const useAppController = () => {
     const [logoutModalOpen, setLogoutModalOpen] = useState(false);
     const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
     const [conflictEmail, setConflictEmail] = useState<string | null>(null);
+    const [emailToDelete, setEmailToDelete] = useState<TrackedEmail | null>(null);
 
     // Sync conflict status from Auth hook
     useEffect(() => {
@@ -140,6 +145,27 @@ export const useAppController = () => {
         }
     };
 
+    const handleDeleteSingleEmail = async () => {
+        if (!emailToDelete) return;
+        try {
+            const result = await deleteSingleEmail(emailToDelete.id);
+            if (result.success) {
+                setEmailToDelete(null);
+                if (result.message) {
+                    showStatus(
+                        result.type === 'warning' ? 'Note' : 'Deleted',
+                        result.message,
+                        result.type || 'success'
+                    );
+                }
+            } else {
+                showStatus('Delete Failed', result.message || 'Could not delete the email.', 'danger');
+            }
+        } catch (e: any) {
+            showStatus('Delete Failed', e.message, 'danger');
+        }
+    };
+
     // Effect to update selectedEmail when emails list changes
     // This ensures that after fetchEmails, the detail view sees the latest data
     const selectedId = selectedEmail?.id;
@@ -169,7 +195,9 @@ export const useAppController = () => {
             logoutModalOpen,
             deleteConfirmModalOpen,
             conflictEmail,
-            theme
+            emailToDelete,
+            theme,
+            showTrackingIndicator
         },
         actions: {
             setView,
@@ -193,7 +221,11 @@ export const useAppController = () => {
             resolveConflict,
             closeConflict: () => setConflictEmail(null),
             openDeleteConfirm: () => setDeleteConfirmModalOpen(true),
-            closeDeleteConfirm: () => setDeleteConfirmModalOpen(false)
+            closeDeleteConfirm: () => setDeleteConfirmModalOpen(false),
+            openDeleteSingleConfirm: (email: TrackedEmail) => setEmailToDelete(email),
+            closeDeleteSingleConfirm: () => setEmailToDelete(null),
+            handleDeleteSingleEmail,
+            setShowTrackingIndicator
         }
     };
 };

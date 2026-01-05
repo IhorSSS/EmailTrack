@@ -15,6 +15,7 @@ interface ActivityViewProps {
     setFilterType: (val: any) => void;
     processedEmails: TrackedEmail[];
     onEmailClick: (email: TrackedEmail) => void;
+    onDeleteClick?: (email: TrackedEmail) => void;
     loading: boolean;
 }
 
@@ -28,6 +29,7 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
     setFilterType,
     processedEmails,
     onEmailClick,
+    onDeleteClick,
     loading
 }) => {
     return (
@@ -184,6 +186,7 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
                             key={email.id}
                             email={email}
                             onClick={() => onEmailClick(email)}
+                            onDelete={() => onDeleteClick?.(email)}
                         />
                     ))
                 )}
