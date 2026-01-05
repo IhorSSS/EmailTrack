@@ -225,6 +225,11 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 } as TrackedEmail);
             });
 
+            // Restore lost Batch save block
+            if (emailsToSave.length > 0) {
+                await LocalStorageService.saveEmails(emailsToSave);
+            }
+
             // Priority 2: Local Data (Items NOT found on server during this fetch)
             localEmails.forEach(local => {
                 const existing = emailMap.get(local.id);

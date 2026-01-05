@@ -196,8 +196,6 @@ export class DashboardService {
                 id: true,
                 ownerId: true,
                 createdAt: true,
-                subject: true,
-                body: true,
                 opens: {
                     orderBy: { openedAt: 'desc' },
                     select: {
@@ -214,8 +212,6 @@ export class DashboardService {
 
         return data.map(item => {
             const decrypted: any = { ...item };
-            if (decrypted.subject) decrypted.subject = decrypt(decrypted.subject);
-            if (decrypted.body) decrypted.body = decrypt(decrypted.body);
             if (decrypted.recipient) decrypted.recipient = decrypt(decrypted.recipient);
             if (decrypted.user) decrypted.user = decrypt(decrypted.user);
             if (decrypted.cc) decrypted.cc = decrypt(decrypted.cc);

@@ -131,6 +131,9 @@ export const useAppController = () => {
     const confirmLogout = async (clearData: boolean) => {
         if (clearData) {
             setCurrentUser(null);
+        } else if (userProfile?.email) {
+            // CRITICAL: Update state identity BEFORE logout clears userProfile
+            setCurrentUser(userProfile.email);
         }
         await logout(clearData);
         setLogoutModalOpen(false);

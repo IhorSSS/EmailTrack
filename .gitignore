@@ -54,3 +54,8 @@ server.key*
 
 # Docker
 docker-compose.override.yml
+
+# Keys & Secrets
+*.pem
+dist.pem
+extension/dist.pem
