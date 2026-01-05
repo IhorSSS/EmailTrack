@@ -51,5 +51,28 @@ export const DashboardService = {
         if (!res.ok) {
             throw new Error('Failed to delete history on server');
         }
+    },
+
+    /**
+     * Efficiently sync status for a list of IDs (Anonymous/Local Mode).
+     * Uses POST to avoid URL length limits and returns limited metadata.
+     */
+    async syncStatus(ids: string[]): Promise<any[]> {
+        if (ids.length === 0) return [];
+
+        const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}/sync`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ids })
+        });
+
+        if (!res.ok) {
+            throw new Error(`Sync failed: ${res.status}`);
+        }
+
+        const { data } = await res.json();
+        return data || [];
     }
 };

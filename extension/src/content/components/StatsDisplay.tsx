@@ -22,12 +22,15 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
 
     const [contextInvalidated, setContextInvalidated] = useState(false);
 
+    const [currentTheme, setCurrentTheme] = useState<'light' | 'dark' | 'system'>('system');
+
     const fetchStats = (isRefresh = false) => {
         if (isRefresh) setRefreshing(true);
         try {
             // Check if runtime exists (basic invalidation check)
             if (!chrome.runtime?.id) throw new Error("Extension context invalidated");
 
+            // Fetch Stats AND Theme preference
             chrome.runtime.sendMessage({
                 type: 'GET_STATS',
                 trackId,
@@ -47,6 +50,21 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
                 setLoading(false);
                 setRefreshing(false);
             });
+
+            // Load theme from SYNC storage (where settings page saves it)
+            if (chrome.storage.sync) {
+                chrome.storage.sync.get(['theme'], (result) => {
+                    const loadedTheme = result.theme as 'light' | 'dark' | 'system';
+                    if (loadedTheme) setCurrentTheme(loadedTheme);
+                });
+            } else {
+                // Fallback for environments where sync might be mocked or missing
+                chrome.storage.local.get(['theme'], (result) => {
+                    const loadedTheme = result.theme as 'light' | 'dark' | 'system';
+                    if (loadedTheme) setCurrentTheme(loadedTheme);
+                });
+            }
+
         } catch (e: any) {
             const msg = e?.message || '';
             if (msg.includes('context invalidated') || msg.includes('Extension context invalidated')) {
@@ -56,6 +74,25 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
             setRefreshing(false);
         }
     };
+
+    // Listen for Theme Changes Live
+    useEffect(() => {
+        const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+            if (areaName === 'sync' && changes.theme) {
+                const newTheme = changes.theme.newValue as 'light' | 'dark' | 'system';
+                if (newTheme) setCurrentTheme(newTheme);
+            }
+        };
+
+        if (chrome.storage && chrome.storage.onChanged) {
+            chrome.storage.onChanged.addListener(handleStorageChange);
+        }
+        return () => {
+            if (chrome.storage && chrome.storage.onChanged) {
+                chrome.storage.onChanged.removeListener(handleStorageChange);
+            }
+        }
+    }, []);
 
     useEffect(() => {
         fetchStats();
@@ -117,7 +154,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
 
     if (contextInvalidated) {
         return (
-            <div className="email-track-stats-container">
+            <div className="email-track-stats-container" data-theme="system">
                 <span
                     className="email-track-badge error"
                     title="Extension updated. Please reload the page."
@@ -157,7 +194,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
 
     return (
         <>
-            <div className="email-track-stats-container">
+            <div className="email-track-stats-container" data-theme={currentTheme}>
                 <span
                     ref={badgeRef}
                     className={`email-track-badge ${statusClass}`}
@@ -181,7 +218,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
             {/* ... popup logic ... */}
 
             {showDetails && openCount > 0 && createPortal(
-                <div className="email-track-portal-overlay" onClick={closeDetails}>
+                <div className="email-track-portal-overlay" data-theme={currentTheme} onClick={closeDetails}>
                     <div
                         className="email-track-details-popup"
                         style={popupStyle}

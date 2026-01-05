@@ -142,28 +142,21 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 serverEmails = await DashboardService.fetchEmails(params, authToken);
             } else if (localIds.length > 0) {
                 // Anonymous Session: fetch strictly by IDs currently stored on this device.
-                // BATCHING: To prevent URL length limits (414 URI Too Long) when tracking 1000+ emails,
-                // we split the IDs into chunks (e.g. 50 at a time).
-                const CHUNK_SIZE = 50;
-                const chunks = [];
-                for (let i = 0; i < localIds.length; i += CHUNK_SIZE) {
-                    chunks.push(localIds.slice(i, i + CHUNK_SIZE));
-                }
-
+                // NEW APPROACH: Use POST /sync to handle unlimited IDs and ensure privacy.
                 try {
-                    const results = await Promise.all(chunks.map(async (chunk) => {
-                        const chunkParams = new URLSearchParams();
-                        chunkParams.append('limit', '1000'); // Ensure we get all 50
-                        chunkParams.append('t', String(Date.now()));
-                        chunkParams.append('ids', chunk.join(','));
-                        return await DashboardService.fetchEmails(chunkParams, authToken);
-                    }));
+                    // Send ALL local IDs in one batch (or reasonable chunks if >1000, but let's assume <1000 for now or rely on server cap)
+                    // The server endpoint can handle 1000. If we have more, we might still need client-side chunking.
+                    // Let's implement safe chunking for 1000 items.
+                    const CHUNK_SIZE = 1000;
+                    const chunks = [];
+                    for (let i = 0; i < localIds.length; i += CHUNK_SIZE) {
+                        chunks.push(localIds.slice(i, i + CHUNK_SIZE));
+                    }
+
+                    const results = await Promise.all(chunks.map(chunkIds => DashboardService.syncStatus(chunkIds)));
                     serverEmails = results.flat();
-                } catch (batchErr) {
-                    console.error('[useEmails] Batch fetch failed:', batchErr);
-                    // Fallback: If one chunk fails, we might still have partial data? 
-                    // For now, simpler to treat as error or empty.
-                    // But we should try to persevere.
+                } catch (syncError) {
+                    console.error('[useEmails] Sync failed:', syncError);
                     serverEmails = [];
                 }
             }

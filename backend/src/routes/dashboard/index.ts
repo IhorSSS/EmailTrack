@@ -118,20 +118,43 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
             // We did that with `whereClause.ownerId = null` in the `user` block.
         }
 
+        // SECURITY: If Anonymous (no ownerId), DO NOT return sensitive content.
+        const isAnonymous = !resolvedOwnerUuid;
+
+        const selectClause = isAnonymous ? {
+            id: true,
+            ownerId: true,
+            createdAt: true,
+            opens: {
+                orderBy: { openedAt: 'desc' as const },
+                select: {
+                    openedAt: true,
+                    location: true,
+                    device: true
+                }
+            },
+            _count: {
+                select: { opens: true }
+            }
+            // EXPLICITLY OMIT: body, subject, recipient, user
+        } : undefined; // undefined = select all
+
         const [data, total] = await Promise.all([
             prisma.trackedEmail.findMany({
                 where: whereClause,
                 skip,
                 take,
                 orderBy: { createdAt: 'desc' },
-                include: {
-                    opens: {
-                        orderBy: { openedAt: 'desc' }
-                    },
-                    _count: {
-                        select: { opens: true }
+                ...(selectClause ? { select: selectClause } : {
+                    include: {
+                        opens: {
+                            orderBy: { openedAt: 'desc' }
+                        },
+                        _count: {
+                            select: { opens: true }
+                        }
                     }
-                }
+                })
             }),
             prisma.trackedEmail.count({ where: whereClause })
         ]);
@@ -280,6 +303,49 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
             console.error('Failed to delete history:', e);
             reply.status(500).send({ error: 'Internal Server Error' });
         }
+    });
+    // Secure Sync Endpoint for Anonymous/Local Mode
+    // returns only METADATA, no content.
+    fastify.post('/sync', async (request, reply) => {
+        const SyncBodySchema = z.object({
+            ids: z.array(z.string()).min(1).max(1000) // Batch size limit
+        });
+
+        let body;
+        try {
+            body = SyncBodySchema.parse(request.body);
+        } catch (e: any) {
+            return reply.status(400).send({ error: 'Invalid body', details: e.issues });
+        }
+
+        const { ids } = body;
+
+        // Fetch ONLY status metadata. 
+        // SECURITY: Do NOT return body, subject, or recipient.
+        const data = await prisma.trackedEmail.findMany({
+            where: {
+                id: { in: ids }
+            },
+            select: {
+                id: true,
+                ownerId: true,
+                createdAt: true, // Useful for client-side sorting if needed, but low risk
+                opens: {
+                    orderBy: { openedAt: 'desc' },
+                    select: {
+                        openedAt: true,
+                        location: true,
+                        device: true
+                        // Exclude ip or other sensitive meta if strictly necessary, but usually ok for stats
+                    }
+                },
+                _count: {
+                    select: { opens: true }
+                }
+            }
+        });
+
+        reply.send({ data });
     });
 };
 

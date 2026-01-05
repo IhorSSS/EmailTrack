@@ -149,7 +149,8 @@ export class LocalStorageService {
         return new Promise((resolve) => {
             chrome.storage.local.get([STORAGE_KEY], (result) => {
                 const history = (result[STORAGE_KEY] || []) as LocalEmailMetadata[];
-                const unsynced = history.filter(e => !e.synced);
+                // Keep if unsynced OR if synced but NO ownerEmail (Anonymous/Unclaimed)
+                const unsynced = history.filter(e => !e.synced || !e.ownerEmail);
                 chrome.storage.local.set({ [STORAGE_KEY]: unsynced }, () => {
                     resolve();
                 });

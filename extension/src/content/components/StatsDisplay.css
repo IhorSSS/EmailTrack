@@ -10,8 +10,9 @@
     --et-border: #e2e8f0;
 }
 
+/* Dark Mode logic: System OR Explicit Override */
 @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
         --et-bg-card: #1e293b;
         --et-bg-header: #0f172a;
         --et-text-primary: #f8fafc;
@@ -19,6 +20,31 @@
         --et-text-muted: #64748b;
         --et-border: #334155;
     }
+}
+
+/* Explicit Dark Mode Override via data-theme */
+.email-track-stats-container[data-theme="dark"],
+.email-track-portal-overlay[data-theme="dark"] {
+    --et-bg-card: #1e293b;
+    --et-bg-header: #0f172a;
+    --et-text-primary: #f8fafc;
+    --et-text-secondary: #94a3b8;
+    --et-text-muted: #64748b;
+    --et-border: #334155;
+    color-scheme: dark;
+    /* Force browser default form controls to dark */
+}
+
+/* Explicit Light Mode Override via data-theme */
+.email-track-stats-container[data-theme="light"],
+.email-track-portal-overlay[data-theme="light"] {
+    --et-bg-card: #ffffff;
+    --et-bg-header: #f8fafc;
+    --et-text-primary: #0f172a;
+    --et-text-secondary: #475569;
+    --et-text-muted: #94a3b8;
+    --et-border: #e2e8f0;
+    color-scheme: light;
 }
 
 /* Container & Badge */
@@ -221,10 +247,30 @@
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Dark Mode Refresh Button Override */
+@media (prefers-color-scheme: dark) {
+    .et-refresh-btn {
+        background: rgba(255, 255, 255, 0.15);
+        /* Lighter bg for visibility */
+        color: #e2e8f0;
+        /* Brighter icon */
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+}
+
+/* Also apply if parent has dark theme forced */
+.email-track-stats-container[data-theme="dark"] .et-refresh-btn {
+    background: rgba(255, 255, 255, 0.15);
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
 .et-refresh-btn:hover {
     background: var(--et-primary);
     color: #ffffff;
     transform: rotate(30deg);
+    border-color: var(--et-primary);
+    /* Ensure border doesn't clash on hover */
 }
 
 .et-refresh-btn.rotating {
