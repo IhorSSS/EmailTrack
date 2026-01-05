@@ -12,9 +12,9 @@ const GetDashboardQuerySchema = z.object({
 });
 
 const DeleteDashboardQuerySchema = z.object({
-    user: z.string().optional(),
-    ownerId: z.string().optional(),
-    ids: z.string().optional()
+    user: z.union([z.string(), z.array(z.string())]).transform(val => Array.isArray(val) ? val[0] : val).optional(),
+    ownerId: z.union([z.string(), z.array(z.string())]).transform(val => Array.isArray(val) ? val[0] : val).optional(),
+    ids: z.union([z.string(), z.array(z.string())]).transform(val => Array.isArray(val) ? val[0] : val).optional()
 }).refine(data => data.user || data.ownerId || data.ids, {
     message: "At least one filter (user, ownerId, or ids) is required"
 });

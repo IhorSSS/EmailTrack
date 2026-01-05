@@ -338,11 +338,19 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
 
             if (userProfile) {
                 // Cloud Mode: Delete All or Specific
-                params.append('ownerId', userProfile.id);
-                if (filterSender !== 'all') params.append('user', filterSender);
-                // Maintain legacy behavior for safety
-                if (userProfile.email) params.append('user', userProfile.email);
+                const cloudParams = new URLSearchParams();
+                cloudParams.append('ownerId', userProfile.id);
+                if (filterSender !== 'all') {
+                    cloudParams.append('user', filterSender);
+                }
 
+                // Optimistic UI update: Filter based on sender
+                setEmails(prev => filterSender === 'all'
+                    ? []
+                    : prev.filter(e => e.user !== filterSender)
+                );
+
+                await DashboardService.deleteEmails(cloudParams, authToken);
             } else {
                 // Incognito Mode: Attempt anonymous remote deletion for unowned data
                 const targetSender: string | null = filterSender !== 'all' ? filterSender : null;
@@ -363,8 +371,10 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 // 2. Perform Local Deletion (Immediate UI feedback)
                 if (targetSender) {
                     await LocalStorageService.deleteBySender(targetSender);
+                    setEmails(prev => prev.filter(e => e.user !== targetSender));
                 } else {
                     await LocalStorageService.deleteAll();
+                    setEmails([]);
                 }
 
                 // 3. Perform Remote Deletion (For Unowned Items Only)
@@ -385,9 +395,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
 
                 // 4. Return correct UI feedback
                 if (ownedCount > 0 || remoteFailedWithForbidden) {
-                    // Refresh UI
-                    setEmails([]);
-                    setStats({ tracked: 0, opened: 0, rate: 0 });
+                    // Refresh from server to get accurate state
                     fetchEmails();
 
                     return {
@@ -397,9 +405,8 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                     };
                 }
 
-                // Refresh
-                setEmails([]);
-                setStats({ tracked: 0, opened: 0, rate: 0 });
+                // Manual refresh not needed because we updated state optimistically above
+                // but let's do a quiet re-fetch for safety.
                 fetchEmails();
 
                 return {
@@ -412,13 +419,13 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
             }
 
             // Refresh (Cloud mode path)
-            setEmails([]);
-            setStats({ tracked: 0, opened: 0, rate: 0 });
             fetchEmails();
 
             return {
                 success: true,
-                message: 'Tracking history has been cleared successfully.',
+                message: filterSender === 'all'
+                    ? 'Tracking history has been cleared successfully.'
+                    : `Tracking history for "${filterSender}" has been cleared.`,
                 type: 'success'
             };
 
