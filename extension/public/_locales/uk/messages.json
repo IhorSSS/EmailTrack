@@ -1,0 +1,416 @@
+{
+    "app_name": {
+        "message": "EmailTrack"
+    },
+    "app_description": {
+        "message": "Відстежуйте відкриття листів у Gmail"
+    },
+    "dashboard_title": {
+        "message": "Огляд"
+    },
+    "dashboard_tracked": {
+        "message": "Відстежено"
+    },
+    "dashboard_open_rate": {
+        "message": "Рейтинг відкриттів"
+    },
+    "dashboard_recent_activity": {
+        "message": "Остання активність"
+    },
+    "dashboard_no_activity": {
+        "message": "Активності ще немає. Надішліть листа, щоб почати відстеження!"
+    },
+    "dashboard_view_full_history": {
+        "message": "Переглянути всю історію"
+    },
+    "dashboard_filter_all_senders": {
+        "message": "Всі відправники"
+    },
+    "activity_title": {
+        "message": "Активність"
+    },
+    "activity_search_placeholder": {
+        "message": "Пошук..."
+    },
+    "activity_filter_all": {
+        "message": "Всі"
+    },
+    "activity_filter_opened": {
+        "message": "Відкриті"
+    },
+    "activity_filter_unopened": {
+        "message": "Невідкриті"
+    },
+    "activity_no_results_title": {
+        "message": "Нічого не знайдено"
+    },
+    "activity_no_results_desc": {
+        "message": "Ми не змогли знайти нічого за запитом \"{query}\""
+    },
+    "activity_no_results_desc_default": {
+        "message": "Спробуйте змінити фільтри, щоб побачити більше результатів"
+    },
+    "settings_title": {
+        "message": "Налаштування"
+    },
+    "settings_tracking_on": {
+        "message": "Відстеження УВІМКНЕНО"
+    },
+    "settings_tracking_off": {
+        "message": "Відстеження ВИМКНЕНО"
+    },
+    "settings_tracking_desc_on": {
+        "message": "Автоматично додавати піксель відстеження до нових листів"
+    },
+    "settings_tracking_desc_off": {
+        "message": "Пікселі не будуть додаватись до ваших листів"
+    },
+    "settings_visual_indicator": {
+        "message": "Візуальний індикатор"
+    },
+    "settings_visual_indicator_desc": {
+        "message": "Показувати мінімалістичну іконку у вікні створення листа в Gmail, коли відстеження активне."
+    },
+    "settings_body_preview_length": {
+        "message": "Довжина збереженого тексту листа"
+    },
+    "settings_body_preview_none": {
+        "message": "Немає"
+    },
+    "settings_body_preview_short": {
+        "message": "Коротке (50 симв.)"
+    },
+    "settings_body_preview_medium": {
+        "message": "Середнє (100 симв.)"
+    },
+    "settings_body_preview_long": {
+        "message": "Довге (200 симв.)"
+    },
+    "settings_theme": {
+        "message": "Тема застосунку"
+    },
+    "settings_theme_system": {
+        "message": "Системна"
+    },
+    "settings_theme_light": {
+        "message": "Світла"
+    },
+    "settings_theme_dark": {
+        "message": "Темна"
+    },
+    "settings_active_identity": {
+        "message": "Активний акаунт"
+    },
+    "settings_signed_in": {
+        "message": "Вхід виконано"
+    },
+    "settings_guest_mode": {
+        "message": "Гостьовий режим"
+    },
+    "settings_guest_desc": {
+        "message": "Локальне відстеження без синхронізації з хмарою"
+    },
+    "settings_guest_warning": {
+        "message": "Нові листи, надіслані в гостьовому режимі, є анонімними і не будуть синхронізовані з вашим акаунтом, доки ви не увійдете."
+    },
+    "settings_danger_zone": {
+        "message": "Небезпечна зона"
+    },
+    "settings_danger_desc": {
+        "message": "Назавжди видалити історію відстеження з цього пристрою та хмари (якщо можливо)."
+    },
+    "settings_clear_data": {
+        "message": "Очистити дані відстеження"
+    },
+    "settings_language": {
+        "message": "Мова (Language)"
+    },
+    "settings_language_system": {
+        "message": "Системна ({lang})"
+    },
+    "settings_language_en": {
+        "message": "English"
+    },
+    "settings_language_uk": {
+        "message": "Українська"
+    },
+    "settings_language_note": {
+        "message": "Примітка: Це налаштування впливає лише на інтерфейс розширення."
+    },
+    "detail_title": {
+        "message": "Деталі повідомлення"
+    },
+    "detail_back": {
+        "message": "Назад"
+    },
+    "detail_recipient": {
+        "message": "Одержувач"
+    },
+    "detail_subject": {
+        "message": "Тема"
+    },
+    "detail_no_subject": {
+        "message": "(Без теми)"
+    },
+    "detail_body_preview": {
+        "message": "Попередній перегляд"
+    },
+    "detail_sent_at": {
+        "message": "Надіслано"
+    },
+    "detail_open_history": {
+        "message": "Історія відкриттів"
+    },
+    "detail_refresh_tooltip": {
+        "message": "Оновити статус"
+    },
+    "detail_no_opens": {
+        "message": "Відкриттів ще не зафіксовано."
+    },
+    "detail_opened": {
+        "message": "Відкрито"
+    },
+    "detail_bot": {
+        "message": "БОТ"
+    },
+    "modal_logout_title": {
+        "message": "Вихід"
+    },
+    "modal_logout_message": {
+        "message": "Ви збираєтесь вийти з <b>{email}</b>. Ви хочете очистити історію відстеження з цього пристрою чи залишити її для перегляду офлайн?"
+    },
+    "modal_logout_action_clear": {
+        "message": "Очистити та Вийти"
+    },
+    "modal_logout_action_keep": {
+        "message": "Залишити та Вийти"
+    },
+    "modal_delete_title": {
+        "message": "Очистити дані відстеження"
+    },
+    "modal_delete_message": {
+        "message": "Ви впевнені, що хочете назавжди видалити історію відстеження? Цю дію неможливо скасувати."
+    },
+    "modal_delete_action": {
+        "message": "Так, видалити дані"
+    },
+    "modal_delete_sender_select_label": {
+        "message": "Виберіть відправника, історію якого очистити:"
+    },
+    "modal_delete_single_title": {
+        "message": "Видалити з історії"
+    },
+    "modal_delete_single_message": {
+        "message": "Ви впевнені, що хочете видалити дані відстеження для: <b>{subject}</b>. Це назавжди видалить цей запис з вашої історії та зупинить відстеження його відкриттів."
+    },
+    "modal_conflict_title": {
+        "message": "Невідповідність акаунта"
+    },
+    "modal_conflict_message": {
+        "message": "Локальна історія належить <b>іншому акаунту</b>. Ви входите в інший акаунт. Щоб захистити конфіденційність, ви повинні вирішити, як вчинити з існуючими даними."
+    },
+    "modal_conflict_action_clear": {
+        "message": "Очистити все та Увійти"
+    },
+    "modal_conflict_action_keep": {
+        "message": "Залишити тільки нові та Увійти"
+    },
+    "modal_auth_error_title": {
+        "message": "Помилка автентифікації"
+    },
+    "common_close": {
+        "message": "Закрити"
+    },
+    "common_cancel": {
+        "message": "Скасувати"
+    },
+    "common_remove": {
+        "message": "Видалити"
+    },
+    "common_note": {
+        "message": "Примітка:"
+    },
+    "nav_overview": {
+        "message": "Огляд"
+    },
+    "nav_activity": {
+        "message": "Активність"
+    },
+    "nav_settings": {
+        "message": "Налаштування"
+    },
+    "email_last_opened": {
+        "message": "Востаннє відкрито: {date}"
+    },
+    "email_sent": {
+        "message": "Надіслано"
+    },
+    "time_today": {
+        "message": "Сьогодні"
+    },
+    "time_yesterday": {
+        "message": "Вчора"
+    },
+    "device_unknown": {
+        "message": "Невідомий пристрій"
+    },
+    "os_unknown": {
+        "message": "Невідома ОС"
+    },
+    "browser_unknown": {
+        "message": "Невідомий браузер"
+    },
+    "location_unknown": {
+        "message": "Невідомо"
+    },
+    "location_na": {
+        "message": "Н/Д"
+    },
+    "device_details": {
+        "message": "{browser} на {os}"
+    },
+    "error_network": {
+        "message": "Помилка мережі. Перевірте з'єднання."
+    },
+    "error_sync_failed": {
+        "message": "Помилка синхронізації."
+    },
+    "error_profile_failed": {
+        "message": "Не вдалося завантажити профіль."
+    },
+    "error_token_failed": {
+        "message": "Помилка авторизації. Увійдіть знову."
+    },
+    "stats_grouped_opens": {
+        "message": "Згруповані відкриття ({count})"
+    },
+    "device_gmail": {
+        "message": "Проксі Gmail"
+    },
+    "device_proxy": {
+        "message": "Проксі/Сервер"
+    },
+    "status_reload": {
+        "message": "Перезавантажити"
+    },
+    "recipient_unknown": {
+        "message": "Невідомий отримувач"
+    },
+    "common_confirm": {
+        "message": "Підтвердити"
+    },
+    "common_processing": {
+        "message": "Обробка..."
+    },
+    "common_refresh": {
+        "message": "Оновити"
+    },
+    "header_signed_in_as": {
+        "message": "Увійшли як {email}"
+    },
+    "header_logout": {
+        "message": "Вийти"
+    },
+    "header_login": {
+        "message": "Увійти"
+    },
+    "activity_delete_tooltip": {
+        "message": "Видалити з історії"
+    },
+    "status_extension_updated": {
+        "message": "Розширення оновлено. Будь ласка, перезавантажте сторінку."
+    },
+    "error_account_conflict": {
+        "message": "Конфлікт акаунтів: Локальна історія належить іншому акаунту"
+    },
+    "error_login_failed": {
+        "message": "Помилка входу"
+    },
+    "delete_warning_owned_data": {
+        "message": "Локальна історія очищена. Частина даних на сервері належить акаунту і потребує входу для видалення."
+    },
+    "delete_warning_forbidden": {
+        "message": "Лист видалено з пристрою. Увійдіть в систему, щоб видалити його з хмари."
+    },
+    "delete_warning_retry": {
+        "message": "Лист видалено з пристрою. Видалення з хмари буде повторено пізніше."
+    },
+    "delete_success_sender": {
+        "message": "Історія для \"{sender}\" була очищена."
+    },
+    "delete_success_all": {
+        "message": "Історія відстеження була очищена з цього пристрою та хмари."
+    },
+    "delete_success_generic": {
+        "message": "Історія відстеження успішно очищена."
+    },
+    "delete_success_sender_generic": {
+        "message": "Історія відстеження для \"{sender}\" була очищена."
+    },
+    "modal_status_note": {
+        "message": "Примітка"
+    },
+    "modal_status_deleted": {
+        "message": "Видалено"
+    },
+    "modal_status_history_deleted": {
+        "message": "Історія очищена"
+    },
+    "modal_status_data_queued": {
+        "message": "Дані в черзі"
+    },
+    "modal_status_context_invalid": {
+        "message": "Контекст недійсний"
+    },
+    "modal_status_error": {
+        "message": "Помилка"
+    },
+    "error_context_invalidated": {
+        "message": "Контекст розширення недійсний. Перезавантажте сторінку."
+    },
+    "error_history_clear_failed": {
+        "message": "Помилка очищення історії"
+    },
+    "modal_status_delete_failed": {
+        "message": "Не вдалося видалити"
+    },
+    "modal_status_resolution_failed": {
+        "message": "Помилка вирішення"
+    },
+    "error_context_invalidated_short": {
+        "message": "Контекст недійсний"
+    },
+    "error_unknown_error": {
+        "message": "Невідома помилка"
+    },
+    "data_unknown_user": {
+        "message": "Невідомий користувач"
+    },
+    "status_success": {
+        "message": "Успіх"
+    },
+    "error_load_data": {
+        "message": "Не вдалося завантажити дані"
+    },
+    "status_loading": {
+        "message": "Завантаження..."
+    },
+    "label_cc": {
+        "message": "Копія"
+    },
+    "label_bcc": {
+        "message": "Прихована копія"
+    },
+    "diode_active": {
+        "message": "EmailTrack: Активно та відстежується"
+    },
+    "diode_error": {
+        "message": "EmailTrack: ПОМИЛКА - Розширення перезавантажено. Оновіть сторінку."
+    },
+    "diode_disabled": {
+        "message": "EmailTrack: Відстеження вимкнено в налаштуваннях"
+    },
+    "detail_len_opens": {
+        "message": "Переглядів: {count}"
+    }
+}

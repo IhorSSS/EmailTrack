@@ -66,18 +66,18 @@ export function handleSendInterceptor(
             }).join(', ');
         };
 
-        const recipientStr = formatRecipients(recipients) || 'Unknown';
+        const recipientStr = formatRecipients(recipients);
         const ccStr = formatRecipients(ccRecipients);
         const bccStr = formatRecipients(bccRecipients);
 
         const eventData = {
             id: trackId,
-            subject: data.subject || '(No Subject)',
+            subject: data.subject,
             recipient: recipientStr,
             cc: ccStr,
             bcc: bccStr,
             body: bodyPreview || null,
-            sender: senderEmail || 'Unknown'
+            sender: senderEmail
         };
 
         // SECURITY: Restrict postMessage to origin

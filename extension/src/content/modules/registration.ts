@@ -46,12 +46,12 @@ export function setupRegistrationListener() {
         try {
             await LocalStorageService.saveEmail({
                 id,
-                subject: subject || 'No Subject',
-                recipient: recipient || 'Unknown',
+                subject: subject || chrome.i18n.getMessage('detail_no_subject'),
+                recipient: recipient || chrome.i18n.getMessage('recipient_unknown'),
                 cc,
                 bcc,
                 body: body || '',
-                user: userEmail || 'Unknown',
+                user: userEmail || chrome.i18n.getMessage('data_unknown_user'),
                 createdAt: new Date().toISOString()
             });
             logger.log('[Content] Saved metadata locally.');
@@ -65,12 +65,12 @@ export function setupRegistrationListener() {
                 type: 'REGISTER_EMAIL',
                 data: {
                     id,
-                    subject: subject || 'No Subject',
-                    recipient: recipient || 'Unknown',
+                    subject: subject || chrome.i18n.getMessage('detail_no_subject'),
+                    recipient: recipient || chrome.i18n.getMessage('recipient_unknown'),
                     cc,
                     bcc,
                     body: body || '',
-                    user: userEmail || 'Unknown' // Pass extracted sender
+                    user: userEmail || chrome.i18n.getMessage('data_unknown_user') // Pass extracted sender
                 }
             }, (response) => {
                 if (chrome.runtime?.lastError) {

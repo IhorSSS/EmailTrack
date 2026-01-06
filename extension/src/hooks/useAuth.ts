@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { AuthService, type UserProfile } from '../services/AuthService';
 import { LocalStorageService } from '../services/LocalStorageService';
 import { logger } from '../utils/logger';
+import { useTranslation } from './useTranslation';
 
 export interface AuthState {
     userProfile: UserProfile | null;
@@ -14,6 +15,7 @@ export interface AuthState {
 }
 
 export const useAuth = () => {
+    const { t } = useTranslation();
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [authToken, setAuthToken] = useState<string | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
@@ -46,7 +48,7 @@ export const useAuth = () => {
                     if (lastLoggedInEmail && lastLoggedInEmail !== profile.email) {
                         // Different account detected. We DON'T logout, but we signal the conflict.
                         // For privacy, we don't reveal the email in the generic error.
-                        setAuthError(`Account Conflict: Local history belongs to another account`);
+                        setAuthError(t('error_account_conflict'));
                         // We still set the profile so App.tsx knows who is TRYING to log in
                         setUserProfile(profile);
                         setAuthToken(token);
@@ -108,7 +110,7 @@ export const useAuth = () => {
                 });
 
                 if (lastLoggedInEmail && lastLoggedInEmail !== profile.email) {
-                    throw new Error(`Account Conflict: Local history belongs to another account`);
+                    throw new Error(t('error_account_conflict'));
                 }
             }
 
@@ -117,7 +119,7 @@ export const useAuth = () => {
             if (localIds.length > 0) {
                 const hasConflict = await AuthService.checkOwnershipConflict(localIds, profile.id, token);
                 if (hasConflict) {
-                    throw new Error(`Account Conflict: Local history belongs to another account`);
+                    throw new Error(t('error_account_conflict'));
                 }
             }
 
@@ -154,7 +156,18 @@ export const useAuth = () => {
             }
 
             logger.error('Login failed', e);
-            setAuthError(e.message || 'Login failed');
+
+            // Map known errors to translation keys
+            let errorKey = 'error_login_failed';
+            const msg = e.message || '';
+
+            if (msg.includes('Failed to fetch user profile')) errorKey = 'error_profile_failed';
+            else if (msg.includes('Failed to retrieve token')) errorKey = 'error_token_failed';
+            else if (msg.includes('account_conflict')) errorKey = 'error_account_conflict';
+            else if (msg.includes('Sync failed')) errorKey = 'error_sync_failed';
+            else if (msg.includes('Network') || msg.includes('custom content') === false && !navigator.onLine) errorKey = 'error_network';
+
+            setAuthError(t(errorKey as any));
             throw e;
         } finally {
             setAuthLoading(false);

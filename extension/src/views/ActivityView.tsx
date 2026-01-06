@@ -19,6 +19,8 @@ interface ActivityViewProps {
     loading: boolean;
 }
 
+import { useTranslation } from '../hooks/useTranslation';
+
 export const ActivityView: React.FC<ActivityViewProps> = ({
     uniqueSenders,
     senderFilter,
@@ -32,6 +34,7 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
     onDeleteClick,
     loading
 }) => {
+    const { t } = useTranslation();
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Header Content with Search and Filters */}
@@ -52,7 +55,7 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
                         value={senderFilter}
                         onChange={(e) => setSenderFilter(e.target.value)}
                         options={[
-                            { value: 'all', label: 'All Senders' },
+                            { value: 'all', label: t('dashboard_filter_all_senders') },
                             ...uniqueSenders.map(s => ({ value: s, label: s }))
                         ]}
                     />
@@ -63,7 +66,7 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
                     <div style={{ position: 'relative', flex: 1 }}>
                         <input
                             type="text"
-                            placeholder="Search..."
+                            placeholder={t('activity_search_placeholder')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             style={{
@@ -120,17 +123,17 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
                     {/* Filters */}
                     <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
                         <FilterChip
-                            label="All"
+                            label={t('activity_filter_all')}
                             active={filterType === 'all'}
                             onClick={() => setFilterType('all')}
                         />
                         <FilterChip
-                            label="Opened"
+                            label={t('activity_filter_opened')}
                             active={filterType === 'opened'}
                             onClick={() => setFilterType('opened')}
                         />
                         <FilterChip
-                            label="Unopened"
+                            label={t('activity_filter_unopened')}
                             active={filterType === 'unopened'}
                             onClick={() => setFilterType('unopened')}
                         />
@@ -173,10 +176,10 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
                         </div>
                         <div>
                             <p style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-primary)', marginBottom: 'var(--spacing-xs)' }}>
-                                No results found
+                                {t('activity_no_results_title')}
                             </p>
                             <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                {searchQuery ? `We couldn't find anything matching "${searchQuery}"` : "Try adjusting your filters to see more results"}
+                                {searchQuery ? t('activity_no_results_desc', { query: searchQuery }) : t('activity_no_results_desc_default')}
                             </p>
                         </div>
                     </div>

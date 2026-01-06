@@ -9,8 +9,10 @@ import { SettingsView } from './views/SettingsView';
 import { useAppController } from './hooks/useAppController';
 import { useThemeApplier } from './hooks/useThemeApplier';
 import { Select } from './components/common/Select';
+import { useTranslation } from './hooks/useTranslation';
 
 const App = () => {
+  const { t } = useTranslation();
   const { state, actions } = useAppController();
   const {
     view, selectedEmail, userProfile, loading, error,
@@ -98,7 +100,7 @@ const App = () => {
         title={statusModal.title}
         message={statusModal.message}
         type={statusModal.type}
-        confirmLabel="Close"
+        confirmLabel={t('common_close')}
         showCancel={false}
         onConfirm={actions.closeStatus}
         onCancel={actions.closeStatus}
@@ -107,17 +109,13 @@ const App = () => {
       {/* Logout Confirmation Modal */}
       <Modal
         isOpen={logoutModalOpen}
-        title="Sign Out"
+        title={t('modal_logout_title')}
         message={
-          <span>
-            You are about to sign out of <b>{userProfile?.email}</b>.
-            <br /><br />
-            Would you like to clear the tracking history from this device, or keep it for offline viewing?
-          </span>
+          <span dangerouslySetInnerHTML={{ __html: t('modal_logout_message', { email: userProfile?.email || '' }) }} />
         }
         type="info"
-        confirmLabel="Clear Data & Sign Out"
-        cancelLabel="Keep Data & Sign Out"
+        confirmLabel={t('modal_logout_action_clear')}
+        cancelLabel={t('modal_logout_action_keep')}
         showCancel={true}
         onConfirm={() => actions.confirmLogout(true)}
         onCancel={() => actions.confirmLogout(false)}
@@ -127,16 +125,11 @@ const App = () => {
       {/* Delete Confirmation Modal (Bulk) */}
       <Modal
         isOpen={deleteConfirmModalOpen}
-        title="Clear Tracking Data"
-        message={
-          <span>
-            Are you sure you want to permanently delete the tracking history?
-            This action cannot be undone.
-          </span>
-        }
+        title={t('modal_delete_title')}
+        message={t('modal_delete_message')}
         type="danger"
-        confirmLabel="Yes, Delete Data"
-        cancelLabel="Cancel"
+        confirmLabel={t('modal_delete_action')}
+        cancelLabel={t('common_cancel')}
         showCancel={true}
         onConfirm={() => {
           actions.handleDeleteHistory(); // This will use the CURRENT senderFilter from state
@@ -146,13 +139,13 @@ const App = () => {
       >
         <div style={{ marginTop: '16px' }}>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-            Choose which sender's history to clear:
+            {t('modal_delete_sender_select_label')}
           </p>
           <Select
             value={senderFilter}
             onChange={(e) => actions.setSenderFilter(e.target.value)}
             options={[
-              { value: 'all', label: 'All Senders' },
+              { value: 'all', label: t('dashboard_filter_all_senders') },
               ...uniqueSenders.map(s => ({ value: s, label: s }))
             ]}
           />
@@ -162,19 +155,13 @@ const App = () => {
       {/* Delete Confirmation Modal (Single) */}
       <Modal
         isOpen={!!emailToDelete}
-        title="Remove from History"
+        title={t('modal_delete_single_title')}
         message={
-          <span>
-            Are you sure you want to remove tracking data for:
-            <br /><br />
-            <b>{emailToDelete?.subject || '(No Subject)'}</b>
-            <br /><br />
-            This will permanently delete this record from your history and stop tracking its opens.
-          </span>
+          <span dangerouslySetInnerHTML={{ __html: t('modal_delete_single_message', { subject: emailToDelete?.subject || t('detail_no_subject') }) }} />
         }
         type="danger"
-        confirmLabel="Remove"
-        cancelLabel="Cancel"
+        confirmLabel={t('common_remove')}
+        cancelLabel={t('common_cancel')}
         showCancel={true}
         onConfirm={actions.handleDeleteSingleEmail}
         onCancel={actions.closeDeleteSingleConfirm}
@@ -184,17 +171,13 @@ const App = () => {
       {/* Account Mismatch / Conflict Modal */}
       <Modal
         isOpen={!!conflictEmail}
-        title="Account Mismatch"
+        title={t('modal_conflict_title')}
         message={
-          <span>
-            Local history belongs to <b>another account</b>.
-            <br /><br />
-            You are signing in with a different account. To protect privacy, you must decide how to handle the existing data.
-          </span>
+          <span dangerouslySetInnerHTML={{ __html: t('modal_conflict_message') }} />
         }
         type="warning"
-        confirmLabel="Clear All & Sign In"
-        cancelLabel="Keep New Only & Sign In"
+        confirmLabel={t('modal_conflict_action_clear')}
+        cancelLabel={t('modal_conflict_action_keep')}
         showCancel={true}
         onConfirm={() => actions.resolveConflict(true)}
         onCancel={() => actions.resolveConflict(false)}
@@ -203,10 +186,10 @@ const App = () => {
       {/* Account Conflict / Auth Error Modal */}
       <Modal
         isOpen={!!authError && !authError.includes('Account Conflict')}
-        title="Authentication Error"
+        title={t('modal_auth_error_title')}
         message={authError}
         type="danger"
-        confirmLabel="Close"
+        confirmLabel={t('common_close')}
         showCancel={false}
         onConfirm={actions.clearAuthError}
         onCancel={actions.clearAuthError}

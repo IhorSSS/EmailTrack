@@ -84,9 +84,9 @@
 }
 
 .message {
-    word-break: break-all;
     overflow-wrap: break-word;
     white-space: pre-wrap;
+    text-wrap: balance;
 }
 
 .footer {

@@ -1,0 +1,416 @@
+{
+    "app_name": {
+        "message": "EmailTrack"
+    },
+    "app_description": {
+        "message": "Track email opens for Gmail"
+    },
+    "dashboard_title": {
+        "message": "Overview"
+    },
+    "dashboard_tracked": {
+        "message": "Emails Tracked"
+    },
+    "dashboard_open_rate": {
+        "message": "Open Rate"
+    },
+    "dashboard_recent_activity": {
+        "message": "Recent Activity"
+    },
+    "dashboard_no_activity": {
+        "message": "No activity yet. Send an email to start tracking!"
+    },
+    "dashboard_view_full_history": {
+        "message": "View Full History"
+    },
+    "dashboard_filter_all_senders": {
+        "message": "All Senders"
+    },
+    "activity_title": {
+        "message": "Activity"
+    },
+    "activity_search_placeholder": {
+        "message": "Search..."
+    },
+    "activity_filter_all": {
+        "message": "All"
+    },
+    "activity_filter_opened": {
+        "message": "Opened"
+    },
+    "activity_filter_unopened": {
+        "message": "Unopened"
+    },
+    "activity_no_results_title": {
+        "message": "No results found"
+    },
+    "activity_no_results_desc": {
+        "message": "We couldn't find anything matching \"{query}\""
+    },
+    "activity_no_results_desc_default": {
+        "message": "Try adjusting your filters to see more results"
+    },
+    "settings_title": {
+        "message": "Settings"
+    },
+    "settings_tracking_on": {
+        "message": "Tracking is ON"
+    },
+    "settings_tracking_off": {
+        "message": "Tracking is OFF"
+    },
+    "settings_tracking_desc_on": {
+        "message": "Automatically inject tracking pixel into new emails"
+    },
+    "settings_tracking_desc_off": {
+        "message": "No pixels will be added to your emails"
+    },
+    "settings_visual_indicator": {
+        "message": "Visual Indicator"
+    },
+    "settings_visual_indicator_desc": {
+        "message": "Show a minimalist icon in Gmail compose window when tracking is active."
+    },
+    "settings_body_preview_length": {
+        "message": "Email Body Preview Length"
+    },
+    "settings_body_preview_none": {
+        "message": "None"
+    },
+    "settings_body_preview_short": {
+        "message": "Short (50 chars)"
+    },
+    "settings_body_preview_medium": {
+        "message": "Medium (100 chars)"
+    },
+    "settings_body_preview_long": {
+        "message": "Long (200 chars)"
+    },
+    "settings_theme": {
+        "message": "App Theme"
+    },
+    "settings_theme_system": {
+        "message": "System Default"
+    },
+    "settings_theme_light": {
+        "message": "Light"
+    },
+    "settings_theme_dark": {
+        "message": "Dark"
+    },
+    "settings_active_identity": {
+        "message": "Active Identity"
+    },
+    "settings_signed_in": {
+        "message": "Signed In"
+    },
+    "settings_guest_mode": {
+        "message": "Guest Mode"
+    },
+    "settings_guest_desc": {
+        "message": "Tracking locally without cloud sync"
+    },
+    "settings_guest_warning": {
+        "message": "Note: New emails sent in Guest Mode are anonymous and won't be synced to your account until you sign in."
+    },
+    "settings_danger_zone": {
+        "message": "Danger Zone"
+    },
+    "settings_danger_desc": {
+        "message": "Permanently delete tracking history from this device and the cloud (where applicable)."
+    },
+    "settings_clear_data": {
+        "message": "Clear Tracking Data"
+    },
+    "settings_language": {
+        "message": "Language"
+    },
+    "settings_language_system": {
+        "message": "System ({lang})"
+    },
+    "settings_language_en": {
+        "message": "English"
+    },
+    "settings_language_uk": {
+        "message": "Ukrainian"
+    },
+    "settings_language_note": {
+        "message": "Note: This setting affects the extension popup UI only."
+    },
+    "detail_title": {
+        "message": "Message Details"
+    },
+    "detail_back": {
+        "message": "Back"
+    },
+    "detail_recipient": {
+        "message": "Recipient"
+    },
+    "detail_subject": {
+        "message": "Subject"
+    },
+    "detail_no_subject": {
+        "message": "(No Subject)"
+    },
+    "detail_body_preview": {
+        "message": "Body Preview"
+    },
+    "detail_sent_at": {
+        "message": "Sent At"
+    },
+    "detail_open_history": {
+        "message": "Open History"
+    },
+    "detail_refresh_tooltip": {
+        "message": "Refresh status"
+    },
+    "detail_no_opens": {
+        "message": "No opens recorded yet."
+    },
+    "detail_opened": {
+        "message": "Opened"
+    },
+    "detail_bot": {
+        "message": "BOT"
+    },
+    "modal_logout_title": {
+        "message": "Sign Out"
+    },
+    "modal_logout_message": {
+        "message": "You are about to sign out of <b>{email}</b>. Would you like to clear the tracking history from this device, or keep it for offline viewing?"
+    },
+    "modal_logout_action_clear": {
+        "message": "Clear Data & Sign Out"
+    },
+    "modal_logout_action_keep": {
+        "message": "Keep Data & Sign Out"
+    },
+    "modal_delete_title": {
+        "message": "Clear Tracking Data"
+    },
+    "modal_delete_message": {
+        "message": "Are you sure you want to permanently delete the tracking history? This action cannot be undone."
+    },
+    "modal_delete_action": {
+        "message": "Yes, Delete Data"
+    },
+    "modal_delete_sender_select_label": {
+        "message": "Choose which sender's history to clear:"
+    },
+    "modal_delete_single_title": {
+        "message": "Remove from History"
+    },
+    "modal_delete_single_message": {
+        "message": "Are you sure you want to remove tracking data for: <b>{subject}</b>. This will permanently delete this record from your history and stop tracking its opens."
+    },
+    "modal_conflict_title": {
+        "message": "Account Mismatch"
+    },
+    "modal_conflict_message": {
+        "message": "Local history belongs to <b>another account</b>. You are signing in with a different account. To protect privacy, you must decide how to handle the existing data."
+    },
+    "modal_conflict_action_clear": {
+        "message": "Clear All & Sign In"
+    },
+    "modal_conflict_action_keep": {
+        "message": "Keep New Only & Sign In"
+    },
+    "modal_auth_error_title": {
+        "message": "Authentication Error"
+    },
+    "common_close": {
+        "message": "Close"
+    },
+    "common_cancel": {
+        "message": "Cancel"
+    },
+    "common_remove": {
+        "message": "Remove"
+    },
+    "common_note": {
+        "message": "Note:"
+    },
+    "nav_overview": {
+        "message": "Overview"
+    },
+    "nav_activity": {
+        "message": "Activity"
+    },
+    "nav_settings": {
+        "message": "Settings"
+    },
+    "email_last_opened": {
+        "message": "Last Opened: {date}"
+    },
+    "email_sent": {
+        "message": "Sent"
+    },
+    "time_today": {
+        "message": "Today"
+    },
+    "time_yesterday": {
+        "message": "Yesterday"
+    },
+    "device_unknown": {
+        "message": "Unknown Device"
+    },
+    "os_unknown": {
+        "message": "Unknown OS"
+    },
+    "browser_unknown": {
+        "message": "Unknown Browser"
+    },
+    "location_unknown": {
+        "message": "Unknown"
+    },
+    "location_na": {
+        "message": "N/A"
+    },
+    "device_details": {
+        "message": "{browser} on {os}"
+    },
+    "error_network": {
+        "message": "Network error. Please check your connection."
+    },
+    "error_sync_failed": {
+        "message": "Synchronization failed."
+    },
+    "error_profile_failed": {
+        "message": "Failed to load user profile."
+    },
+    "error_token_failed": {
+        "message": "Authentication failed. Please sign in again."
+    },
+    "stats_grouped_opens": {
+        "message": "Grouped Opens ({count})"
+    },
+    "device_gmail": {
+        "message": "Gmail Proxy"
+    },
+    "device_proxy": {
+        "message": "Proxy/Server"
+    },
+    "status_reload": {
+        "message": "Reload"
+    },
+    "recipient_unknown": {
+        "message": "Unknown Recipient"
+    },
+    "common_confirm": {
+        "message": "Confirm"
+    },
+    "common_processing": {
+        "message": "Processing..."
+    },
+    "common_refresh": {
+        "message": "Refresh"
+    },
+    "header_signed_in_as": {
+        "message": "Signed in as {email}"
+    },
+    "header_logout": {
+        "message": "Log out"
+    },
+    "header_login": {
+        "message": "Sign in"
+    },
+    "activity_delete_tooltip": {
+        "message": "Delete from history"
+    },
+    "status_extension_updated": {
+        "message": "Extension updated. Please reload the page."
+    },
+    "error_account_conflict": {
+        "message": "Account Conflict: Local history belongs to another account"
+    },
+    "error_login_failed": {
+        "message": "Login failed"
+    },
+    "delete_warning_owned_data": {
+        "message": "Local history cleared. Some data on the server belongs to an account and requires sign-in to delete."
+    },
+    "delete_warning_forbidden": {
+        "message": "Email removed from this device. Please sign in to delete it from the cloud."
+    },
+    "delete_warning_retry": {
+        "message": "Email removed from this device. Cloud deletion will be retried later."
+    },
+    "delete_success_sender": {
+        "message": "History for \"{sender}\" has been cleared."
+    },
+    "delete_success_all": {
+        "message": "Tracking history has been cleared from this device and the cloud."
+    },
+    "delete_success_generic": {
+        "message": "Tracking history has been cleared successfully."
+    },
+    "delete_success_sender_generic": {
+        "message": "Tracking history for \"{sender}\" has been cleared."
+    },
+    "modal_status_note": {
+        "message": "Note"
+    },
+    "modal_status_deleted": {
+        "message": "Deleted"
+    },
+    "modal_status_history_deleted": {
+        "message": "History Deleted"
+    },
+    "modal_status_data_queued": {
+        "message": "Data Queued"
+    },
+    "modal_status_context_invalid": {
+        "message": "Context Invalidated"
+    },
+    "modal_status_error": {
+        "message": "Error"
+    },
+    "error_context_invalidated": {
+        "message": "Extension context invalidated. Reload page."
+    },
+    "error_history_clear_failed": {
+        "message": "Error clearing history"
+    },
+    "modal_status_delete_failed": {
+        "message": "Delete Failed"
+    },
+    "modal_status_resolution_failed": {
+        "message": "Resolution Failed"
+    },
+    "error_context_invalidated_short": {
+        "message": "Context Invalidated"
+    },
+    "error_unknown_error": {
+        "message": "Unknown Error"
+    },
+    "data_unknown_user": {
+        "message": "Unknown User"
+    },
+    "status_success": {
+        "message": "Success"
+    },
+    "error_load_data": {
+        "message": "Failed to load data"
+    },
+    "status_loading": {
+        "message": "Loading..."
+    },
+    "label_cc": {
+        "message": "CC"
+    },
+    "label_bcc": {
+        "message": "BCC"
+    },
+    "diode_active": {
+        "message": "EmailTrack: Active & Tracking"
+    },
+    "diode_error": {
+        "message": "EmailTrack: ERROR - Extension reloaded. Please refresh page to resume tracking."
+    },
+    "diode_disabled": {
+        "message": "EmailTrack: Tracking Disabled in Settings"
+    },
+    "detail_len_opens": {
+        "message": "Opens: {count}"
+    }
+}

@@ -1,9 +1,10 @@
 {
     "manifest_version": 3,
+    "default_locale": "en",
     "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjTCrD5AmS4idvJwU4AxMqi/xqQPvV8wUTtLdJpGgfWatAlcDCR82MVnOMeWDKOY/qqOHpg5/KKWrSuFwsIVHAoQXhZ7RyPy0EVUa0/BpToxebp7MsFCf4RmPQuZJCKxmDsjXDEs3Al4SNmtUTn20oXKCUJ7deSRz7h5J8r0Jlmo5KuZrFFyFsYLv0zRYLRS8NyO7xcRooVc7ldEhiw/nHAc2hPVxAaXXH+akZwSYw6Q+FeLWf5X0aeEDSDVhSxm0JUZrXTiPpjjxPKzmLX3O6/0vMUIsqhatIpjdhqjK1OCwKLyvgLOz3tmkTY3yi32AFnidCaS1V0T2oJZZVEm88wIDAQAB",
-    "name": "EmailTrack",
+    "name": "__MSG_app_name__",
     "version": "1.0.1",
-    "description": "Track email opens for Gmail",
+    "description": "__MSG_app_description__",
     "icons": {
         "16": "icon.png",
         "48": "icon.png",
@@ -40,6 +41,7 @@
         ]
     },
     "action": {
+        "default_title": "__MSG_app_name__",
         "default_popup": "index.html",
         "default_icon": {
             "16": "icon.png",

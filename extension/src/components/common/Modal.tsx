@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import styles from './Modal.module.css';
+import { useTranslation } from '../../hooks/useTranslation';
 
 interface ModalProps {
     isOpen: boolean;
@@ -22,15 +23,20 @@ export const Modal: React.FC<ModalProps> = ({
     message,
     children,
     type = 'info',
-    confirmLabel = 'Confirm',
-    cancelLabel = 'Cancel',
+    confirmLabel, // Removed default here
+    cancelLabel, // Removed default here
     showCancel = true,
     onConfirm,
     onCancel,
     onClose,
     loading = false
 }) => {
+    const { t } = useTranslation();
     const handleDismiss = onClose || onCancel;
+
+    // Use translations if props are not provided
+    const finalConfirmLabel = confirmLabel || t('common_confirm');
+    const finalCancelLabel = cancelLabel || t('common_cancel');
 
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
@@ -51,7 +57,7 @@ export const Modal: React.FC<ModalProps> = ({
                         className={styles.closeBtn}
                         onClick={handleDismiss}
                         disabled={loading}
-                        aria-label="Close"
+                        aria-label={t('common_close')}
                     >
                         ×
                     </button>
@@ -67,7 +73,7 @@ export const Modal: React.FC<ModalProps> = ({
                             onClick={onCancel}
                             disabled={loading}
                         >
-                            {cancelLabel}
+                            {finalCancelLabel}
                         </button>
                     )}
                     <button
@@ -75,7 +81,7 @@ export const Modal: React.FC<ModalProps> = ({
                         onClick={onConfirm}
                         disabled={loading}
                     >
-                        {loading ? 'Processing...' : confirmLabel}
+                        {loading ? t('common_processing') : finalConfirmLabel}
                     </button>
                 </div>
             </div>

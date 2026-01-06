@@ -3,6 +3,7 @@ import { API_CONFIG } from '../config/api';
 import { LocalStorageService } from '../services/LocalStorageService';
 import { DashboardService } from '../services/DashboardService';
 import { logger } from '../utils/logger';
+import { useTranslation } from './useTranslation'; // Import hook
 import type { TrackedEmail } from '../types';
 import type { UserProfile } from '../services/AuthService';
 
@@ -13,6 +14,7 @@ export interface EmailStats {
 }
 
 export const useEmails = (userProfile: UserProfile | null, currentUser: string | null, authToken: string | null, settingsLoaded: boolean = true) => {
+    const { t } = useTranslation(); // Use hook
     const [emails, setEmails] = useState<TrackedEmail[]>([]);
     const [stats, setStats] = useState<EmailStats>({ tracked: 0, opened: 0, rate: 0 });
     const [loading, setLoading] = useState(true);
@@ -270,7 +272,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
 
         } catch (e: any) {
             logger.error('Failed to fetch emails:', e);
-            setError(e.message || 'Failed to load data');
+            setError(e.message || t('error_load_data'));
         } finally {
             setLoading(false);
         }
@@ -305,7 +307,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                     logger.log('[useEmails] Delete forbidden (owned by account)');
                     return {
                         success: true,
-                        message: 'Email removed from this device. Please sign in to delete it from the cloud.',
+                        message: t('delete_warning_forbidden'),
                         type: 'warning'
                     };
                 }
@@ -316,7 +318,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
 
                 return {
                     success: true,
-                    message: 'Email removed from this device. Cloud deletion will be retried later.',
+                    message: t('delete_warning_retry'),
                     type: 'warning'
                 };
             }
@@ -411,7 +413,7 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
 
                     return {
                         success: true,
-                        message: 'Local history cleared. Some data on the server belongs to an account and requires sign-in to delete.',
+                        message: t('delete_warning_owned_data'),
                         type: 'warning'
                     };
                 }
@@ -423,8 +425,8 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
                 return {
                     success: true,
                     message: targetSender
-                        ? `History for "${targetSender}" has been cleared.`
-                        : 'Tracking history has been cleared from this device and the cloud.',
+                        ? t('delete_success_sender', { sender: targetSender })
+                        : t('delete_success_all'),
                     type: 'success'
                 };
             }
@@ -435,8 +437,8 @@ export const useEmails = (userProfile: UserProfile | null, currentUser: string |
             return {
                 success: true,
                 message: filterSender === 'all'
-                    ? 'Tracking history has been cleared successfully.'
-                    : `Tracking history for "${filterSender}" has been cleared.`,
+                    ? t('delete_success_generic')
+                    : t('delete_success_sender_generic', { sender: filterSender }),
                 type: 'success'
             };
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { EmailItem } from '../components/activity/EmailItem';
 import { StatCard } from '../components/dashboard/StatCard';
+import { useTranslation } from '../hooks/useTranslation';
 import { Button } from '../components/common/Button';
 import { Select } from '../components/common/Select';
 import { Skeleton } from '../components/common/Skeleton';
@@ -32,6 +33,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     onDeleteClick,
     onViewAllClick
 }) => {
+    const { t } = useTranslation();
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Sticky Header with Sender Filter and Stats */}
@@ -52,7 +54,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         value={senderFilter}
                         onChange={(e) => setSenderFilter(e.target.value)}
                         options={[
-                            { value: 'all', label: 'All Senders' },
+                            { value: 'all', label: t('dashboard_filter_all_senders') },
                             ...uniqueSenders.map(s => ({ value: s, label: s }))
                         ]}
                     />
@@ -69,12 +71,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <>
                             <StatCard
                                 value={stats.tracked}
-                                label="Emails Tracked"
+                                label={t('dashboard_tracked')}
                                 color="var(--color-primary)"
                             />
                             <StatCard
                                 value={`${stats.rate}%`}
-                                label="Open Rate"
+                                label={t('dashboard_open_rate')}
                                 color={stats.rate > 50 ? 'var(--color-success)' : 'var(--color-primary)'}
                             />
                         </>
@@ -119,7 +121,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             letterSpacing: '-0.01em',
                             textTransform: 'uppercase'
                         }}>
-                            Recent Activity
+                            {t('dashboard_recent_activity')}
                         </h3>
                     </div>
 
@@ -145,7 +147,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 fontSize: '13px',
                                 color: 'var(--text-muted)'
                             }}>
-                                No activity yet. Send an email to start tracking!
+                                {t('dashboard_no_activity')}
                             </div>
                         ) : (
                             processedEmails.slice(0, CONSTANTS.DASHBOARD_RECENT_COUNT).map(email => (
@@ -167,7 +169,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     style={{ marginTop: 'var(--spacing-xs)' }}
                     disabled={loading && processedEmails.length === 0}
                 >
-                    View Full History
+                    {t('dashboard_view_full_history')}
                 </Button>
             </div>
         </div>

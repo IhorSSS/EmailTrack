@@ -59,6 +59,21 @@ export const sendConfigToMainWorld = () => {
 
                 // Heartbeat to detect orphaned state in main world
                 configEl.setAttribute('data-heartbeat', Date.now().toString());
+
+                // Bridge Localized Strings for Main World (Diode Tooltips)
+                const msgActive = chrome.i18n.getMessage('diode_active') || 'EmailTrack: Active & Tracking';
+                const msgError = chrome.i18n.getMessage('diode_error') || 'EmailTrack: ERROR - Extension reloaded. Please refresh page to resume tracking.';
+                const msgDisabled = chrome.i18n.getMessage('diode_disabled') || 'EmailTrack: Tracking Disabled in Settings';
+
+                if (configEl.getAttribute('data-msg-diode-active') !== msgActive) {
+                    configEl.setAttribute('data-msg-diode-active', msgActive);
+                }
+                if (configEl.getAttribute('data-msg-diode-error') !== msgError) {
+                    configEl.setAttribute('data-msg-diode-error', msgError);
+                }
+                if (configEl.getAttribute('data-msg-diode-disabled') !== msgDisabled) {
+                    configEl.setAttribute('data-msg-diode-disabled', msgDisabled);
+                }
             };
 
             ensureConfig();

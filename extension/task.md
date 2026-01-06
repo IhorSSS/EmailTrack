@@ -1,0 +1,41 @@
+# i18n Implementation Task Breakdown
+
+- [x] **Configure TypeScript**: Updated `tsconfig.app.json` with `"resolveJsonModule": true`.
+- [x] **Infrastructure Setup**:
+    - [x] Created `src/types/i18n.ts` for type definitions.
+    - [x] Created `src/hooks/useLanguage.ts` for storage and detection logic.
+    - [x] Created `src/hooks/useTranslation.tsx` for context and flattening logic.
+- [x] **Locale Files**:
+    - [x] Created `public/_locales/en/messages.json` (Source of Truth).
+    - [x] Created `public/_locales/uk/messages.json` (Translation).
+- [x] **Component Refactoring**:
+    - [x] `SettingsView.tsx`: Added Language Selector and replaced strings.
+    - [x] `DashboardView.tsx`: Replaced hardcoded strings.
+    - [x] `ActivityView.tsx`: Replaced hardcoded strings.
+    - [x] `DetailView.tsx`: Replaced hardcoded strings.
+    - [x] `App.tsx`: Replaced Modal strings.
+- [x] **Verification**:
+    - [x] Verified build success.
+    - [x] Verified tests pass.
+
+# QA Audit: Hardcoded String Hunt
+- [x] **Scan Codebase**: Identify missed hardcoded strings (JSX, attributes, errors).
+- [x] **Report Findings**: Generate a Markdown table of missing translations.
+- [/] **Fix Identified Issues**:
+    - [x] Update locale files (en/uk) - Added missing navigation, device, note keys.
+    - [x] Refactor `Header.tsx`, `Modal.tsx`, `RefreshButton.tsx`.
+    - [x] Refactor `EmailItem.tsx`, `useAuth.ts` - Fixed "Last Opened" regression.
+    - [x] Handle Content Script (`StatsDisplay.tsx`) - Fixed tooltips and device strings.
+    - [x] Refactor `DetailView.tsx` - Fixed device/location/date strings.
+    - [x] Refactor `MainLayout.tsx` - Fixed navigation tabs.
+    - [x] Refactor `SettingsView.tsx` - Fixed "Note" and emoji.
+    - [x] Update locale files (en/uk) - Added missing navigation, device, note keys.
+    - [x] Refactor `Header.tsx`, `Modal.tsx`, `RefreshButton.tsx`.
+    - [x] Refactor `EmailItem.tsx`, `useAuth.ts` - Fixed "Last Opened" regression.
+    - [x] Handle Content Script (`StatsDisplay.tsx`) - Fixed tooltips and device strings.
+    - [x] Refactor `DetailView.tsx` - Fixed device/location/date strings.
+    - [x] Refactor `MainLayout.tsx` - Fixed navigation tabs.
+    - [x] Refactor `SettingsView.tsx` - Fixed "Note" and emoji.
+    - [x] Final Scan - Verified no hardcoded placeholders/titles.
+    - [x] **Forensic Cleanup** - Fixed backend errors, StatsDisplay logic strings, and formatters.
+    - [x] **Refinements** - Fixed "Gmail Image Proxy", "Unknown/Unknown" redundancy, and Settings toggle layout.

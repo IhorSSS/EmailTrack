@@ -2,6 +2,7 @@ import React from 'react';
 import { Header } from './Header';
 import { TabButton } from '../common/TabButton';
 import type { UserProfile } from '../../services/AuthService';
+import { useTranslation } from '../../hooks/useTranslation';
 
 interface MainLayoutProps {
     children: React.ReactNode;
@@ -24,6 +25,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     currentView,
     onViewChange
 }) => {
+    const { t } = useTranslation();
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-app)' }}>
             <Header
@@ -60,9 +63,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
                 paddingBottom: 'env(safe-area-inset-bottom)',
                 minHeight: '64px'
             }}>
-                <TabButton label="Overview" icon="dashboard" active={currentView === 'dashboard'} onClick={() => onViewChange('dashboard')} />
-                <TabButton label="Activity" icon="activity" active={currentView === 'activity'} onClick={() => onViewChange('activity')} />
-                <TabButton label="Settings" icon="settings" active={currentView === 'settings'} onClick={() => onViewChange('settings')} />
+                <TabButton label={t('nav_overview')} icon="dashboard" active={currentView === 'dashboard'} onClick={() => onViewChange('dashboard')} />
+                <TabButton label={t('nav_activity')} icon="activity" active={currentView === 'activity'} onClick={() => onViewChange('activity')} />
+                <TabButton label={t('nav_settings')} icon="settings" active={currentView === 'settings'} onClick={() => onViewChange('settings')} />
             </nav>
         </div>
     );

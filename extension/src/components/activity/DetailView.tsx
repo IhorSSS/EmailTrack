@@ -1,9 +1,11 @@
 import { Badge } from '../common/Badge';
-import { formatRecipient, formatFullDate } from '../../utils/formatter';
+import { formatRecipient, formatFullDate, getDeviceLabel } from '../../utils/formatter';
 import { RefreshButton } from '../common/RefreshButton';
 import { logger } from '../../utils/logger';
 import type { TrackedEmail, OpenEvent } from '../../types';
+import { useTranslation } from '../../hooks/useTranslation';
 import styles from './DetailView.module.css';
+import { MapPin, Monitor, Smartphone, Globe } from 'lucide-react';
 
 interface DetailViewProps {
     email: TrackedEmail;
@@ -13,56 +15,73 @@ interface DetailViewProps {
 }
 
 export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProps) => {
+    const { t, language } = useTranslation();
+
+    // Determine locale for formatting
+    const localeMap: Record<string, string> = {
+        'en': 'en-US',
+        'uk': 'uk-UA'
+    };
+    const currentLocale = language === 'system' ? navigator.language : (localeMap[language] || 'en-US');
+
+    const getDeviceIcon = (deviceStr: string) => {
+        const lower = (deviceStr || '').toLowerCase();
+        if (lower.includes('mobile') || lower.includes('iphone') || lower.includes('android')) {
+            return <Smartphone size={14} className={styles.icon} />;
+        }
+        return <Monitor size={14} className={styles.icon} />;
+    };
+
     return (
         <div className={styles.container}>
             <div className={styles.header}>
                 <button onClick={onBack} className={styles.backBtn}>
-                    ← Back
+                    ← {t('detail_back')}
                 </button>
-                <h3 className={styles.title}>Message Details</h3>
+                <h3 className={styles.title}>{t('detail_title')}</h3>
                 <RefreshButton
                     onClick={onRefresh}
                     loading={loading}
-                    title="Refresh status"
+                    title={t('detail_refresh_tooltip')}
                 />
             </div>
 
             <div className={styles.content}>
-                <div className={styles.section}>
-                    <label className={styles.label}>Recipient</label>
+                <div className="section">
+                    <label className={styles.label}>{t('detail_recipient')}</label>
                     <div className={styles.value}>
-                        {formatRecipient(email.recipient)}
+                        {formatRecipient(email.recipient, t as any)}
                     </div>
                 </div>
 
                 {email.cc && (
                     <div className={styles.section}>
-                        <label className={styles.label}>CC</label>
+                        <label className={styles.label}>{t('label_cc')}</label>
                         <div className={styles.value}>
-                            {formatRecipient(email.cc)}
+                            {formatRecipient(email.cc, t as any)}
                         </div>
                     </div>
                 )}
 
                 {email.bcc && (
                     <div className={styles.section}>
-                        <label className={styles.label}>BCC</label>
+                        <label className={styles.label}>{t('label_bcc')}</label>
                         <div className={styles.value}>
-                            {formatRecipient(email.bcc)}
+                            {formatRecipient(email.bcc, t as any)}
                         </div>
                     </div>
                 )}
 
                 <div className={styles.section}>
-                    <label className={styles.label}>Subject</label>
+                    <label className={styles.label}>{t('detail_subject')}</label>
                     <div className={styles.value}>
-                        {email.subject || '(No Subject)'}
+                        {email.subject || t('detail_no_subject')}
                     </div>
                 </div>
 
                 {email.body && (
                     <div className={styles.section}>
-                        <label className={styles.label}>Body Preview</label>
+                        <label className={styles.label}>{t('detail_body_preview')}</label>
                         <div className={styles.value} style={{ fontSize: '13px', lineHeight: '1.4', whiteSpace: 'pre-wrap', color: 'var(--text-secondary)' }}>
                             {email.body}
                         </div>
@@ -70,35 +89,41 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                 )}
 
                 <div className={styles.section}>
-                    <label className={styles.label}>Sent At</label>
+                    <label className={styles.label}>{t('detail_sent_at')}</label>
                     <div className={styles.valueSmall}>
-                        {formatFullDate(email.createdAt)}
+                        {formatFullDate(email.createdAt, currentLocale)}
                     </div>
                 </div>
 
                 <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                        <label className={styles.label} style={{ margin: 0 }}>Open History</label>
+                        <label className={styles.label} style={{ margin: 0 }}>{t('detail_open_history')}</label>
                         {email.openCount > 0 && (
                             <Badge variant="success" shape="pill">{email.openCount}</Badge>
                         )}
                     </div>
                     {(!email.opens || email.opens.length === 0) ? (
                         <div className={styles.emptyState}>
-                            No opens recorded yet.
+                            {t('detail_no_opens')}
                         </div>
                     ) : (
                         <div className={styles.opensList}>
                             {email.opens.map((open: OpenEvent, idx: number) => {
                                 // Parse device JSON
-                                let deviceInfo = { device: 'Unknown', os: 'Unknown', browser: 'Unknown', isBot: false };
+                                let deviceInfo: any = { device: null, os: null, browser: null, isBot: false };
                                 try {
-                                    if (open.device) {
+                                    if (open.device && open.device.startsWith('{')) {
                                         deviceInfo = JSON.parse(open.device);
+                                    } else if (open.device) {
+                                        deviceInfo.device = open.device;
                                     }
                                 } catch (e) {
                                     logger.warn('Failed to parse device:', e);
+                                    deviceInfo.device = open.device;
                                 }
+
+                                const hasOsOrBrowser = (deviceInfo.os && deviceInfo.os !== 'Unknown') || (deviceInfo.browser && deviceInfo.browser !== 'Unknown');
+                                const label = getDeviceLabel(deviceInfo, t as any);
 
                                 return (
                                     <div
@@ -106,35 +131,43 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                                         className={styles.openItem}
                                     >
                                         <div className={styles.openRow}>
-                                            <Badge variant="success">Opened</Badge>
+                                            <Badge variant="success">{t('detail_opened')}</Badge>
                                             <span className={styles.openTimestamp}>
-                                                {formatFullDate(open.openedAt || open.timestamp || new Date().toISOString())}
+                                                {formatFullDate(open.openedAt || open.timestamp || new Date().toISOString(), currentLocale)}
                                             </span>
                                         </div>
 
                                         {/* Device Details */}
                                         <div className={styles.openDetails}>
                                             <div className={styles.detailRow}>
-                                                <span className={styles.detailIcon}>📱</span>
+                                                <span className={styles.detailIcon}>
+                                                    {getDeviceIcon(deviceInfo.device || label)}
+                                                </span>
                                                 <span className={styles.detailText}>
-                                                    {deviceInfo.device || 'Unknown Device'}
+                                                    {label}
                                                     {deviceInfo.isBot && (
                                                         <Badge variant="warning" shape="square" style={{ marginLeft: '8px', fontSize: '9px', padding: '1px 4px' }}>
-                                                            BOT
+                                                            {t('detail_bot')}
                                                         </Badge>
                                                     )}
                                                 </span>
                                             </div>
+                                            {hasOsOrBrowser && (
+                                                <div className={styles.detailRow}>
+                                                    <span className={styles.detailIcon}>
+                                                        <Globe size={14} className={styles.icon} />
+                                                    </span>
+                                                    <span className={styles.detailText}>
+                                                        {deviceInfo.os || t('os_unknown')} • {deviceInfo.browser || t('browser_unknown')}
+                                                    </span>
+                                                </div>
+                                            )}
                                             <div className={styles.detailRow}>
-                                                <span className={styles.detailIcon}>💻</span>
-                                                <span className={styles.detailText}>
-                                                    {deviceInfo.os || 'Unknown OS'} • {deviceInfo.browser || 'Unknown Browser'}
+                                                <span className={styles.detailIcon}>
+                                                    <MapPin size={14} className={styles.icon} />
                                                 </span>
-                                            </div>
-                                            <div className={styles.detailRow}>
-                                                <span className={styles.detailIcon}>🌍</span>
                                                 <span className={styles.detailText}>
-                                                    {open.location || 'Unknown'} • {open.ip || 'N/A'}
+                                                    {open.location || t('location_unknown')} • {open.ip || t('location_na')}
                                                 </span>
                                             </div>
                                         </div>

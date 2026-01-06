@@ -1,4 +1,5 @@
 
+import { useTranslation } from './useTranslation';
 
 /**
  * Hook to manage history deletion logic
@@ -13,11 +14,12 @@ export const useHistoryManager = (
     setCurrentUser: (user: string | null) => void,
     currentUser: string | null
 ) => {
+    const { t } = useTranslation();
 
     const handleDeleteHistory = async () => {
         // Check context validity
         if (typeof chrome !== 'undefined' && chrome.runtime && !chrome.runtime.id) {
-            showStatus('Context Invalidated', 'Extension context invalidated. Reload page.', 'danger');
+            showStatus(t('modal_status_context_invalid'), t('error_context_invalidated'), 'danger');
             return;
         }
 
@@ -25,7 +27,7 @@ export const useHistoryManager = (
             const result = await deleteEmails(senderFilter);
 
             showStatus(
-                result.type === 'warning' ? 'Note' : (result.success ? 'History Deleted' : 'Data Queued'),
+                result.type === 'warning' ? t('modal_status_note') : (result.success ? t('modal_status_history_deleted') : t('modal_status_data_queued')),
                 result.message,
                 result.type || (result.success ? 'success' : 'warning')
             );
@@ -48,7 +50,7 @@ export const useHistoryManager = (
             }
 
         } catch (e: any) {
-            showStatus('Error', 'Error clearing history: ' + e.message, 'danger');
+            showStatus(t('modal_status_error'), t('error_history_clear_failed') + ': ' + e.message, 'danger');
         }
     };
 

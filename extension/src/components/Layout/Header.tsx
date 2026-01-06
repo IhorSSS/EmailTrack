@@ -1,6 +1,7 @@
 import type { UserProfile } from '../../services/AuthService';
 import { Button } from '../common/Button';
 import { RefreshButton } from '../common/RefreshButton';
+import { useTranslation } from '../../hooks/useTranslation';
 
 interface HeaderProps {
     onRefresh: () => void;
@@ -11,6 +12,8 @@ interface HeaderProps {
 }
 
 export const Header = ({ onRefresh, loading, userProfile, onLogin, onLogout }: HeaderProps) => {
+    const { t } = useTranslation();
+
     return (
         <header className="glass" style={{
             height: 'var(--header-height)',
@@ -33,7 +36,7 @@ export const Header = ({ onRefresh, loading, userProfile, onLogin, onLogout }: H
                     alignItems: 'center',
                     justifyContent: 'center',
                 }}>
-                    <img src="/icon.png" alt="EmailTrack" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    <img src="/icon.png" alt={t('app_name')} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </div>
                 <h1 style={{
                     fontSize: '17px',
@@ -41,7 +44,7 @@ export const Header = ({ onRefresh, loading, userProfile, onLogin, onLogout }: H
                     color: 'var(--text-primary)',
                     letterSpacing: '-0.02em'
                 }}>
-                    EmailTrack
+                    {t('app_name')}
                 </h1>
             </div>
 
@@ -58,7 +61,7 @@ export const Header = ({ onRefresh, loading, userProfile, onLogin, onLogout }: H
                         <img
                             src={userProfile.picture}
                             alt={userProfile.name}
-                            title={`Signed in as ${userProfile.email}`}
+                            title={t('header_signed_in_as', { email: userProfile.email })}
                             style={{
                                 width: '30px',
                                 height: '30px',
@@ -83,7 +86,7 @@ export const Header = ({ onRefresh, loading, userProfile, onLogin, onLogout }: H
                             onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-card-hover)')}
                             onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
                         >
-                            Log out
+                            {t('header_logout')}
                         </button>
                     </div>
                 ) : (
@@ -91,7 +94,7 @@ export const Header = ({ onRefresh, loading, userProfile, onLogin, onLogout }: H
                         size="sm"
                         onClick={onLogin}
                     >
-                        Sign in
+                        {t('header_login')}
                     </Button>
                 )}
             </div>

@@ -145,15 +145,18 @@ function injectVisualIndicator(editable: Element, enabled: boolean, logger: any)
             if (isOrphaned) {
                 diode.style.background = '#ef4444'; // Red
                 diode.style.boxShadow = '0 0 6px rgba(239, 68, 68, 0.4)';
-                indicator.setAttribute('title', 'EmailTrack: ERROR - Extension reloaded. Please refresh page to resume tracking.');
+                const title = configEl?.getAttribute('data-msg-diode-error') || 'Error';
+                indicator.setAttribute('title', title);
             } else if (!trackingEnabledAttr) {
                 diode.style.background = '#f59e0b'; // Amber/Yellow
                 diode.style.boxShadow = '0 0 6px rgba(245, 158, 11, 0.4)';
-                indicator.setAttribute('title', 'EmailTrack: Tracking Disabled in Settings');
+                const title = configEl?.getAttribute('data-msg-diode-disabled') || 'Disabled';
+                indicator.setAttribute('title', title);
             } else {
                 diode.style.background = '#22c55e'; // Green
                 diode.style.boxShadow = '0 0 6px rgba(34, 197, 94, 0.4)';
-                indicator.setAttribute('title', 'EmailTrack: Active & Tracking');
+                const title = configEl?.getAttribute('data-msg-diode-active') || 'Active';
+                indicator.setAttribute('title', title);
             }
         }
         return;
@@ -211,11 +214,14 @@ function injectVisualIndicator(editable: Element, enabled: boolean, logger: any)
         if (isOrphaned) {
             color = '#ef4444';
             shadow = 'rgba(239, 68, 68, 0.4)';
-            title = 'EmailTrack: ERROR - Extension reloaded. Please refresh page to resume tracking.';
+            title = configEl?.getAttribute('data-msg-diode-error') || 'Error: Extension reloaded';
         } else if (!trackingEnabledAttr) {
             color = '#f59e0b';
             shadow = 'rgba(245, 158, 11, 0.4)';
-            title = 'EmailTrack: Tracking Disabled in Settings';
+            title = configEl?.getAttribute('data-msg-diode-disabled') || 'Tracking Disabled';
+        } else {
+            // Default active
+            title = configEl?.getAttribute('data-msg-diode-active') || 'Active';
         }
 
         const html = `

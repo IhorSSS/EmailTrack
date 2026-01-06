@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../../hooks/useTranslation';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -17,6 +18,8 @@ export const Button: React.FC<ButtonProps> = ({
     disabled,
     ...props
 }) => {
+    const { t } = useTranslation();
+
     const getVariantStyles = () => {
         switch (variant) {
             case 'primary':
@@ -82,7 +85,7 @@ export const Button: React.FC<ButtonProps> = ({
             {...props}
         >
             {loading ? (
-                <span className="animate-pulse">Loading...</span>
+                <span className="animate-pulse">{t('status_loading')}</span>
             ) : children}
         </button>
     );

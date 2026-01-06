@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from '../../hooks/useTranslation';
 
 interface RefreshButtonProps {
     onClick: () => void;
@@ -13,10 +14,13 @@ export const RefreshButton: React.FC<RefreshButtonProps> = ({
     onClick,
     loading,
     size = 18,
-    title = "Refresh",
+    title,
     style,
     className
 }) => {
+    const { t } = useTranslation();
+    const finalTitle = title || t('common_refresh');
+
     return (
         <button
             onClick={onClick}
@@ -47,7 +51,7 @@ export const RefreshButton: React.FC<RefreshButtonProps> = ({
                     e.currentTarget.style.color = 'var(--text-secondary)';
                 }
             }}
-            title={title}
+            title={finalTitle}
         >
             <svg
                 width={size} height={size} viewBox="0 0 24 24"

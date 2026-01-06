@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import StatsDisplay from '../components/StatsDisplay';
 import { logger } from '../../utils/logger';
 import { LocalStorageService } from '../../services/LocalStorageService';
+import { I18nProvider } from '../../hooks/useTranslation';
 
 const STATS_INJECT_CLASS = 'email-track-stats-injected';
 
@@ -70,7 +71,11 @@ export function handleOptimisticBadge(trackId: string, currentUserEmail: string 
             }
 
             lastMessage.classList.add(STATS_INJECT_CLASS);
-            createRoot(statsContainer).render(<StatsDisplay trackId={trackId} senderHint={currentUserEmail || undefined} />);
+            createRoot(statsContainer).render(
+                <I18nProvider>
+                    <StatsDisplay trackId={trackId} senderHint={currentUserEmail || undefined} />
+                </I18nProvider>
+            );
             return true;
         }
     }
@@ -248,7 +253,11 @@ export function injectStats() {
                         }
 
                         row.classList.add(STATS_INJECT_CLASS);
-                        createRoot(statsContainer).render(<StatsDisplay trackId={trackId} senderHint={activeIdentity || undefined} />);
+                        createRoot(statsContainer).render(
+                            <I18nProvider>
+                                <StatsDisplay trackId={trackId} senderHint={activeIdentity || undefined} />
+                            </I18nProvider>
+                        );
                     }
                 }
             });

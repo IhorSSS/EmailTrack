@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from '../components/common/Button';
 import { Select } from '../components/common/Select';
 import { Badge } from '../components/common/Badge';
+import { useTranslation } from '../hooks/useTranslation';
 import type { UserProfile } from '../services/AuthService';
 
 interface SettingsViewProps {
@@ -31,6 +32,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     showTrackingIndicator,
     setShowTrackingIndicator
 }) => {
+    const { t, language, setLanguage } = useTranslation();
+
     return (
         <div style={{ padding: 'var(--spacing-lg) var(--spacing-lg) var(--spacing-sm)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xl)', minHeight: '100%' }}>
             {/* Tracking Toggle Section */}
@@ -46,15 +49,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     borderBottom: '1px solid var(--border-color)',
-                    background: globalEnabled ? 'var(--color-primary-soft)' : 'transparent'
+                    background: globalEnabled ? 'var(--color-primary-soft)' : 'transparent',
+                    gap: '16px' // Add gap between text and toggle
                 }}>
-                    <div>
-                        <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Tracking is {globalEnabled ? 'ON' : 'OFF'}</h4>
-                        <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: 'var(--spacing-xs)' }}>
-                            {globalEnabled ? 'Automatically inject tracking pixel into new emails' : 'No pixels will be added to your emails'}
+                    <div style={{ flex: 1, minWidth: 0 }}> {/* Allow text to wrap and not push toggle */}
+                        <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{t('settings_tracking_on')}</h4>
+                        <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: 'var(--spacing-xs)', lineHeight: '1.4' }}>
+                            {t('settings_tracking_desc_on')}
                         </p>
                     </div>
-                    <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px' }}>
+                    <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px', flexShrink: 0 }}> {/* Prevent toggle squishing */}
                         <input
                             type="checkbox"
                             checked={globalEnabled}
@@ -96,9 +100,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     transition: 'opacity var(--transition-base)'
                 }}>
                     <div style={{ flex: 1, paddingRight: 'var(--spacing-md)' }}>
-                        <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Visual Indicator</h4>
+                        <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{t('settings_visual_indicator')}</h4>
                         <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                            Show a minimalist icon in Gmail compose window when tracking is active.
+                            {t('settings_visual_indicator_desc')}
                         </p>
                     </div>
                     <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '40px', height: '20px', cursor: globalEnabled ? 'pointer' : 'not-allowed' }}>
@@ -134,24 +138,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                 <div style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
                     <Select
-                        label="Body Preview Length"
+                        label={t('settings_language')}
+                        value={language}
+                        onChange={(e) => setLanguage(e.target.value as any)}
+                        options={[
+                            { value: 'system', label: t('settings_language_system', { lang: navigator.language.split('-')[0] }) },
+                            { value: 'en', label: t('settings_language_en') },
+                            { value: 'uk', label: t('settings_language_uk') }
+                        ]}
+                    />
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '-8px' }}>
+                        {t('settings_language_note')}
+                    </div>
+
+                    <Select
+                        label={t('settings_body_preview_length')}
                         value={bodyPreviewLength}
                         onChange={(e) => handleBodyPreviewChange(Number(e.target.value))}
                         options={[
-                            { value: '0', label: 'None' },
-                            { value: '50', label: 'Short (50 chars)' },
-                            { value: '100', label: 'Medium (100 chars)' },
-                            { value: '200', label: 'Long (200 chars)' }
+                            { value: '0', label: t('settings_body_preview_none') },
+                            { value: '50', label: t('settings_body_preview_short') },
+                            { value: '100', label: t('settings_body_preview_medium') },
+                            { value: '200', label: t('settings_body_preview_long') }
                         ]}
                     />
                     <Select
-                        label="App Theme"
+                        label={t('settings_theme')}
                         value={theme}
                         onChange={(e) => setTheme(e.target.value as any)}
                         options={[
-                            { value: 'system', label: 'System Default' },
-                            { value: 'light', label: 'Light' },
-                            { value: 'dark', label: 'Dark' }
+                            { value: 'system', label: t('settings_theme_system') },
+                            { value: 'light', label: t('settings_theme_light') },
+                            { value: 'dark', label: t('settings_theme_dark') }
                         ]}
                     />
                 </div>
@@ -169,12 +187,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h4 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Active Identity
+                        {t('settings_active_identity')}
                     </h4>
                     {userProfile ? (
-                        <Badge variant="success" dot>Signed In</Badge>
+                        <Badge variant="success" dot>{t('settings_signed_in')}</Badge>
                     ) : (
-                        <Badge variant="neutral">Anonymous Session</Badge>
+                        <Badge variant="neutral">{t('settings_guest_mode')}</Badge>
                     )}
                 </div>
 
@@ -208,12 +226,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     )}
                     <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {userProfile?.name || 'Guest Mode'}
+                            {userProfile?.name || t('settings_guest_mode')}
                         </div>
                         <div style={{ fontSize: '12px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {userProfile
                                 ? userProfile.email
-                                : 'Tracking locally without cloud sync'}
+                                : t('settings_guest_desc')}
                         </div>
                     </div>
                 </div>
@@ -229,7 +247,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         borderLeft: '3px solid var(--text-muted)',
                         lineHeight: '1.4'
                     }}>
-                        ℹ️ <b>Note:</b> New emails sent in Guest Mode are anonymous and won't be synced to your account until you sign in.
+                        ℹ️ <b>{t('common_note')}</b> {t('settings_guest_warning')}
                     </div>
                 )}
             </div>
@@ -244,9 +262,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 flexDirection: 'column',
                 gap: 'var(--spacing-sm)'
             }}>
-                <h4 style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-danger-text)' }}>Danger Zone</h4>
+                <h4 style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-danger-text)' }}>{t('settings_danger_zone')}</h4>
                 <p style={{ fontSize: '11px', color: 'var(--color-danger-text)', opacity: 0.8 }}>
-                    Permanently delete tracking history from this device and the cloud (where applicable).
+                    {t('settings_danger_desc')}
                 </p>
                 <Button
                     variant="danger"
@@ -256,7 +274,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     disabled={loading}
                     style={{ marginTop: 'var(--spacing-xs)' }}
                 >
-                    Clear Tracking Data
+                    {t('settings_clear_data')}
                 </Button>
             </div>
 

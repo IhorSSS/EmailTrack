@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { MapPin, Monitor, Smartphone, Clock, RefreshCw, ChevronDown } from 'lucide-react';
+import { getDeviceLabel } from '../../utils/formatter';
 import './StatsDisplay.css';
-import { format } from 'date-fns';
 import { theme } from '../../config/theme';
 import { CONSTANTS } from '../../config/constants';
+import { useTranslation } from '../../hooks/useTranslation';
 
 interface StatsDisplayProps {
     trackId: string;
@@ -12,6 +13,7 @@ interface StatsDisplayProps {
 }
 
 const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
+    const { t } = useTranslation();
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false); // New state for manual refresh
@@ -157,10 +159,10 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
             <div className="email-track-stats-container" data-theme="system">
                 <span
                     className="email-track-badge error"
-                    title="Extension updated. Please reload the page."
+                    title={t('status_extension_updated')}
                     style={{ cursor: 'help', whiteSpace: 'nowrap' }}
                 >
-                    ⚠️ Reload
+                    ⚠️ {t('status_reload')}
                 </span>
             </div>
         );
@@ -176,7 +178,11 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
     const effectiveStats = (isNotFound || !stats || (stats as any).error) ? { opens: [] } : stats;
 
     const openCount = Array.isArray(effectiveStats.opens) ? effectiveStats.opens.length : (typeof effectiveStats.opens === 'number' ? effectiveStats.opens : 0);
-    const openText = openCount > 0 ? `${openCount} Open${openCount === 1 ? '' : 's'}` : (isNotFound ? 'Tracked' : 'Sent');
+
+    // Better localized open text:
+
+    const displayOpenText = openCount > 0 ? `${openCount} ${t('detail_opened')}` : (isNotFound ? t('dashboard_tracked') : t('detail_sent_at'));
+
     const statusClass = openCount > 0 ? 'opened' : 'sent';
 
     const getDeviceIcon = (deviceStr: string) => {
@@ -186,7 +192,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
     };
 
     const formatLocation = (loc: string) => {
-        if (!loc) return 'Unknown Location';
+        if (!loc) return t('location_unknown');
         if (loc.startsWith(', ')) return loc.substring(2);
         return loc;
     };
@@ -198,16 +204,16 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
                     ref={badgeRef}
                     className={`email-track-badge ${statusClass}`}
                     onClick={toggleDetails}
-                    title="Click for history"
+                    title={t('detail_open_history')}
                     style={{ whiteSpace: 'nowrap' }}
                 >
                     {openCount > 0 && <span className="dot"></span>}
-                    {openText}
+                    {displayOpenText}
 
                     <button
                         className={`et-refresh-btn ${refreshing ? 'rotating' : ''}`}
                         onClick={handleRefresh}
-                        title="Refresh status"
+                        title={t('detail_refresh_tooltip')}
                     >
                         <RefreshCw size={12} />
                     </button>
@@ -224,7 +230,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="et-popup-header">
-                            <h4>Read History</h4>
+                            <h4>{t('detail_open_history')}</h4>
                         </div>
                         <ul className="opens-list">
                             {(() => {
@@ -242,23 +248,12 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
                                     }
 
                                     // Determine Label
-                                    let deviceStr = '';
-                                    const isBot = deviceData.isBot || deviceData.device?.includes('Proxy') || deviceData.browser?.includes('Proxy');
+                                    const deviceStr = getDeviceLabel(deviceData, t); // t is already relaxed in formatter or we cast here if needed? 
+                                    // t in StatsDisplay is from hooks/useTranslation which returns (key: TranslationKey) => string
+                                    // formatter expects (key: string) => string. This is compatible in recent TS versions if strictFunctionTypes is off, or we need to cast.
+                                    // Let's verify type.
 
-                                    if (isBot) {
-                                        // Standardize Gmail Proxy label
-                                        if (deviceData.os === 'Windows XP' && deviceData.browser?.includes('Firefox 11')) {
-                                            deviceStr = 'Gmail'; // Simple, clean label
-                                        } else if (deviceData.raw?.includes('GoogleImageProxy')) {
-                                            deviceStr = 'Gmail';
-                                        } else {
-                                            deviceStr = 'Proxy/Server';
-                                        }
-                                    } else if (deviceData.browser || deviceData.os) {
-                                        deviceStr = `${deviceData.browser || ''} on ${deviceData.os || ''}`;
-                                    } else {
-                                        deviceStr = deviceData.device || 'Unknown Device';
-                                    }
+                                    const isBot = deviceData.isBot || deviceData.device?.includes('Proxy') || deviceData.browser?.includes('Proxy');
 
                                     return {
                                         ...open,
@@ -293,12 +288,20 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
                                 });
 
                                 if (groupedEvents.length === 0) {
-                                    return <li className="et-timeline-item" style={{ justifyContent: 'center', color: theme.colors.text.muted }}>No opens recorded</li>;
+                                    return <li className="et-timeline-item" style={{ justifyContent: 'center', color: theme.colors.text.muted }}>{t('detail_no_opens')}</li>;
                                 }
 
                                 return groupedEvents.map((open: any, index: number) => {
                                     const isExpanded = expandedGroups.has(index);
                                     const isGrouped = open.count > 1;
+
+                                    // Localized date formatter
+                                    const formatDate = (dateStr: string) => {
+                                        const d = new Date(dateStr);
+                                        // Fallback to en-US if navigator.language is undefined, though it usually is defined in browser
+                                        const locale = navigator.language || 'en-US';
+                                        return d.toLocaleString(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                                    };
 
                                     // Single item (not grouped)
                                     if (!isGrouped) {
@@ -308,7 +311,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
                                                         <Clock className="et-icon" size={14} style={{ color: theme.colors.info }} />
                                                         <span className="et-time">
-                                                            {format(new Date(open.openedAt), 'MMM d, HH:mm')}
+                                                            {formatDate(open.openedAt)}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -343,7 +346,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
                                                         <Clock className="et-icon" size={14} style={{ color: theme.colors.info }} />
                                                         <span className="et-time">
-                                                            {format(new Date(open.openedAt), 'MMM d, HH:mm')}
+                                                            {formatDate(open.openedAt)}
                                                         </span>
                                                     </div>
                                                     <span style={{
@@ -386,7 +389,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
                                                     toggleGroup(index);
                                                 }}
                                             >
-                                                <span>Grouped Opens (x{open.count})</span>
+                                                <span>{t('stats_grouped_opens', { count: open.count })}</span>
                                                 <span className="et-chevron expanded">
                                                     <ChevronDown size={14} />
                                                 </span>
@@ -397,7 +400,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
                                                             <Clock className="et-icon" size={14} style={{ color: theme.colors.info }} />
                                                             <span className="et-time">
-                                                                {format(new Date(item.openedAt), 'MMM d, HH:mm')}
+                                                                {formatDate(item.openedAt)}
                                                             </span>
                                                         </div>
                                                     </div>

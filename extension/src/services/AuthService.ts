@@ -22,7 +22,7 @@ export class AuthService {
     static async getAuthToken(interactive: boolean = true): Promise<string> {
         return new Promise((resolve, reject) => {
             if (!chrome.identity) {
-                reject(new Error('Extension context invalidated or identity API unavailable'));
+                reject(new Error(chrome.i18n.getMessage('error_context_invalidated') || 'Extension context invalidated'));
                 return;
             }
             chrome.identity.getAuthToken({ interactive }, (token) => {

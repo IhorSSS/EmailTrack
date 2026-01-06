@@ -8,8 +8,10 @@ import { useStatusModal } from './useStatusModal';
 import { useHistoryManager } from './useHistoryManager';
 import { LocalStorageService } from '../services/LocalStorageService';
 import { logger } from '../utils/logger';
+import { useTranslation } from './useTranslation';
 
 export const useAppController = () => {
+    const { t } = useTranslation();
     const [view, setView] = useState<'dashboard' | 'activity' | 'settings'>('dashboard');
     const [selectedEmail, setSelectedEmail] = useState<TrackedEmail | null>(null);
 
@@ -116,7 +118,7 @@ export const useAppController = () => {
                 }
             }
         } catch (e: any) {
-            showStatus('Resolution/Login Failed', e.message, 'danger');
+            showStatus(t('modal_status_resolution_failed'), e.message, 'danger');
         }
     };
 
@@ -158,16 +160,16 @@ export const useAppController = () => {
                 setEmailToDelete(null);
                 if (result.message) {
                     showStatus(
-                        result.type === 'warning' ? 'Note' : 'Deleted',
+                        result.type === 'warning' ? t('modal_status_note') : t('modal_status_deleted'),
                         result.message,
                         result.type || 'success'
                     );
                 }
             } else {
-                showStatus('Delete Failed', result.message || 'Could not delete the email.', 'danger');
+                showStatus(t('modal_status_delete_failed'), result.message || t('error_unknown_error'), 'danger');
             }
         } catch (e: any) {
-            showStatus('Delete Failed', e.message, 'danger');
+            showStatus(t('modal_status_delete_failed'), e.message, 'danger');
         }
     };
 
