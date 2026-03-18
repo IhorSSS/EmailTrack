@@ -141,13 +141,10 @@ export const useAuth = () => {
     }, [authLoading, authError, userProfile, authToken, t, handlePostLoginSync]);
 
     const logout = useCallback(async (clearData: boolean = false) => {
-        // 1. Atomic State Reset
         const tokenToRevoke = authToken;
         const emailToPreserve = userProfile?.email;
-        setAuthToken(null);
-        setUserProfile(null);
 
-        // 2. Persistence cleanup
+        // 1. Persistence cleanup (Must happen BEFORE React state updates to avoid race conditions during re-renders)
         if (!clearData && emailToPreserve) {
             await LocalStorageService.updateSettings({ [CONSTANTS.STORAGE_KEYS.CURRENT_USER]: emailToPreserve });
         }
@@ -165,6 +162,10 @@ export const useAuth = () => {
         } catch (e) {
             logger.warn('Logout storage cleanup failed:', e);
         }
+
+        // 2. Atomic React State Reset
+        setAuthToken(null);
+        setUserProfile(null);
     }, [authToken, userProfile?.email]);
 
     return {

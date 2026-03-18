@@ -12,7 +12,7 @@ services:
     networks:
       - emailtrack-internal
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U emailtrack" ]
+      test: ["CMD-SHELL", "pg_isready -U emailtrack"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -38,6 +38,14 @@ services:
       JWT_SECRET: ${JWT_SECRET:-supersecretkey}
       NODE_ENV: production
       PORT: 3000
+      BASE_URL: ${BASE_URL}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+
+      # Nginx Proxy / Let's Encrypt (Optional, for deployed production)
+      DOMAIN: "https://${VIRTUAL_HOST}"
+      VIRTUAL_HOST: "${VIRTUAL_HOST}"
+      LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
+      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
 
       # Google OAuth (Must be set in .env)
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
@@ -49,6 +57,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
+      - proxy
       - emailtrack-internal
     # Run migrations before starting
     command: sh -c "npx prisma migrate deploy && npm start"
@@ -59,5 +68,7 @@ services:
         max-file: "3"
 
 networks:
+  proxy:
+    external: true
   emailtrack-internal:
     driver: bridge

@@ -26,6 +26,9 @@
     "dashboard_filter_all_senders": {
         "message": "Всі відправники"
     },
+    "dashboard_no_senders": {
+        "message": "Немає відправників"
+    },
     "activity_title": {
         "message": "Активність"
     },

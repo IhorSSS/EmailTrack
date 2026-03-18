@@ -49,18 +49,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <div className={styles.filterSelect}>
                             <Skeleton height={36} borderRadius="var(--radius-md)" />
                         </div>
-                    ) : uniqueSenders.length > 1 ? (
+                    ) : (
                         <div className={styles.filterSelect}>
                             <Select
-                                value={senderFilter}
+                                value={uniqueSenders.length <= 1 ? 'all' : senderFilter}
                                 onChange={(e) => setSenderFilter(e.target.value)}
-                                options={[
-                                    { value: 'all', label: t('dashboard_filter_all_senders') },
-                                    ...uniqueSenders.map(s => ({ value: s, label: s }))
-                                ]}
+                                disabled={uniqueSenders.length <= 1}
+                                options={
+                                    uniqueSenders.length > 0
+                                        ? [
+                                              { value: 'all', label: t('dashboard_filter_all_senders') },
+                                              ...uniqueSenders.map(s => ({ value: s, label: s }))
+                                          ]
+                                        : [{ value: 'all', label: t('dashboard_no_senders') || 'No senders' }]
+                                }
                             />
                         </div>
-                    ) : <div className={styles.filterSelect} />}
+                    )}
 
                     <button
                         onClick={toggleHeader}

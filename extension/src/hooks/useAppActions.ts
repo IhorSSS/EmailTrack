@@ -74,12 +74,13 @@ export const useAppActions = (props: UseAppActionsProps) => {
     };
 
     const confirmLogout = async (clearData: boolean) => {
+        await logout(clearData);
         if (clearData) {
             setCurrentUser(null);
         } else if (userProfile?.email) {
             setCurrentUser(userProfile.email);
         }
-        await logout(clearData);
+        await fetchEmails();
         setLogoutModalOpen(false);
     };
 

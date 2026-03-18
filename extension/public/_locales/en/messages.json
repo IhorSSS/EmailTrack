@@ -26,6 +26,9 @@
     "dashboard_filter_all_senders": {
         "message": "All Senders"
     },
+    "dashboard_no_senders": {
+        "message": "No senders"
+    },
     "activity_title": {
         "message": "Activity"
     },
