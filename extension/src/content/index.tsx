@@ -3,7 +3,7 @@ import { injectScript, sendConfigToMainWorld } from './modules/infrastructure';
 import { setupRegistrationListener } from './modules/registration';
 import { injectStats } from './modules/stats';
 import { CONSTANTS } from '../config/constants';
-import './components/StatsDisplay.css';
+import './components/StatsDisplay/StatsDisplay.css';
 
 logger.log('EmailTrack: Content Script UI Loaded');
 
@@ -12,17 +12,12 @@ const injectCoreScripts = async () => {
     // 0. Ensure Config is there before logic loads
     sendConfigToMainWorld();
 
-    injectScript('jquery.js');
-    // Wait for jQuery
-    await new Promise(r => setTimeout(r, 100));
-
-    injectScript('gmail.js');
-    // Wait for Gmail.js
-    await new Promise(r => setTimeout(r, 100));
-
-    // logic.js is now built via Vite and located at root of dist
-    // Ensure we try to inject it properly.
-    injectScript('logic.js');
+    for (const script of CONSTANTS.CORE_SCRIPTS) {
+        injectScript(script);
+        if (script !== CONSTANTS.CORE_SCRIPTS[CONSTANTS.CORE_SCRIPTS.length - 1]) {
+            await new Promise(r => setTimeout(r, CONSTANTS.TIMEOUTS.YIELD));
+        }
+    }
 };
 
 // Start injection when DOM is ready
@@ -65,11 +60,11 @@ const heartbeatId = setInterval(() => {
 try {
     chrome.storage.onChanged.addListener((changes, area) => {
         if (!isValidContext()) return;
-        if (area === 'sync' && (changes.bodyPreviewLength || changes.apiUrl)) {
+        if (area === 'sync' && (changes[CONSTANTS.STORAGE_KEYS.BODY_PREVIEW_LENGTH] || changes.apiUrl)) {
             sendConfigToMainWorld();
         }
     });
-} catch (e) {
+} catch {
     logger.warn('[Content] Failed to attach storage listener (context invalidated?)');
 }
 
@@ -97,3 +92,4 @@ if (document.readyState === 'loading') {
 } else {
     startStatsObserver();
 }
+

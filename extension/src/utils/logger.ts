@@ -17,7 +17,7 @@ const DEBUG = import.meta.env.VITE_DEBUG === 'true' || import.meta.env.DEV;
 /**
  * Sanitize data to prevent PII leakage (emails, tokens, etc.)
  */
-function sanitize(arg: any): any {
+function sanitize(arg: unknown): unknown {
     if (typeof arg === 'string') {
         // Simple email mask: a***b@c.com
         return arg.replace(/([a-zA-Z0-9._-]+)@([a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/g, (_match, p1, p2) => {
@@ -28,13 +28,14 @@ function sanitize(arg: any): any {
     if (arg && typeof arg === 'object') {
         // Sensitive keys to mask/remove
         const sensitiveKeys = ['subject', 'body', 'recipient', 'cc', 'bcc', 'token', 'authorization', 'password', 'user'];
-        const sanitized: any = Array.isArray(arg) ? [] : {};
+        const argRecord = arg as Record<string, unknown>;
+        const sanitized: Record<string, unknown> | unknown[] = Array.isArray(arg) ? [] : {};
 
-        for (const key in arg) {
+        for (const key in argRecord) {
             if (sensitiveKeys.includes(key.toLowerCase())) {
-                sanitized[key] = '[MASKED]';
+                (sanitized as Record<string, unknown>)[key] = '[MASKED]';
             } else {
-                sanitized[key] = sanitize(arg[key]);
+                (sanitized as Record<string, unknown>)[key] = sanitize(argRecord[key]);
             }
         }
         return sanitized;
@@ -46,7 +47,7 @@ export const logger = {
     /**
      * Debug log - only shown when VITE_DEBUG=true
      */
-    log: (...args: any[]) => {
+    log: (...args: unknown[]) => {
         if (DEBUG) {
             console.log(...args.map(sanitize));
         }
@@ -55,7 +56,7 @@ export const logger = {
     /**
      * Warning log - only shown when VITE_DEBUG=true
      */
-    warn: (...args: any[]) => {
+    warn: (...args: unknown[]) => {
         if (DEBUG) {
             console.warn(...args.map(sanitize));
         }
@@ -64,7 +65,7 @@ export const logger = {
     /**
      * Error log - ALWAYS shown (even in production)
      */
-    error: (...args: any[]) => {
+    error: (...args: unknown[]) => {
         console.error(...args.map(sanitize));
     },
 

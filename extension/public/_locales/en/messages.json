@@ -227,6 +227,12 @@
     "common_remove": {
         "message": "Remove"
     },
+    "common_collapse": {
+        "message": "Collapse"
+    },
+    "common_expand": {
+        "message": "Expand"
+    },
     "common_note": {
         "message": "Note:"
     },

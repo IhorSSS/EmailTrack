@@ -1,17 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { Language } from '../types/i18n';
-
-const STORAGE_KEY = 'language';
+import { CONSTANTS } from '../config/constants';
 
 export const useLanguage = () => {
     const [language, setLanguage] = useState<Language>('system');
-    const [resolvedLanguage, setResolvedLanguage] = useState<'en' | 'uk'>('en');
 
     // Load saved language
     useEffect(() => {
-        chrome.storage.sync.get([STORAGE_KEY], (result) => {
-            if (result[STORAGE_KEY]) {
-                setLanguage(result[STORAGE_KEY] as Language);
+        chrome.storage.sync.get([CONSTANTS.STORAGE_KEYS.LANGUAGE], (result) => {
+            if (result[CONSTANTS.STORAGE_KEYS.LANGUAGE]) {
+                setLanguage(result[CONSTANTS.STORAGE_KEYS.LANGUAGE] as Language);
             }
         });
     }, []);
@@ -19,21 +17,16 @@ export const useLanguage = () => {
     // Save language on change
     const updateLanguage = (lang: Language) => {
         setLanguage(lang);
-        chrome.storage.sync.set({ [STORAGE_KEY]: lang });
+        chrome.storage.sync.set({ [CONSTANTS.STORAGE_KEYS.LANGUAGE]: lang });
     };
 
     // Resolve effective language
-    useEffect(() => {
+    const resolvedLanguage = useMemo(() => {
         if (language === 'system') {
             const browserLang = navigator.language.split('-')[0].toLowerCase(); // 'en-US' -> 'en'
-            if (browserLang === 'uk') {
-                setResolvedLanguage('uk');
-            } else {
-                setResolvedLanguage('en'); // Default fallback
-            }
-        } else {
-            setResolvedLanguage(language as 'en' | 'uk');
+            return browserLang === 'uk' ? 'uk' : 'en';
         }
+        return language as 'en' | 'uk';
     }, [language]);
 
     // specific effect to update html tag

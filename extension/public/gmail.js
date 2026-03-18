@@ -1351,6 +1351,9 @@ var Gmail = function (localJQuery) {
                 const fd_thread_id = fd_thread_container["0"];
 
                 let fd_emails = fd_thread_container["2"]; // array
+                if (!fd_emails || !Array.isArray(fd_emails)) {
+                    continue;
+                }
                 for (let fd_email of fd_emails) {
                     const fd_email_id = fd_email["0"];
 
@@ -1429,6 +1432,9 @@ var Gmail = function (localJQuery) {
                 const fd_thread_id = fd_thread_container["1"]["3"];
 
                 let fd_emails = fd_thread_container["1"]["4"]; // array
+                if (!fd_emails || !Array.isArray(fd_emails)) {
+                    continue;
+                }
                 for (let fd_email of fd_emails) {
                     const fd_email_id = fd_email["0"];
 
@@ -1521,6 +1527,9 @@ var Gmail = function (localJQuery) {
                 const bv_thread_id = bv_thread_container["0"]["3"];
 
                 let bv_emails = bv_thread_container["0"]["4"]; // array
+                if (!bv_emails || !Array.isArray(bv_emails)) {
+                    continue;
+                }
                 for (let bv_email of bv_emails) {
                     const bv_email_id = bv_email["0"];
                     const bv_legacy_email_id = bv_email["55"];
@@ -1594,6 +1603,9 @@ var Gmail = function (localJQuery) {
                 const bv_thread_id = bv_thread_container["4"]["3"];
 
                 let bv_emails = bv_thread_container["4"]["4"]; // array
+                if (!bv_emails || !Array.isArray(bv_emails)) {
+                    continue;
+                }
                 for (let bv_email of bv_emails) {
                     const bv_email_id = bv_email["0"];
                     const bv_legacy_email_id = bv_email["55"];

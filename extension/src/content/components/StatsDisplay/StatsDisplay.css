@@ -1,11 +1,13 @@
 :root {
     --color-primary: #6366f1;
     --color-primary-soft: rgba(99, 102, 241, 0.1);
+    --text-on-primary: #ffffff;
 
     /* Light Theme Defaults */
     --bg-app: #f8fafc;
     --bg-card: #ffffff;
     --bg-header: #f8fafc;
+    --bg-card-hover: #f1f5f9;
     --text-primary: #0f172a;
     --text-secondary: #475569;
     --text-muted: #94a3b8;
@@ -13,8 +15,27 @@
 
     --color-success: #10b981;
     --color-success-bg: rgba(16, 185, 129, 0.1);
+    --color-success-text: #059669;
     --color-warning: #f59e0b;
     --color-danger: #ef4444;
+
+    /* Typography & Spacing Sync */
+    --font-size-3xs: 9px;
+    --font-size-2xs: 10px;
+    --font-size-xs: 11px;
+    --font-size-sm: 12px;
+    --font-size-base: 13px;
+    --font-size-md: 14px;
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -1px rgb(0 0 0 / 0.06);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+    --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --blur-lg: 12px;
 }
 
 /* Dark Mode logic: System OR Explicit Override */
@@ -23,12 +44,14 @@
         --bg-app: #0f172a;
         --bg-card: #1e293b;
         --bg-header: #0f172a;
+        --bg-card-hover: #1e293b;
         --text-primary: #f8fafc;
         --text-secondary: #94a3b8;
         --text-muted: #64748b;
         --border-color: #334155;
-        --color-success-bg: rgba(16, 185, 129, 0.15);
         --color-success: #34d399;
+        --color-success-bg: rgba(16, 185, 129, 0.15);
+        --color-success-text: #34d399;
         --color-warning: #fbbf24;
         --color-danger: #f87171;
     }
@@ -39,12 +62,14 @@
     --bg-app: #0f172a;
     --bg-card: #1e293b;
     --bg-header: #0f172a;
+    --bg-card-hover: #1e293b;
     --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
     --text-muted: #64748b;
     --border-color: #334155;
-    --color-success-bg: rgba(16, 185, 129, 0.15);
     --color-success: #34d399;
+    --color-success-bg: rgba(16, 185, 129, 0.15);
+    --color-success-text: #34d399;
     --color-warning: #fbbf24;
     --color-danger: #f87171;
     color-scheme: dark;
@@ -76,12 +101,10 @@
 }
 
 .email-track-badge {
-    background: rgba(99, 102, 241, 0.1);
-    /* Primary Soft Light */
-    color: #6366f1;
-    /* Primary Light */
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
     padding: 3px 10px;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
@@ -91,29 +114,25 @@
     align-items: center;
     gap: 6px;
     border: 1px solid transparent;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: var(--transition-base);
 }
 
 .email-track-badge:hover {
-    background: #6366f1;
-    /* Primary Light */
-    color: #ffffff;
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+    background: var(--color-primary);
+    color: var(--text-on-primary);
+    box-shadow: var(--shadow-md);
     transform: translateY(-1px);
 }
 
 .email-track-badge.opened {
-    background: rgba(16, 185, 129, 0.1);
-    /* Success BG Light */
-    color: #059669;
-    /* Success Text Light */
+    background: var(--color-success-bg);
+    color: var(--color-success-text);
 }
 
 .email-track-badge.opened:hover {
-    background: #10b981;
-    /* Success Primary Light */
-    color: #ffffff;
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    background: var(--color-success);
+    color: var(--text-on-primary);
+    box-shadow: var(--shadow-md);
 }
 
 .email-track-badge .dot {
@@ -140,13 +159,13 @@
     width: 320px;
     background: var(--bg-card);
     border-radius: 12px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-lg);
     border: 1px solid var(--border-color);
     font-family: 'Inter', -apple-system, sans-serif;
     overflow: hidden;
     animation: et-fade-in 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     color: var(--text-primary);
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(var(--blur-lg));
 }
 
 @keyframes et-fade-in {
@@ -173,9 +192,9 @@
 
 .et-popup-header h4 {
     margin: 0;
-    font-size: 13px;
+    font-size: var(--font-size-base);
     font-weight: 700;
-    color: var(--et-text-secondary);
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
@@ -226,7 +245,7 @@
 }
 
 .et-time {
-    font-size: 14px;
+    font-size: var(--font-size-md);
     font-weight: 600;
     color: var(--text-primary);
 }
@@ -256,8 +275,8 @@
 
 /* Refresh Button - Fixed color profile matching light theme */
 .et-refresh-btn {
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
+    background: var(--bg-card-hover);
+    border: 1px solid var(--border-color);
     width: 24px;
     height: 24px;
     border-radius: 50%;
@@ -265,10 +284,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #475569;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--text-secondary);
+    transition: var(--transition-base);
     flex-shrink: 0;
-    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-sm);
 }
 
 .et-refresh-btn:hover {
@@ -310,7 +329,8 @@
 }
 
 .et-group-header:hover {
-    background: rgba(99, 102, 241, 0.15);
+    background: var(--color-primary-soft);
+    opacity: 0.9;
 }
 
 .et-group-item {
@@ -341,4 +361,45 @@
 .et-chevron.expanded {
     transform: rotate(180deg);
     color: var(--color-primary);
+}
+
+.et-inject-root {
+    margin-left: 10px;
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    position: relative;
+}
+
+.et-no-wrap {
+    white-space: nowrap;
+}
+
+.et-cursor-help {
+    cursor: help;
+}
+
+.et-center-muted {
+    justify-content: center;
+    color: var(--text-muted) !important;
+}
+
+.et-row-flex-1 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+}
+
+.et-icon-info {
+    color: var(--color-primary);
+}
+
+.et-count-badge {
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: bold;
 }

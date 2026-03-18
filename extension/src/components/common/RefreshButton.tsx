@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from '../../hooks/useTranslation';
+import styles from './RefreshButton.module.css';
 
 interface RefreshButtonProps {
     onClick: () => void;
@@ -25,41 +26,14 @@ export const RefreshButton: React.FC<RefreshButtonProps> = ({
         <button
             onClick={onClick}
             disabled={loading}
-            className={className}
-            style={{
-                padding: '8px',
-                borderRadius: 'var(--radius-md)',
-                color: loading ? 'var(--color-primary)' : 'var(--text-secondary)',
-                transition: 'var(--transition-base)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: loading ? 'var(--bg-app)' : 'transparent',
-                border: 'none',
-                cursor: loading ? 'default' : 'pointer',
-                ...style
-            }}
-            onMouseEnter={(e) => {
-                if (!loading) {
-                    e.currentTarget.style.background = 'var(--bg-card-hover)';
-                    e.currentTarget.style.color = 'var(--color-primary)';
-                }
-            }}
-            onMouseLeave={(e) => {
-                if (!loading) {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                }
-            }}
+            className={`${className || ''} ${styles.button} ${loading ? styles.buttonLoading : styles.buttonReady}`}
+            style={style}
             title={finalTitle}
         >
             <svg
                 width={size} height={size} viewBox="0 0 24 24"
                 fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                style={{
-                    transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-                    transform: loading ? 'rotate(360deg)' : 'none'
-                }}
+                className={`${styles.icon} ${loading ? styles.iconLoading : styles.iconReady}`}
             >
                 <path d="M23 4v6h-6"></path>
                 <path d="M1 20v-6h6"></path>

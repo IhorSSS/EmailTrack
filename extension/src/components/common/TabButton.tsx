@@ -1,4 +1,5 @@
 import React from 'react';
+import styles from './TabButton.module.css';
 
 interface TabButtonProps {
     label: string;
@@ -52,52 +53,16 @@ export const TabButton: React.FC<TabButtonProps> = ({ label, icon, active, onCli
     return (
         <button
             onClick={onClick}
-            style={{
-                background: 'none',
-                border: 'none',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '6px',
-                cursor: 'pointer',
-                color: active ? 'var(--color-primary)' : 'var(--text-muted)',
-                flex: 1,
-                padding: 'var(--spacing-md) var(--spacing-sm)',
-                transition: 'var(--transition-base)',
-                position: 'relative'
-            }}
+            className={`${styles.button} ${active ? styles.buttonActive : ''}`}
         >
-            <div style={{
-                width: '20px',
-                height: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'var(--transition-base)',
-                transform: active ? 'scale(1.1) translateY(-2px)' : 'scale(1)',
-            }}>
+            <div className={`${styles.iconWrapper} ${active ? styles.iconWrapperActive : ''}`}>
                 {renderIcon()}
             </div>
-            <span style={{
-                fontSize: '10px',
-                fontWeight: active ? 700 : 500,
-                letterSpacing: '0.01em',
-                transition: 'var(--transition-base)',
-            }}>
+            <span className={`${styles.label} ${active ? styles.labelActive : ''}`}>
                 {label}
             </span>
             {active && (
-                <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: '24px',
-                    height: '3px',
-                    background: 'var(--color-primary)',
-                    borderRadius: '0 0 var(--radius-sm) var(--radius-sm)',
-                    boxShadow: '0 0 8px var(--color-primary)'
-                }} />
+                <div className={styles.activeIndicator} />
             )}
         </button>
     );

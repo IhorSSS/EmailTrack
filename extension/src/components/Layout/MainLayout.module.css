@@ -1,0 +1,34 @@
+.layout {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-app);
+}
+
+.mainContent {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-app);
+    position: relative;
+    overflow: hidden;
+}
+
+.contentWrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.bottomNav {
+    height: var(--nav-height);
+    background: var(--bg-header);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    flex-shrink: 0;
+    z-index: var(--z-index-header);
+    padding-bottom: env(safe-area-inset-bottom);
+    min-height: var(--icon-size-2xl);
+}

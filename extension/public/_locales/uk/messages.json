@@ -227,6 +227,12 @@
     "common_remove": {
         "message": "Видалити"
     },
+    "common_collapse": {
+        "message": "Згорнути"
+    },
+    "common_expand": {
+        "message": "Розгорнути"
+    },
     "common_note": {
         "message": "Примітка:"
     },

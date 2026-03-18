@@ -1,5 +1,6 @@
 import { API_CONFIG } from '../config/api';
 import { logger } from '../utils/logger';
+import { CONSTANTS } from '../config/constants';
 
 export interface UserProfile {
     id: string; // Google ID
@@ -10,6 +11,17 @@ export interface UserProfile {
     family_name: string;
     picture: string;
     locale: string;
+}
+
+export interface EmailItem {
+    id: string;
+    subject?: string;
+    recipient?: string;
+    cc?: string;
+    bcc?: string;
+    body?: string;
+    sender?: string;
+    [key: string]: unknown;
 }
 
 export class AuthService {
@@ -112,7 +124,7 @@ export class AuthService {
 
             function finishLogout() {
                 // 4. Clear Local Storage 'currentUser' to prevent UI stickiness
-                chrome.storage.local.remove(['currentUser'], () => {
+                chrome.storage.local.remove([CONSTANTS.STORAGE_KEYS.CURRENT_USER], () => {
                     resolve();
                 });
             }
@@ -187,7 +199,7 @@ export class AuthService {
     /**
      * Upload local history to backend (Batch Sync)
      */
-    static async uploadHistory(emails: any[], googleId: string, email: string, token: string): Promise<number> {
+    static async uploadHistory(emails: EmailItem[], googleId: string, email: string, token: string): Promise<number> {
         const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.SYNC}`;
         logger.log('[AuthService] uploadHistory calling:', url, 'with', emails.length, 'emails');
 

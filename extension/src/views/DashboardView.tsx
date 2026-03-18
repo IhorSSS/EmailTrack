@@ -5,8 +5,11 @@ import { useTranslation } from '../hooks/useTranslation';
 import { Button } from '../components/common/Button';
 import { Select } from '../components/common/Select';
 import { Skeleton } from '../components/common/Skeleton';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { usePersistentToggle } from '../hooks/usePersistentToggle';
 import { CONSTANTS } from '../config/constants';
 import type { TrackedEmail } from '../types';
+import styles from './DashboardView.module.css';
 
 interface DashboardViewProps {
     stats: { tracked: number; opened: number; rate: number };
@@ -34,34 +37,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     onViewAllClick
 }) => {
     const { t } = useTranslation();
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            {/* Sticky Header with Sender Filter and Stats */}
-            <div className="glass" style={{
-                padding: 'var(--spacing-lg)',
-                background: 'var(--bg-header)',
-                borderBottom: '1px solid var(--border-color)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--spacing-md)',
-                position: 'sticky',
-                top: 0,
-                zIndex: 40,
-            }}>
-                {/* Sender Filter */}
-                {uniqueSenders.length > 1 && (
-                    <Select
-                        value={senderFilter}
-                        onChange={(e) => setSenderFilter(e.target.value)}
-                        options={[
-                            { value: 'all', label: t('dashboard_filter_all_senders') },
-                            ...uniqueSenders.map(s => ({ value: s, label: s }))
-                        ]}
-                    />
-                )}
+    const { value: isHeaderExpanded, toggle: toggleHeader } = usePersistentToggle('dashboard_header_expanded', true);
 
-                {/* Stats Grid - Fixed Height Row */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)', height: '36px' }}>
+    return (
+        <div className={styles.container}>
+            {/* Sticky Header with Sender Filter and Stats */}
+            <div className={`glass ${styles.header}`}>
+                <div className={styles.headerTop}>
+                    {/* Sender Filter */}
+                    {loading && uniqueSenders.length === 0 ? (
+                        <div className={styles.filterSelect}>
+                            <Skeleton height={36} borderRadius="var(--radius-md)" />
+                        </div>
+                    ) : uniqueSenders.length > 1 ? (
+                        <div className={styles.filterSelect}>
+                            <Select
+                                value={senderFilter}
+                                onChange={(e) => setSenderFilter(e.target.value)}
+                                options={[
+                                    { value: 'all', label: t('dashboard_filter_all_senders') },
+                                    ...uniqueSenders.map(s => ({ value: s, label: s }))
+                                ]}
+                            />
+                        </div>
+                    ) : <div className={styles.filterSelect} />}
+
+                    <button
+                        onClick={toggleHeader}
+                        className={styles.toggleButton}
+                        title={isHeaderExpanded ? t('common_collapse') || 'Collapse' : t('common_expand') || 'Expand'}
+                    >
+                        {isHeaderExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                </div>
+
+                {/* Stats Grid - Collapsible */}
+                {isHeaderExpanded && (
+                    <div className={`animate-fade-in ${styles.statsGrid}`}>
                     {loading && processedEmails.length === 0 ? (
                         <>
                             <Skeleton height={36} borderRadius="var(--radius-md)" />
@@ -72,68 +84,40 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             <StatCard
                                 value={stats.tracked}
                                 label={t('dashboard_tracked')}
-                                color="var(--color-primary)"
+                                variant="primary"
                             />
                             <StatCard
                                 value={`${stats.rate}%`}
                                 label={t('dashboard_open_rate')}
-                                color={stats.rate > 50 ? 'var(--color-success)' : 'var(--color-primary)'}
+                                variant={stats.rate > 50 ? 'success' : 'primary'}
                             />
                         </>
                     )}
                 </div>
+                )}
             </div>
 
             {/* Main Content */}
-            <div style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xl)' }}>
+            <div className={styles.mainContent}>
 
                 {/* Error Display */}
                 {error && (
-                    <div style={{
-                        padding: 'var(--spacing-sm) var(--spacing-lg)',
-                        background: 'var(--color-danger-bg)',
-                        borderRadius: 'var(--radius-md)',
-                        fontSize: '13px',
-                        color: 'var(--color-danger-text)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 'var(--spacing-sm)',
-                        border: '1px solid var(--color-danger)',
-                        lineHeight: 1.4
-                    }}>
-                        <span style={{ fontSize: '16px' }}>⚠️</span> {error}
+                    <div className={styles.errorBox}>
+                        <span className={styles.errorIcon}>⚠️</span> {error}
                     </div>
                 )}
 
                 {/* Recent Activity */}
                 <div>
-                    <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: 'var(--spacing-sm)',
-                        padding: '0 var(--spacing-xs)'
-                    }}>
-                        <h3 style={{
-                            fontSize: '13px',
-                            fontWeight: 700,
-                            color: 'var(--text-primary)',
-                            letterSpacing: '-0.01em',
-                            textTransform: 'uppercase'
-                        }}>
+                    <div className={styles.recentActivityHeader}>
+                        <h3 className={styles.recentActivityTitle}>
                             {t('dashboard_recent_activity')}
                         </h3>
                     </div>
 
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 'var(--spacing-sm)',
-                        background: 'var(--bg-card)',
-                        padding: loading && processedEmails.length === 0 ? 'var(--spacing-md)' : 'var(--spacing-xs)',
-                        borderRadius: 'var(--radius-lg)',
-                        border: '1px solid var(--border-color)',
-                    }}>
+                    <div 
+                        className={`${styles.recentActivityList} ${loading && processedEmails.length === 0 ? styles.recentActivityListLoading : styles.recentActivityListReady}`} 
+                    >
                         {loading && processedEmails.length === 0 ? (
                             <>
                                 <Skeleton height={70} borderRadius="var(--radius-md)" />
@@ -141,12 +125,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 <Skeleton height={70} borderRadius="var(--radius-md)" />
                             </>
                         ) : processedEmails.length === 0 ? (
-                            <div style={{
-                                padding: 'var(--spacing-xl) var(--spacing-lg)',
-                                textAlign: 'center',
-                                fontSize: '13px',
-                                color: 'var(--text-muted)'
-                            }}>
+                            <div className={styles.noActivity}>
                                 {t('dashboard_no_activity')}
                             </div>
                         ) : (
@@ -166,7 +145,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     variant="secondary"
                     fullWidth
                     onClick={onViewAllClick}
-                    style={{ marginTop: 'var(--spacing-xs)' }}
+                    className={styles.marginTopXs}
                     disabled={loading && processedEmails.length === 0}
                 >
                     {t('dashboard_view_full_history')}

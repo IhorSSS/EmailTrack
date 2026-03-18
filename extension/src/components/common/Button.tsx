@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from '../../hooks/useTranslation';
+import styles from './Button.module.css';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -14,74 +15,41 @@ export const Button: React.FC<ButtonProps> = ({
     size = 'md',
     fullWidth = false,
     loading = false,
+    className = '',
     style,
     disabled,
     ...props
 }) => {
     const { t } = useTranslation();
 
-    const getVariantStyles = () => {
-        switch (variant) {
-            case 'primary':
-                return {
-                    background: 'var(--color-primary)',
-                    color: 'var(--text-on-primary)',
-                    boxShadow: 'var(--shadow-sm)',
-                };
-            case 'secondary':
-                return {
-                    background: 'var(--bg-card)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border-color)',
-                    boxShadow: 'var(--shadow-sm)',
-                };
-            case 'ghost':
-                return {
-                    background: 'transparent',
-                    color: 'var(--text-secondary)',
-                };
-            case 'danger':
-                return {
-                    background: 'var(--color-danger-bg)',
-                    color: 'var(--color-danger-text)',
-                    border: '1px solid var(--color-danger)',
-                };
-            default:
-                return {};
-        }
-    };
+    const variantClass = {
+        primary: styles.primary,
+        secondary: styles.secondary,
+        outline: styles.outline,
+        ghost: styles.ghost,
+        danger: styles.danger,
+    }[variant];
 
-    const getSizeStyles = () => {
-        switch (size) {
-            case 'sm':
-                return { padding: 'var(--spacing-xs) var(--spacing-sm)', fontSize: '12px' };
-            case 'md':
-                return { padding: 'var(--spacing-sm) var(--spacing-lg)', fontSize: '13px' };
-            case 'lg':
-                return { padding: 'var(--spacing-md) var(--spacing-xl)', fontSize: '15px' };
-            default:
-                return {};
-        }
-    };
+    const sizeClass = {
+        sm: styles.sm,
+        md: styles.md,
+        lg: styles.lg,
+    }[size];
+
+    const classNames = [
+        styles.button,
+        variantClass,
+        sizeClass,
+        fullWidth ? styles.fullWidth : '',
+        loading ? styles.loading : '',
+        className
+    ].filter(Boolean).join(' ');
 
     return (
         <button
             disabled={disabled || loading}
-            style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                borderRadius: 'var(--radius-md)',
-                fontWeight: 600,
-                width: fullWidth ? '100%' : 'auto',
-                transition: 'var(--transition-base)',
-                opacity: (disabled || loading) ? 0.6 : 1,
-                cursor: (disabled || loading) ? 'not-allowed' : 'pointer',
-                ...getVariantStyles(),
-                ...getSizeStyles(),
-                ...style as any,
-            }}
+            className={classNames}
+            style={style}
             {...props}
         >
             {loading ? (

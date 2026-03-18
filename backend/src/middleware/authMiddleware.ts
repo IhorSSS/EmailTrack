@@ -1,8 +1,7 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { verifyGoogleToken } from '../utils/auth';
-
-import { GoogleAuthInfo } from '../utils/auth';
+import { AuthService } from '../services/AuthService';
+import { GoogleAuthInfo } from '../types';
 
 // Extend FastifyRequest to include user context
 declare module 'fastify' {
@@ -28,7 +27,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
     }
 
     try {
-        const authInfo = await verifyGoogleToken(token);
+        const authInfo = await AuthService.verifyGoogleToken(token);
         request.user = authInfo;
         return authInfo;
     } catch (e) {
@@ -50,8 +49,9 @@ export async function getAuthenticatedUser(request: FastifyRequest): Promise<Goo
     if (!token) return null;
 
     try {
-        return await verifyGoogleToken(token);
+        return await AuthService.verifyGoogleToken(token);
     } catch (e) {
         return null;
     }
 }
+

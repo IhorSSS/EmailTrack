@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FastifyInstance } from 'fastify';
+import { buildApp } from '../../app';
+import { prisma } from '../../db';
+import { AuthService } from '../../services/AuthService';
 
 // Mock DB
 vi.mock('../../db', () => ({
@@ -13,14 +16,12 @@ vi.mock('../../db', () => ({
     },
 }));
 
-// Mock Auth
-vi.mock('../../utils/auth', () => ({
-    verifyGoogleToken: vi.fn(),
+// Mock AuthService
+vi.mock('../../services/AuthService', () => ({
+    AuthService: {
+        verifyGoogleToken: vi.fn(),
+    }
 }));
-
-import { buildApp } from '../../app';
-import { prisma } from '../../db';
-import { verifyGoogleToken } from '../../utils/auth';
 
 describe('Stats Route', () => {
     let app: FastifyInstance;
@@ -84,7 +85,7 @@ describe('Stats Route', () => {
             opens: []
         });
 
-        (verifyGoogleToken as any).mockResolvedValue({
+        (AuthService.verifyGoogleToken as any).mockResolvedValue({
             googleId: 'my-user-uuid',
             email: 'me@example.com'
         });
@@ -106,7 +107,7 @@ describe('Stats Route', () => {
             opens: []
         });
 
-        (verifyGoogleToken as any).mockResolvedValue({
+        (AuthService.verifyGoogleToken as any).mockResolvedValue({
             googleId: 'my-id',
             email: 'me@example.com'
         });
@@ -131,7 +132,7 @@ describe('Stats Route', () => {
             opens: []
         });
 
-        (verifyGoogleToken as any).mockResolvedValue({
+        (AuthService.verifyGoogleToken as any).mockResolvedValue({
             googleId: myId,
             email: 'me@example.com'
         });
@@ -158,3 +159,4 @@ describe('Stats Route', () => {
         expect(response.statusCode).toBe(404);
     });
 });
+

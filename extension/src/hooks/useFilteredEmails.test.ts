@@ -101,4 +101,20 @@ describe('useFilteredEmails', () => {
         const { result } = renderHook(() => useFilteredEmails(mockEmails));
         expect(result.current.uniqueSenders).toEqual(['sender1@example.com', 'sender2@example.com']);
     });
+
+    it('should expose senderFilteredEmails that ignores search and status filters', () => {
+        const { result } = renderHook(() => useFilteredEmails(mockEmails));
+
+        act(() => {
+            result.current.setSenderFilter('sender1@example.com'); // Has 2 emails
+            result.current.setSearchQuery('Project'); // Has 1 email
+            result.current.setFilterType('opened'); // Has 1 email
+        });
+
+        // senderFilteredEmails should only respect sender filter (length 2)
+        expect(result.current.senderFilteredEmails).toHaveLength(2);
+        
+        // processedEmails should respect all filters (length 1)
+        expect(result.current.processedEmails).toHaveLength(1);
+    });
 });

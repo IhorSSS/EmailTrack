@@ -1,13 +1,15 @@
 
 import { logger } from './logger';
 
+import type { TranslationKey } from '../types/i18n';
+
 /**
  * Tries to parse the recipient field.
  * The backend might return a JSON string like:
  * '[{"name":"Example","address":"example@gmail.com"}]'
  * or just a plain string.
  */
-export const formatRecipient = (recipientRaw: string, t?: (key: string) => string): string => {
+export const formatRecipient = (recipientRaw: string, t?: (key: TranslationKey, params?: Record<string, string>) => string): string => {
     if (!recipientRaw) return t ? t('recipient_unknown') : 'Unknown Recipient';
 
     try {
@@ -28,7 +30,7 @@ export const formatRecipient = (recipientRaw: string, t?: (key: string) => strin
     }
 
     // Fallback: remove any array brackets if they exist as string text but failed parse
-    return recipientRaw.replace(/[\[\]"]/g, '');
+    return recipientRaw.replace(/[[\]"]/g, '');
 };
 
 // Helper to avoid circular deps: we pass `locale` from components
@@ -70,7 +72,7 @@ export const formatFullDate = (dateStr: string, locale: string = 'en-US'): strin
     }).format(new Date(dateStr));
 };
 
-export const getDeviceLabel = (deviceData: any, t: (key: any, params?: any) => string): string => {
+export const getDeviceLabel = (deviceData: Record<string, string>, t: (key: TranslationKey, params?: Record<string, string>) => string): string => {
     // 1. Check if it's a bot/proxy
     const isBot = deviceData.isBot ||
         deviceData.device?.includes('Proxy') ||

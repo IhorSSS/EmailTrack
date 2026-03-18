@@ -5,8 +5,8 @@ import { API_CONFIG } from '../../config/api';
 describe('extraction utils', () => {
     describe('extractCleanBody', () => {
         it('should return empty string for null/undefined', () => {
-            expect(extractCleanBody(null as any)).toBe('');
-            expect(extractCleanBody(undefined as any)).toBe('');
+            expect(extractCleanBody(null as unknown as string)).toBe('');
+            expect(extractCleanBody(undefined as unknown as string)).toBe('');
         });
 
         it('should strip basic HTML tags', () => {

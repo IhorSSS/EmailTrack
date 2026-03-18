@@ -1,0 +1,83 @@
+.header {
+    height: var(--header-height);
+    padding: 0 var(--spacing-lg);
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    z-index: var(--z-index-header);
+    position: sticky;
+    top: 0;
+}
+
+.leftSection {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm-md);
+}
+
+.logoContainer {
+    width: var(--icon-size-lg);
+    height: var(--icon-size-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logoImage {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.title {
+    font-size: var(--font-size-2xl);
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+}
+
+.rightSection {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.divider {
+    width: var(--spacing-3xs);
+    height: var(--spacing-lg);
+    background: var(--border-color);
+    margin: 0 var(--spacing-xs);
+}
+
+.profileSection {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm-md);
+}
+
+.profileImage {
+    width: var(--avatar-size-sm);
+    height: var(--avatar-size-sm);
+    border-radius: var(--radius-full);
+    border: 2px solid var(--border-color);
+    object-fit: cover;
+}
+
+.logoutButton {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--text-secondary);
+    transition: var(--transition-base);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+}
+
+.logoutButton:hover {
+    background: var(--bg-card-hover);
+}

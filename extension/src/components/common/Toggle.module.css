@@ -1,0 +1,75 @@
+.toggle {
+    position: relative;
+    display: inline-block;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: var(--transition-base);
+}
+
+.toggle.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+
+.slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--border-color);
+    transition: var(--transition-base);
+    border-radius: var(--radius-full);
+}
+
+.slider.checked {
+    background-color: var(--color-primary);
+}
+
+.knob {
+    position: absolute;
+    content: "";
+    background-color: var(--bg-card);
+    transition: var(--transition-base);
+    border-radius: 50%;
+    box-shadow: var(--shadow-sm);
+    left: var(--spacing-2xs);
+    bottom: var(--spacing-2xs);
+}
+
+/* Medium Defaults */
+.md {
+    width: 44px;
+    height: 24px;
+}
+
+.md .knob {
+    height: var(--icon-size-sm);
+    width: var(--icon-size-sm);
+}
+
+.md .knobChecked {
+    transform: translateX(var(--icon-size-sm));
+}
+
+/* Small Variant */
+.sm {
+    width: 40px;
+    height: var(--icon-size-sm);
+}
+
+.sm .knob {
+    height: var(--icon-size-xs);
+    width: var(--icon-size-xs);
+}
+
+.sm .knobChecked {
+    transform: translateX(var(--icon-size-sm));
+}

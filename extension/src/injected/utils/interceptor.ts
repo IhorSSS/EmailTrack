@@ -2,6 +2,7 @@
 import { createPixel } from './pixel';
 import { extractSenderEmail, getBodyPreviewLength } from './dom';
 import { extractCleanBody, deepModify, type InjectionResult } from './extraction';
+import { CONSTANTS } from '../../config/constants';
 
 export interface InterceptionConfig {
     HOST: string;
@@ -10,9 +11,9 @@ export interface InterceptionConfig {
 
 export function handleSendInterceptor(
     config: InterceptionConfig,
-    data: any,
-    xhr: any,
-    logger: any
+    data: Record<string, unknown> | null,
+    xhr: { xhrParams?: { body_params?: unknown } } | null,
+    logger: { log: (...args: unknown[]) => void, error: (...args: unknown[]) => void, isDebug?: () => boolean }
 ): boolean {
     const trackId = crypto.randomUUID();
     const pixelTag = createPixel(trackId, config.HOST, config.PIXEL_BASE);
@@ -45,22 +46,23 @@ export function handleSendInterceptor(
                         ? plainText.substring(0, currentPreviewLength) + '...'
                         : plainText;
                 }
-            } catch (e: any) { logger.error(e); }
+            } catch (e: unknown) { logger.error(e); }
         }
 
         const senderEmail = extractSenderEmail();
 
         // Parse recipient - data.to can be array of objects {email, name} or strings
-        const recipients = data.to || [];
-        const ccRecipients = data.cc || [];
-        const bccRecipients = data.bcc || [];
+        const recipients = data?.to || [];
+        const ccRecipients = data?.cc || [];
+        const bccRecipients = data?.bcc || [];
 
-        const formatRecipients = (list: any[]) => {
+        const formatRecipients = (list: unknown) => {
             if (!Array.isArray(list) || list.length === 0) return null;
-            return list.map((r: any) => {
+            return list.map((r: unknown) => {
                 if (typeof r === 'string') return r;
                 if (r && typeof r === 'object') {
-                    return r.email || r.address || r.name || JSON.stringify(r);
+                    const record = r as Record<string, string>;
+                    return record.email || record.address || record.name || JSON.stringify(r);
                 }
                 return String(r);
             }).join(', ');
@@ -72,7 +74,7 @@ export function handleSendInterceptor(
 
         const eventData = {
             id: trackId,
-            subject: data.subject,
+            subject: data?.subject,
             recipient: recipientStr,
             cc: ccStr,
             bcc: bccStr,
@@ -82,7 +84,7 @@ export function handleSendInterceptor(
 
         // SECURITY: Restrict postMessage to origin
         window.postMessage({
-            type: 'EMAILTRACK_REGISTER',
+            type: CONSTANTS.MESSAGES.EMAILTRACK_REGISTER,
             detail: eventData
         }, window.location.origin);
     }

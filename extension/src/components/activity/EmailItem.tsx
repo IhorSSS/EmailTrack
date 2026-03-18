@@ -1,41 +1,27 @@
 import { Badge } from '../common/Badge';
-import { formatRecipient, formatDateTime } from '../../utils/formatter';
 import styles from './EmailItem.module.css';
 import { useTranslation } from '../../hooks/useTranslation';
+import { useEmailFormatting } from '../../hooks/useEmailFormatting';
+
+import type { TrackedEmail } from '../../types';
 
 interface EmailItemProps {
-    email: any;
+    email: TrackedEmail;
     onClick: () => void;
     onDelete: (e: React.MouseEvent) => void;
 }
 
 export const EmailItem = ({ email, onClick, onDelete }: EmailItemProps) => {
-    const { t, language } = useTranslation();
+    const { t } = useTranslation();
+    const { formatRecipient, formatDateTime } = useEmailFormatting();
     const isOpened = email.openCount > 0;
-
-    // Calculate last opened time
-    const lastOpened = email.opens && email.opens.length > 0
-        ? email.opens.reduce((latest: any, current: any) => {
-            const latestTime = new Date(latest.openedAt || latest.timestamp || 0).getTime();
-            const currentTime = new Date(current.openedAt || current.timestamp || 0).getTime();
-            return currentTime > latestTime ? current : latest;
-        })
-        : null;
-
-    // Determine locale for formatting (e.g., 'uk-UA' or 'en-US')
-    // Since our language state is 'en' or 'uk' or 'system', we map it.
-    const localeMap: Record<string, string> = {
-        'en': 'en-US',
-        'uk': 'uk-UA'
-    };
-    const currentLocale = language === 'system' ? navigator.language : (localeMap[language] || 'en-US');
 
     return (
         <div className={styles.container} onClick={onClick}>
             <div className={styles.content}>
                 <div className={styles.header}>
                     <div className={styles.recipient}>
-                        {formatRecipient(email.recipient, t as any)}
+                        {formatRecipient(email.recipient)}
                     </div>
                     <button
                         className={styles.deleteButton}
@@ -62,19 +48,23 @@ export const EmailItem = ({ email, onClick, onDelete }: EmailItemProps) => {
 
             <div className={styles.meta}>
                 <div className={styles.metaRow}>
-                    <Badge variant={isOpened ? 'success' : 'neutral'}>
-                        {isOpened ? `${t('detail_len_opens', { count: email.openCount })}` : t('email_sent')}
-                    </Badge>
-                    {lastOpened && (
+                        {isOpened ? (
+                            <Badge variant="success">
+                                {t('detail_len_opens', { count: String(email.openCount) })}
+                            </Badge>
+                        ) : (
+                            <Badge variant="neutral">{t('email_sent')}</Badge>
+                        )}
+                    {email.opens && email.opens.length > 0 && (
                         <span className={styles.timestamp}>
-                            {t('email_last_opened', { date: formatDateTime(lastOpened.openedAt || lastOpened.timestamp, currentLocale) })}
+                            {t('email_last_opened', { date: formatDateTime(email.opens[email.opens.length - 1].openedAt || email.opens[email.opens.length - 1].timestamp || '') })}
                         </span>
                     )}
                 </div>
 
                 <div className={styles.metaRow}>
                     <span className={styles.timestamp}>
-                        {formatDateTime(email.createdAt, currentLocale)}
+                        {formatDateTime(email.createdAt)}
                     </span>
                 </div>
             </div>

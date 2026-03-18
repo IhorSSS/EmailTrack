@@ -1,256 +1,110 @@
 import type { LocalEmailMetadata, TrackedEmail } from '../types';
+import { EmailStorage } from './storage/EmailStorage';
+import { SyncQueue } from './storage/SyncQueue';
+import { CONSTANTS } from '../config/constants';
 
-const STORAGE_KEY = 'emailtrack_local_history';
+export interface ExtensionSettings {
+    [CONSTANTS.STORAGE_KEYS.TRACKING_ENABLED]?: boolean;
+    [CONSTANTS.STORAGE_KEYS.BODY_PREVIEW_LENGTH]?: number;
+    [CONSTANTS.STORAGE_KEYS.THEME]?: 'light' | 'dark' | 'system';
+    [CONSTANTS.STORAGE_KEYS.SHOW_TRACKING_INDICATOR]?: boolean;
+    [CONSTANTS.STORAGE_KEYS.CURRENT_USER]?: string | null;
+    [CONSTANTS.STORAGE_KEYS.LAST_LOGGED_IN_EMAIL]?: string | null;
+}
 
+
+/**
+ * LocalStorageService - Entry point (Facade)
+ * Decomposed into EmailStorage and SyncQueue for architectural compliance.
+ */
 export class LocalStorageService {
-    /**
-     * Save multiple tracked emails (Batch)
-     */
-    static async saveEmails(emailsToSave: TrackedEmail[]): Promise<void> {
-        const local = await this.getEmails();
-        const map = new Map(local.map(e => [e.id, e]));
+    static async saveEmails(emailsToSave: TrackedEmail[]) { return EmailStorage.saveEmails(emailsToSave); }
+    static async saveEmail(email: LocalEmailMetadata) { return EmailStorage.saveEmail(email); }
+    static async getEmails() { return EmailStorage.getEmails(); }
+    static async setEmails(emails: LocalEmailMetadata[]) { return EmailStorage.setEmails(emails); }
 
-        emailsToSave.forEach(email => {
-            // Actually, if we just store full objects, we might pollute types?
-            // LocalEmailMetadata is a subset.
-            // Let's just cast or ensure fields.
-            map.set(email.id, {
-                id: email.id,
-                recipient: email.recipient,
-                cc: email.cc,
-                bcc: email.bcc,
-                subject: email.subject,
-                body: email.body, // Now optional
-                user: email.user || '',
-                ownerEmail: email.ownerEmail,
-                createdAt: email.createdAt,
-                synced: true,
-                isOwned: !!email.ownerId,
-                openCount: email.openCount ?? 0
-            });
-        });
-
-        const updated = Array.from(map.values())
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-        await this.setEmails(updated);
-    }
-
-    /**
-     * Save email metadata to local storage
-     */
-    /**
-     * Save email metadata to local storage
-     */
-    static async saveEmail(email: LocalEmailMetadata): Promise<void> {
-        return new Promise((resolve) => {
-            try {
-                if (!chrome.runtime?.id) {
-                    return resolve(); // Fail silently
-                }
-                chrome.storage.local.get([STORAGE_KEY], (result) => {
-                    if (chrome.runtime.lastError) return resolve();
-
-                    const history = (result[STORAGE_KEY] || []) as LocalEmailMetadata[];
-
-                    // Check if email already exists
-                    const existingIndex = history.findIndex(e => e.id === email.id);
-                    if (existingIndex >= 0) {
-                        // Update existing - preserve synced status
-                        history[existingIndex] = { ...history[existingIndex], ...email };
-                    } else {
-                        // New email - mark as unsynced for future upload
-                        history.unshift({ ...email, synced: false });
-                    }
-
-                    chrome.storage.local.set({ [STORAGE_KEY]: history }, () => {
-                        resolve();
-                    });
-                });
-            } catch (e) {
-                resolve(); // Fail silently
-            }
-        });
-    }
-
-    /**
-     * Get all locally stored emails
-     */
-    static async getEmails(): Promise<LocalEmailMetadata[]> {
-        return new Promise((resolve) => {
-            try {
-                if (!chrome.runtime?.id) {
-                    return resolve([]);
-                }
-                chrome.storage.local.get([STORAGE_KEY], (result) => {
-                    if (chrome.runtime.lastError) return resolve([]);
-                    resolve((result[STORAGE_KEY] || []) as LocalEmailMetadata[]);
-                });
-            } catch (e) {
-                resolve([]);
-            }
-        });
-    }
-
-    /**
-     * Mark emails as safely synced to cloud
-     */
     static async markAsSynced(ids: string[]): Promise<void> {
-        return new Promise((resolve) => {
-            chrome.storage.local.get([STORAGE_KEY], (result) => {
-                const history = (result[STORAGE_KEY] || []) as LocalEmailMetadata[];
-                const updated = history.map(e => {
-                    if (ids.includes(e.id)) {
-                        return { ...e, synced: true };
-                    }
-                    return e;
-                });
-                chrome.storage.local.set({ [STORAGE_KEY]: updated }, () => {
-                    resolve();
-                });
-            });
-        });
+        const history = await EmailStorage.getEmails();
+        const updated = history.map(e => ids.includes(e.id) ? { ...e, synced: true } : e);
+        await EmailStorage.setEmails(updated);
     }
 
-    /**
-     * Update the owner of local emails (used during Sync migration)
-     */
     static async updateOwnership(ids: string[], newUser: string): Promise<void> {
-        return new Promise((resolve) => {
-            chrome.storage.local.get([STORAGE_KEY], (result) => {
-                const history = (result[STORAGE_KEY] || []) as LocalEmailMetadata[];
-                const updated = history.map(e => {
-                    if (ids.includes(e.id)) {
-                        // PRESERVE ALIAS: Only overwrite 'user' if it's generic or missing
-                        const shouldUpdateUser = !e.user || e.user === 'Unknown' || e.user === 'me';
-                        return {
-                            ...e,
-                            user: shouldUpdateUser ? newUser : e.user,
-                            ownerEmail: newUser,
-                            isOwned: true
-                        };
-                    }
-                    return e;
-                });
-                chrome.storage.local.set({ [STORAGE_KEY]: updated }, () => {
-                    resolve();
-                });
-            });
+        const history = await EmailStorage.getEmails();
+        const updated = history.map(e => {
+            if (ids.includes(e.id)) {
+                const shouldUpdateUser = !e.user || e.user === 'Unknown' || e.user === 'me';
+                return { ...e, user: shouldUpdateUser ? newUser : e.user, ownerEmail: newUser, isOwned: true };
+            }
+            return e;
         });
+        await EmailStorage.setEmails(updated);
     }
 
-    /**
-     * Overwrite all emails (Internal)
-     */
-    private static async setEmails(emails: LocalEmailMetadata[]): Promise<void> {
-        return new Promise((resolve) => {
-            chrome.storage.local.set({ [STORAGE_KEY]: emails }, () => {
-                resolve();
-            });
-        });
-    }
-
-    /**
-     * Delete only emails that have already been synced to the cloud.
-     * This is used when switching accounts to keep anonymous history while
-     * protecting the privacy of the previous user.
-     */
     static async deleteSyncedOnly(): Promise<void> {
-        return new Promise((resolve) => {
-            chrome.storage.local.get([STORAGE_KEY], (result) => {
-                const history = (result[STORAGE_KEY] || []) as LocalEmailMetadata[];
-                // Keep if unsynced OR if synced but NO ownerEmail (Anonymous/Unclaimed)
-                const unsynced = history.filter(e => !e.synced || !e.ownerEmail);
-                chrome.storage.local.set({ [STORAGE_KEY]: unsynced }, () => {
-                    resolve();
-                });
-            });
-        });
+        const history = await EmailStorage.getEmails();
+        const unsynced = history.filter(e => !e.synced || !e.ownerEmail);
+        await EmailStorage.setEmails(unsynced);
     }
 
-    /**
-     * Delete persistent history (clear all)
-     */
     static async deleteAll(): Promise<void> {
         return new Promise((resolve) => {
-            chrome.storage.local.remove(STORAGE_KEY, () => {
-                resolve();
-            });
+            chrome.storage.local.remove(CONSTANTS.STORAGE_KEYS.LOCAL_HISTORY, resolve);
         });
     }
 
-    /**
-     * Delete persistent history (clear all) - Alias for backward compatibility if needed, 
-     * but we should use deleteAll for explicit intent.
-     */
-    static async clearAll(): Promise<void> {
-        return this.deleteAll();
-    }
-
-    /**
-     * Delete emails by Sender Identity (for Incognito cleanup)
-     */
     static async deleteBySender(sender: string): Promise<void> {
-        return new Promise((resolve) => {
-            chrome.storage.local.get([STORAGE_KEY], (result) => {
-                let history = (result[STORAGE_KEY] || []) as LocalEmailMetadata[];
-                history = history.filter(e => e.user !== sender);
-                chrome.storage.local.set({ [STORAGE_KEY]: history }, () => {
-                    resolve();
-                });
-            });
-        });
+        const history = await EmailStorage.getEmails();
+        await EmailStorage.setEmails(history.filter(e => e.user !== sender));
     }
 
-    /**
-     * Delete single email by ID
-     */
     static async deleteEmail(id: string): Promise<void> {
+        const history = await EmailStorage.getEmails();
+        await EmailStorage.setEmails(history.filter(e => e.id !== id));
+    }
+
+    // Identity (Local)
+    static async getUserProfile(): Promise<{ id: string; email: string } | null> {
         return new Promise((resolve) => {
-            chrome.storage.local.get([STORAGE_KEY], (result) => {
-                let history = (result[STORAGE_KEY] || []) as LocalEmailMetadata[];
-                history = history.filter(e => e.id !== id);
-                chrome.storage.local.set({ [STORAGE_KEY]: history }, () => {
-                    resolve();
-                });
+            chrome.storage.local.get([CONSTANTS.STORAGE_KEYS.USER_PROFILE], (res) => {
+                const profile = res[CONSTANTS.STORAGE_KEYS.USER_PROFILE];
+                resolve(profile ? (profile as { id: string; email: string }) : null);
             });
         });
     }
 
-    /**
-     * Clean up storage
-     */
-    static async cleanup(): Promise<void> {
-        // No-op for now
-    }
-
-    // --- RETRY QUEUE FOR FAILED DELETIONS ---
-
-    static async queuePendingDelete(ids: string[], user?: string): Promise<void> {
+    static async setUserProfile(profile: { id: string; email: string } | null): Promise<void> {
         return new Promise((resolve) => {
-            try {
-                if (!chrome.runtime?.id) return resolve();
-                chrome.storage.local.get(['pending_deletes'], (result) => {
-                    if (chrome.runtime.lastError) return resolve();
-                    const queue = (result['pending_deletes'] || []) as { ids: string[], user?: string }[];
-                    queue.push({ ids, user });
-                    chrome.storage.local.set({ 'pending_deletes': queue }, resolve);
-                });
-            } catch (e) { resolve(); }
+            if (profile) {
+                chrome.storage.local.set({ [CONSTANTS.STORAGE_KEYS.USER_PROFILE]: profile }, resolve);
+            } else {
+                chrome.storage.local.remove([CONSTANTS.STORAGE_KEYS.USER_PROFILE], resolve);
+            }
         });
     }
 
-    static async getPendingDeletes(): Promise<{ ids: string[], user?: string }[]> {
+    // Settings (Sync)
+    static async getSettings(): Promise<ExtensionSettings> {
         return new Promise((resolve) => {
-            chrome.storage.local.get(['pending_deletes'], (result) => {
-                resolve((result['pending_deletes'] || []) as { ids: string[], user?: string }[]);
-            });
+            chrome.storage.sync.get([
+                CONSTANTS.STORAGE_KEYS.TRACKING_ENABLED,
+                CONSTANTS.STORAGE_KEYS.BODY_PREVIEW_LENGTH,
+                CONSTANTS.STORAGE_KEYS.THEME,
+                CONSTANTS.STORAGE_KEYS.SHOW_TRACKING_INDICATOR,
+                CONSTANTS.STORAGE_KEYS.CURRENT_USER
+            ], (res) => resolve(res as ExtensionSettings));
         });
     }
 
-    static async clearPendingDeletes(): Promise<void> {
+    static async updateSettings(settings: ExtensionSettings): Promise<void> {
         return new Promise((resolve) => {
-            chrome.storage.local.remove(['pending_deletes'], resolve);
+            chrome.storage.sync.set(settings, resolve);
         });
     }
+
+    // Retries
+    static async queuePendingDelete(ids: string[], user?: string) { return SyncQueue.queuePendingDelete(ids, user); }
+    static async getPendingDeletes() { return SyncQueue.getPendingDeletes(); }
+    static async clearPendingDeletes() { return SyncQueue.clearPendingDeletes(); }
 }
+

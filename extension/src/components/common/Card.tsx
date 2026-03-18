@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import styles from './Card.module.css';
 
 interface CardProps {
     children: ReactNode;
@@ -6,15 +7,7 @@ interface CardProps {
 
 export const Card = ({ children }: CardProps) => {
     return (
-        <div
-            style={{
-                padding: 'var(--spacing-md)',
-                backgroundColor: 'var(--bg-card)',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-color)',
-                boxShadow: 'var(--shadow-sm)',
-            }}
-        >
+        <div className={styles.card}>
             {children}
         </div>
     );

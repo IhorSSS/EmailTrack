@@ -1,0 +1,55 @@
+.button {
+    background: none;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xs-sm);
+    cursor: pointer;
+    flex: 1;
+    padding: var(--spacing-md) var(--spacing-sm);
+    transition: var(--transition-base);
+    position: relative;
+    color: var(--text-muted);
+}
+
+.buttonActive {
+    color: var(--color-primary);
+}
+
+.iconWrapper {
+    width: var(--icon-size-sm);
+    height: var(--icon-size-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-base);
+    transform: scale(1);
+}
+
+.iconWrapperActive {
+    transform: scale(1.1) translateY(-2px);
+}
+
+.label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    transition: var(--transition-base);
+}
+
+.labelActive {
+    font-weight: 700;
+}
+
+.activeIndicator {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: var(--spacing-xl);
+    height: var(--spacing-2xs); /* Adjusted from 3px */
+    background: var(--color-primary);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    box-shadow: 0 0 var(--spacing-sm) var(--color-primary);
+}

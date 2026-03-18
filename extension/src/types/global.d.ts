@@ -2,13 +2,17 @@ export { }; // Ensure this is treated as a module
 
 declare global {
     interface Window {
-        jQuery: any;
-        $: any;
-        Gmail: any;
-        GmailInstance?: any; // Added for debugging
-        __emailTrackPolicy: any;
+        jQuery: unknown;
+        $: unknown;
+        Gmail: unknown;
+        GmailInstance?: unknown; // Added for debugging
+        __emailTrackPolicy: {
+            createHTML: (string: string) => string;
+        };
         trustedTypes?: {
-            createPolicy: (name: string, rules: any) => any;
+            createPolicy: (name: string, rules: { createHTML: (string: string) => string }) => {
+                createHTML: (string: string) => string;
+            };
         };
     }
 }

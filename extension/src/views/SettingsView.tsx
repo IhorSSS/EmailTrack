@@ -2,8 +2,10 @@ import React from 'react';
 import { Button } from '../components/common/Button';
 import { Select } from '../components/common/Select';
 import { Badge } from '../components/common/Badge';
+import { Toggle } from '../components/common/Toggle';
 import { useTranslation } from '../hooks/useTranslation';
 import type { UserProfile } from '../services/AuthService';
+import styles from './SettingsView.module.css';
 
 interface SettingsViewProps {
     globalEnabled: boolean;
@@ -35,119 +37,43 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const { t, language, setLanguage } = useTranslation();
 
     return (
-        <div style={{ padding: 'var(--spacing-lg) var(--spacing-lg) var(--spacing-sm)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-xl)', minHeight: '100%' }}>
+        <div className={styles.container}>
             {/* Tracking Toggle Section */}
-            <div style={{
-                background: 'var(--bg-card)',
-                borderRadius: 'var(--radius-lg)',
-                border: '1px solid var(--border-color)',
-                overflow: 'hidden'
-            }}>
-                <div style={{
-                    padding: 'var(--spacing-lg)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    borderBottom: '1px solid var(--border-color)',
-                    background: globalEnabled ? 'var(--color-primary-soft)' : 'transparent',
-                    gap: '16px' // Add gap between text and toggle
-                }}>
-                    <div style={{ flex: 1, minWidth: 0 }}> {/* Allow text to wrap and not push toggle */}
-                        <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{t('settings_tracking_on')}</h4>
-                        <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: 'var(--spacing-xs)', lineHeight: '1.4' }}>
-                            {t('settings_tracking_desc_on')}
-                        </p>
+            <div className={styles.section}>
+                <div className={`${styles.row} ${globalEnabled ? styles.highlighted : ''}`}>
+                    <div className={styles.rowText}>
+                        <h4 className={styles.rowTitle}>{t('settings_tracking_on')}</h4>
+                        <p className={styles.rowDesc}>{t('settings_tracking_desc_on')}</p>
                     </div>
-                    <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px', flexShrink: 0 }}> {/* Prevent toggle squishing */}
-                        <input
-                            type="checkbox"
-                            checked={globalEnabled}
-                            onChange={toggleGlobal}
-                            style={{ opacity: 0, width: 0, height: 0 }}
-                        />
-                        <span style={{
-                            position: 'absolute',
-                            cursor: 'pointer',
-                            top: 0, left: 0, right: 0, bottom: 0,
-                            backgroundColor: globalEnabled ? 'var(--color-primary)' : 'var(--border-color)',
-                            transition: 'var(--transition-base)',
-                            borderRadius: 'var(--radius-full)',
-                        }}>
-                            <span style={{
-                                position: 'absolute',
-                                content: '""',
-                                height: '20px', width: '20px',
-                                left: globalEnabled ? '22px' : '2px',
-                                bottom: '2px',
-                                backgroundColor: 'var(--bg-card)',
-                                transition: 'var(--transition-base)',
-                                borderRadius: '50%',
-                                boxShadow: 'var(--shadow-sm)'
-                            }} />
-                        </span>
-                    </label>
+                    <Toggle checked={globalEnabled} onChange={toggleGlobal} />
                 </div>
 
                 {/* Visual Indicator Toggle */}
-                <div style={{
-                    padding: 'var(--spacing-lg)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    borderBottom: '1px solid var(--border-color)',
-                    opacity: globalEnabled ? 1 : 0.5,
-                    pointerEvents: globalEnabled ? 'auto' : 'none',
-                    transition: 'opacity var(--transition-base)'
-                }}>
-                    <div style={{ flex: 1, paddingRight: 'var(--spacing-md)' }}>
-                        <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{t('settings_visual_indicator')}</h4>
-                        <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                            {t('settings_visual_indicator_desc')}
-                        </p>
+                <div className={`${styles.row} ${!globalEnabled ? styles.disabled : ''}`}>
+                    <div className={styles.rowText}>
+                        <h4 className={styles.rowTitle}>{t('settings_visual_indicator')}</h4>
+                        <p className={styles.rowDesc}>{t('settings_visual_indicator_desc')}</p>
                     </div>
-                    <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '40px', height: '20px', cursor: globalEnabled ? 'pointer' : 'not-allowed' }}>
-                        <input
-                            type="checkbox"
-                            disabled={!globalEnabled}
-                            checked={showTrackingIndicator && globalEnabled}
-                            onChange={(e) => setShowTrackingIndicator(e.target.checked)}
-                            style={{ opacity: 0, width: 0, height: 0 }}
-                        />
-                        <span style={{
-                            position: 'absolute',
-                            cursor: 'inherit',
-                            top: 0, left: 0, right: 0, bottom: 0,
-                            backgroundColor: (showTrackingIndicator && globalEnabled) ? 'var(--color-primary)' : 'var(--border-color)',
-                            transition: 'var(--transition-base)',
-                            borderRadius: 'var(--radius-full)',
-                        }}>
-                            <span style={{
-                                position: 'absolute',
-                                content: '""',
-                                height: '16px', width: '16px',
-                                left: (showTrackingIndicator && globalEnabled) ? '22px' : '2px',
-                                bottom: '2px',
-                                backgroundColor: 'var(--bg-card)',
-                                transition: 'var(--transition-base)',
-                                borderRadius: '50%',
-                                boxShadow: 'var(--shadow-sm)'
-                            }} />
-                        </span>
-                    </label>
+                    <Toggle 
+                        checked={showTrackingIndicator && globalEnabled}
+                        onChange={(val) => setShowTrackingIndicator(val)}
+                        disabled={!globalEnabled}
+                        size="sm"
+                    />
                 </div>
 
-                <div style={{ padding: 'var(--spacing-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
+                <div className={styles.formGroup}>
                     <Select
                         label={t('settings_language')}
                         value={language}
-                        onChange={(e) => setLanguage(e.target.value as any)}
+                        onChange={(e) => setLanguage(e.target.value as 'system' | 'en' | 'uk')}
                         options={[
                             { value: 'system', label: t('settings_language_system', { lang: navigator.language.split('-')[0] }) },
                             { value: 'en', label: t('settings_language_en') },
                             { value: 'uk', label: t('settings_language_uk') }
                         ]}
                     />
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '-8px' }}>
+                    <div className={styles.formNote}>
                         {t('settings_language_note')}
                     </div>
 
@@ -165,7 +91,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <Select
                         label={t('settings_theme')}
                         value={theme}
-                        onChange={(e) => setTheme(e.target.value as any)}
+                        onChange={(e) => setTheme(e.target.value as 'system' | 'light' | 'dark')}
                         options={[
                             { value: 'system', label: t('settings_theme_system') },
                             { value: 'light', label: t('settings_theme_light') },
@@ -176,19 +102,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             {/* Identity Info */}
-            <div style={{
-                padding: 'var(--spacing-lg)',
-                background: 'var(--bg-card)',
-                borderRadius: 'var(--radius-lg)',
-                border: '1px solid var(--border-color)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--spacing-md)'
-            }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        {t('settings_active_identity')}
-                    </h4>
+            <div className={styles.identitySection}>
+                <div className={styles.identityHeader}>
+                    <h4 className={styles.identityTitle}>{t('settings_active_identity')}</h4>
                     {userProfile ? (
                         <Badge variant="success" dot>{t('settings_signed_in')}</Badge>
                     ) : (
@@ -196,99 +112,44 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     )}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+                <div className={styles.profileRow}>
                     {userProfile?.picture ? (
-                        <img
-                            src={userProfile.picture}
-                            style={{
-                                width: '36px',
-                                height: '36px',
-                                borderRadius: '50%',
-                                border: '2px solid var(--border-color)',
-                                padding: '2px'
-                            }}
-                            alt=""
-                        />
+                        <img src={userProfile.picture} className={styles.profileImage} alt="" />
                     ) : (
-                        <div style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '50%',
-                            background: 'var(--bg-app)',
-                            border: '1px solid var(--border-color)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '18px'
-                        }}>
-                            👤
-                        </div>
+                        <div className={styles.profileInitials}>👤</div>
                     )}
-                    <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div className={styles.profileText}>
+                        <div className={styles.profileName}>
                             {userProfile?.name || t('settings_guest_mode')}
                         </div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {userProfile
-                                ? userProfile.email
-                                : t('settings_guest_desc')}
+                        <div className={styles.profileEmail}>
+                            {userProfile ? userProfile.email : t('settings_guest_desc')}
                         </div>
                     </div>
                 </div>
 
                 {!userProfile && (
-                    <div style={{
-                        marginTop: 'var(--spacing-xs)',
-                        padding: 'var(--spacing-sm) var(--spacing-md)',
-                        background: 'var(--bg-app)',
-                        borderRadius: 'var(--radius-sm)',
-                        fontSize: '11px',
-                        color: 'var(--text-muted)',
-                        borderLeft: '3px solid var(--text-muted)',
-                        lineHeight: '1.4'
-                    }}>
+                    <div className={styles.guestWarning}>
                         ℹ️ <b>{t('common_note')}</b> {t('settings_guest_warning')}
                     </div>
                 )}
             </div>
 
             {/* Danger Zone */}
-            <div style={{
-                padding: 'var(--spacing-lg)',
-                background: 'var(--color-danger-bg)',
-                borderRadius: 'var(--radius-lg)',
-                border: '1px solid var(--color-danger)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--spacing-sm)'
-            }}>
-                <h4 style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-danger-text)' }}>{t('settings_danger_zone')}</h4>
-                <p style={{ fontSize: '11px', color: 'var(--color-danger-text)', opacity: 0.8 }}>
-                    {t('settings_danger_desc')}
-                </p>
-                <Button
-                    variant="danger"
-                    fullWidth
-                    size="sm"
-                    onClick={openDeleteConfirm}
-                    disabled={loading}
-                    style={{ marginTop: 'var(--spacing-xs)' }}
-                >
-                    {t('settings_clear_data')}
-                </Button>
+            <div className={styles.dangerSection}>
+                <h4 className={styles.dangerTitle}>{t('settings_danger_zone')}</h4>
+                <p className={styles.dangerDesc}>{t('settings_danger_desc')}</p>
+                <div className={styles.dangerButtonWrapper}>
+                    <Button variant="danger" fullWidth size="sm" onClick={openDeleteConfirm} disabled={loading}>
+                        {t('settings_clear_data')}
+                    </Button>
+                </div>
             </div>
 
             {/* Version Footer */}
-            <div style={{
-                textAlign: 'center',
-                fontSize: '10px',
-                color: 'var(--text-muted)',
-                opacity: 0.5,
-                marginTop: 'auto'
-            }}>
+            <div className={styles.footer}>
                 EmailTrack v{__APP_VERSION__}
             </div>
         </div>
     );
-
 };

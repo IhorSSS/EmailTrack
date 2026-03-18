@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FastifyInstance } from 'fastify';
-// Mock utils/auth BEFORE importing routes or building app
-vi.mock('../utils/auth', () => ({
-    verifyGoogleToken: vi.fn()
+import { buildApp } from '../app';
+import { prisma } from '../db';
+import { AuthService } from '../services/AuthService';
+
+// Mock AuthService BEFORE importing routes or building app
+vi.mock('../services/AuthService', () => ({
+    AuthService: {
+        verifyGoogleToken: vi.fn()
+    }
 }));
 
 // Mock Prisma
@@ -17,10 +23,6 @@ vi.mock('../db', () => ({
     }
 }));
 
-import { buildApp } from '../app';
-import { prisma } from '../db';
-import { verifyGoogleToken } from '../utils/auth';
-
 describe('Auth Routes', () => {
     let app: FastifyInstance;
 
@@ -32,7 +34,7 @@ describe('Auth Routes', () => {
     describe('POST /login', () => {
         it('should login successfully with a valid Google Token', async () => {
             // Mock token verification success
-            (verifyGoogleToken as any).mockResolvedValue({
+            (AuthService.verifyGoogleToken as any).mockResolvedValue({
                 googleId: 'google-123',
                 email: 'test@example.com'
             });
@@ -54,7 +56,7 @@ describe('Auth Routes', () => {
             });
 
             expect(response.statusCode).toBe(200);
-            expect(verifyGoogleToken).toHaveBeenCalledWith('valid-token');
+            expect(AuthService.verifyGoogleToken).toHaveBeenCalledWith('valid-token');
             expect(prisma.user.upsert).toHaveBeenCalledWith(expect.objectContaining({
                 create: expect.objectContaining({
                     email: 'test@example.com',
@@ -67,7 +69,7 @@ describe('Auth Routes', () => {
 
         it('should fail with invalid Google Token', async () => {
             // Mock token verification failure
-            (verifyGoogleToken as any).mockRejectedValue(new Error('Invalid token'));
+            (AuthService.verifyGoogleToken as any).mockRejectedValue(new Error('Invalid token'));
 
             const response = await app.inject({
                 method: 'POST',
@@ -78,9 +80,6 @@ describe('Auth Routes', () => {
                 }
             });
 
-            // Expect 500 or 401 depending on how the route handles the error thrown by verifyGoogleToken
-            // The route implementation likely catches it and returns 401 or 500.
-            // Let's assume the router catches it.
             expect(response.statusCode).toBeGreaterThanOrEqual(400);
         });
 
@@ -101,9 +100,8 @@ describe('Auth Routes', () => {
                 }
             });
 
-            // We now expect 400 because token is strictly required by Zod schema (validation error)
             expect(response.statusCode).toBe(400);
-            expect(verifyGoogleToken).not.toHaveBeenCalled();
+            expect(AuthService.verifyGoogleToken).not.toHaveBeenCalled();
         });
 
         it('should reject if neither token nor googleId is provided', async () => {
@@ -115,8 +113,8 @@ describe('Auth Routes', () => {
                 }
             });
 
-            // Missing token => 400 (Zod validation error)
             expect(response.statusCode).toBe(400);
         });
     });
 });
+

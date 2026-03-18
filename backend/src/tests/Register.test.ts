@@ -15,11 +15,12 @@ vi.mock('../db', () => ({
     prisma: {
         trackedEmail: {
             upsert: mockEmailUpsert,
-            findUnique: vi.fn()
+            findUnique: vi.fn().mockResolvedValue(null)
         },
         user: {
-            // Let's just use mockCreate for user.create as well?
-            // Actually, best to separate.
+            findUnique: mockUserFindUnique,
+            create: vi.fn().mockImplementation((args) => Promise.resolve({ id: 'new-user-id', ...args.data })),
+            update: vi.fn().mockImplementation((args) => Promise.resolve({ id: args.where.id, ...args.data }))
         }
     }
 }));

@@ -1,15 +1,19 @@
 import './index.css';
 import { MainLayout } from './components/Layout/MainLayout';
 import { DetailView } from './components/activity/DetailView';
-import { Modal } from './components/common/Modal';
 import { DashboardView } from './views/DashboardView';
 import { ActivityView } from './views/ActivityView';
 import { SettingsView } from './views/SettingsView';
 
 import { useAppController } from './hooks/useAppController';
 import { useThemeApplier } from './hooks/useThemeApplier';
-import { Select } from './components/common/Select';
 import { useTranslation } from './hooks/useTranslation';
+
+import { LogoutModal } from './components/modals/LogoutModal';
+import { DeleteHistoryModal } from './components/modals/DeleteHistoryModal';
+import { DeleteSingleEmailModal } from './components/modals/DeleteSingleEmailModal';
+import { ConflictModal } from './components/modals/ConflictModal';
+import { ErrorModal } from './components/modals/ErrorModal';
 
 const App = () => {
   const { t } = useTranslation();
@@ -17,7 +21,7 @@ const App = () => {
   const {
     view, selectedEmail, userProfile, loading, error,
     stats, uniqueSenders, senderFilter, searchQuery, filterType,
-    processedEmails, statusModal, globalEnabled, bodyPreviewLength,
+    processedEmails, senderFilteredEmails, statusModal, globalEnabled, bodyPreviewLength,
     logoutModalOpen, deleteConfirmModalOpen, conflictEmail, theme, authError,
     emailToDelete
   } = state;
@@ -45,7 +49,7 @@ const App = () => {
         onLogin={actions.handleLogin}
         onLogout={actions.logout}
         onRefresh={() => actions.fetchEmails()}
-        currentView={view as any}
+        currentView={view as 'dashboard' | 'activity' | 'settings'}
         onViewChange={actions.setView}
       >
         {view === 'dashboard' && (
@@ -56,7 +60,7 @@ const App = () => {
             uniqueSenders={uniqueSenders}
             senderFilter={senderFilter}
             setSenderFilter={actions.setSenderFilter}
-            processedEmails={processedEmails}
+            processedEmails={senderFilteredEmails}
             onEmailClick={actions.setSelectedEmail}
             onDeleteClick={actions.openDeleteSingleConfirm}
             onViewAllClick={() => actions.setView('activity')}
@@ -95,104 +99,56 @@ const App = () => {
       </MainLayout>
 
       {/* Status Modal */}
-      <Modal
+      <ErrorModal
         isOpen={statusModal.isOpen}
         title={statusModal.title}
         message={statusModal.message}
-        type={statusModal.type}
-        confirmLabel={t('common_close')}
-        showCancel={false}
         onConfirm={actions.closeStatus}
-        onCancel={actions.closeStatus}
       />
 
       {/* Logout Confirmation Modal */}
-      <Modal
+      <LogoutModal
         isOpen={logoutModalOpen}
-        title={t('modal_logout_title')}
-        message={
-          <span dangerouslySetInnerHTML={{ __html: t('modal_logout_message', { email: userProfile?.email || '' }) }} />
-        }
-        type="info"
-        confirmLabel={t('modal_logout_action_clear')}
-        cancelLabel={t('modal_logout_action_keep')}
-        showCancel={true}
+        userEmail={userProfile?.email}
         onConfirm={() => actions.confirmLogout(true)}
         onCancel={() => actions.confirmLogout(false)}
         onClose={actions.closeLogoutModal}
       />
 
       {/* Delete Confirmation Modal (Bulk) */}
-      <Modal
+      <DeleteHistoryModal
         isOpen={deleteConfirmModalOpen}
-        title={t('modal_delete_title')}
-        message={t('modal_delete_message')}
-        type="danger"
-        confirmLabel={t('modal_delete_action')}
-        cancelLabel={t('common_cancel')}
-        showCancel={true}
+        senderFilter={senderFilter}
+        uniqueSenders={uniqueSenders}
         onConfirm={() => {
-          actions.handleDeleteHistory(); // This will use the CURRENT senderFilter from state
+          actions.handleDeleteHistory();
           actions.closeDeleteConfirm();
         }}
         onCancel={actions.closeDeleteConfirm}
-      >
-        <div style={{ marginTop: '16px' }}>
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-            {t('modal_delete_sender_select_label')}
-          </p>
-          <Select
-            value={senderFilter}
-            onChange={(e) => actions.setSenderFilter(e.target.value)}
-            options={[
-              { value: 'all', label: t('dashboard_filter_all_senders') },
-              ...uniqueSenders.map(s => ({ value: s, label: s }))
-            ]}
-          />
-        </div>
-      </Modal>
+        onSenderChange={actions.setSenderFilter}
+      />
 
       {/* Delete Confirmation Modal (Single) */}
-      <Modal
+      <DeleteSingleEmailModal
         isOpen={!!emailToDelete}
-        title={t('modal_delete_single_title')}
-        message={
-          <span dangerouslySetInnerHTML={{ __html: t('modal_delete_single_message', { subject: emailToDelete?.subject || t('detail_no_subject') }) }} />
-        }
-        type="danger"
-        confirmLabel={t('common_remove')}
-        cancelLabel={t('common_cancel')}
-        showCancel={true}
+        emailSubject={emailToDelete?.subject}
         onConfirm={actions.handleDeleteSingleEmail}
         onCancel={actions.closeDeleteSingleConfirm}
-        onClose={actions.closeDeleteSingleConfirm}
       />
 
       {/* Account Mismatch / Conflict Modal */}
-      <Modal
+      <ConflictModal
         isOpen={!!conflictEmail}
-        title={t('modal_conflict_title')}
-        message={
-          <span dangerouslySetInnerHTML={{ __html: t('modal_conflict_message') }} />
-        }
-        type="warning"
-        confirmLabel={t('modal_conflict_action_clear')}
-        cancelLabel={t('modal_conflict_action_keep')}
-        showCancel={true}
         onConfirm={() => actions.resolveConflict(true)}
         onCancel={() => actions.resolveConflict(false)}
       />
 
-      {/* Account Conflict / Auth Error Modal */}
-      <Modal
+      {/* Auth Error Modal */}
+      <ErrorModal
         isOpen={!!authError && !authError.includes('Account Conflict')}
         title={t('modal_auth_error_title')}
-        message={authError}
-        type="danger"
-        confirmLabel={t('common_close')}
-        showCancel={false}
+        message={authError || ''}
         onConfirm={actions.clearAuthError}
-        onCancel={actions.clearAuthError}
       />
     </>
   );

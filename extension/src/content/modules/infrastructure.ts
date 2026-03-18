@@ -1,5 +1,6 @@
 import { API_CONFIG } from '../../config/api';
 import { logger } from '../../utils/logger';
+import { CONSTANTS } from '../../config/constants';
 
 // --- Script Injection for Main World (Tracking) ---
 export const injectScript = (fileName: string) => {
@@ -13,7 +14,7 @@ export const injectScript = (fileName: string) => {
             (this as HTMLScriptElement).remove();
         };
         (document.head || document.documentElement).appendChild(script);
-    } catch (e) {
+    } catch {
         // Context invalidated or other runtime error
         logger.warn('EmailTrack: Failed to inject script (context invalidated?)', fileName);
     }
@@ -23,12 +24,18 @@ export const injectScript = (fileName: string) => {
 export const sendConfigToMainWorld = () => {
     try {
         if (!chrome.runtime?.id) return;
-        chrome.storage.sync.get(['bodyPreviewLength', 'showTrackingIndicator', 'trackingEnabled'], (res) => {
+        chrome.storage.sync.get([
+            CONSTANTS.STORAGE_KEYS.BODY_PREVIEW_LENGTH,
+            CONSTANTS.STORAGE_KEYS.SHOW_TRACKING_INDICATOR,
+            CONSTANTS.STORAGE_KEYS.TRACKING_ENABLED
+        ], (res) => {
             if (chrome.runtime?.lastError) return; // Ignore errors
 
-            const length = typeof res.bodyPreviewLength === 'number' ? res.bodyPreviewLength : 0;
-            const showIndicator = res.showTrackingIndicator !== false; // Default true
-            const trackingEnabled = res.trackingEnabled !== false; // Default true
+            const length = typeof res[CONSTANTS.STORAGE_KEYS.BODY_PREVIEW_LENGTH] === 'number' 
+                ? (res[CONSTANTS.STORAGE_KEYS.BODY_PREVIEW_LENGTH] as number) 
+                : 0;
+            const showIndicator = res[CONSTANTS.STORAGE_KEYS.SHOW_TRACKING_INDICATOR] !== false; // Default true
+            const trackingEnabled = res[CONSTANTS.STORAGE_KEYS.TRACKING_ENABLED] !== false; // Default true
             const apiUrl = API_CONFIG.BASE_URL;
 
             const ensureConfig = () => {
@@ -78,7 +85,7 @@ export const sendConfigToMainWorld = () => {
 
             ensureConfig();
         });
-    } catch (e) {
+    } catch {
         // Ignore context errors
     }
 };

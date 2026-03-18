@@ -14,12 +14,15 @@ export const useFilteredEmails = (emails: TrackedEmail[]) => {
         return Array.from(senders).sort();
     }, [emails]);
 
-    const processedEmails = useMemo(() => {
-        let filtered = emails;
-        // Filter by Sender
-        if (senderFilter !== 'all') {
-            filtered = filtered.filter(e => e.user === senderFilter);
+    const senderFilteredEmails = useMemo(() => {
+        if (senderFilter === 'all') {
+            return emails;
         }
+        return emails.filter(e => e.user === senderFilter);
+    }, [emails, senderFilter]);
+
+    const processedEmails = useMemo(() => {
+        let filtered = senderFilteredEmails;
         // Search
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
@@ -37,23 +40,19 @@ export const useFilteredEmails = (emails: TrackedEmail[]) => {
         }
 
         return filtered;
-    }, [emails, senderFilter, searchQuery, filterType]);
+    }, [senderFilteredEmails, searchQuery, filterType]);
 
     const stats = useMemo(() => {
         // Stats are usually calculated for the senderFilter context (ignoring search and status filter for dashboard-like feel)
         // However, the user request says: "Якщо пошта - all senders - показувати статистику по всім, якщо якась конкретна, то лише статистику по ній."
         // This implies statistics should react to the sender selector.
 
-        const filteredBySender = senderFilter === 'all'
-            ? emails
-            : emails.filter(e => e.user === senderFilter);
-
-        const tracked = filteredBySender.length;
-        const opened = filteredBySender.filter(e => e.openCount > 0).length;
+        const tracked = senderFilteredEmails.length;
+        const opened = senderFilteredEmails.filter(e => e.openCount > 0).length;
         const rate = tracked > 0 ? Math.round((opened / tracked) * 100) : 0;
 
         return { tracked, opened, rate };
-    }, [emails, senderFilter]);
+    }, [senderFilteredEmails]);
 
     return {
         searchQuery,
@@ -63,6 +62,7 @@ export const useFilteredEmails = (emails: TrackedEmail[]) => {
         senderFilter,
         setSenderFilter,
         uniqueSenders,
+        senderFilteredEmails,
         processedEmails,
         stats
     };

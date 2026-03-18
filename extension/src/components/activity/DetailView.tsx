@@ -7,11 +7,21 @@ import { useTranslation } from '../../hooks/useTranslation';
 import styles from './DetailView.module.css';
 import { MapPin, Monitor, Smartphone, Globe } from 'lucide-react';
 
+import type { TranslationKey } from '../../types/i18n';
+
 interface DetailViewProps {
     email: TrackedEmail;
     onBack: () => void;
     onRefresh: () => void;
     loading: boolean;
+}
+
+interface DeviceInfo {
+    device: string | null | undefined;
+    os: string | null | undefined;
+    browser: string | null | undefined;
+    isBot: boolean;
+    [key: string]: unknown;
 }
 
 export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProps) => {
@@ -50,7 +60,7 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                 <div className="section">
                     <label className={styles.label}>{t('detail_recipient')}</label>
                     <div className={styles.value}>
-                        {formatRecipient(email.recipient, t as any)}
+                        {formatRecipient(email.recipient, t as (key: TranslationKey, params?: Record<string, string>) => string)}
                     </div>
                 </div>
 
@@ -58,7 +68,7 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                     <div className={styles.section}>
                         <label className={styles.label}>{t('label_cc')}</label>
                         <div className={styles.value}>
-                            {formatRecipient(email.cc, t as any)}
+                            {formatRecipient(email.cc, t as (key: TranslationKey, params?: Record<string, string>) => string)}
                         </div>
                     </div>
                 )}
@@ -67,7 +77,7 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                     <div className={styles.section}>
                         <label className={styles.label}>{t('label_bcc')}</label>
                         <div className={styles.value}>
-                            {formatRecipient(email.bcc, t as any)}
+                            {formatRecipient(email.bcc, t as (key: TranslationKey, params?: Record<string, string>) => string)}
                         </div>
                     </div>
                 )}
@@ -82,7 +92,7 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                 {email.body && (
                     <div className={styles.section}>
                         <label className={styles.label}>{t('detail_body_preview')}</label>
-                        <div className={styles.value} style={{ fontSize: '13px', lineHeight: '1.4', whiteSpace: 'pre-wrap', color: 'var(--text-secondary)' }}>
+                        <div className={`${styles.value} ${styles.previewBody}`}>
                             {email.body}
                         </div>
                     </div>
@@ -96,8 +106,8 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                 </div>
 
                 <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                        <label className={styles.label} style={{ margin: 0 }}>{t('detail_open_history')}</label>
+                    <div className={styles.historyHeader}>
+                        <label className={`${styles.label} ${styles.historyLabel}`}>{t('detail_open_history')}</label>
                         {email.openCount > 0 && (
                             <Badge variant="success" shape="pill">{email.openCount}</Badge>
                         )}
@@ -110,10 +120,11 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                         <div className={styles.opensList}>
                             {email.opens.map((open: OpenEvent, idx: number) => {
                                 // Parse device JSON
-                                let deviceInfo: any = { device: null, os: null, browser: null, isBot: false };
+                                let deviceInfo: DeviceInfo = { device: null, os: null, browser: null, isBot: false };
                                 try {
                                     if (open.device && open.device.startsWith('{')) {
-                                        deviceInfo = JSON.parse(open.device);
+                                        const parsed = JSON.parse(open.device);
+                                        deviceInfo = { ...deviceInfo, ...parsed };
                                     } else if (open.device) {
                                         deviceInfo.device = open.device;
                                     }
@@ -123,7 +134,7 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                                 }
 
                                 const hasOsOrBrowser = (deviceInfo.os && deviceInfo.os !== 'Unknown') || (deviceInfo.browser && deviceInfo.browser !== 'Unknown');
-                                const label = getDeviceLabel(deviceInfo, t as any);
+                                const label = getDeviceLabel(deviceInfo as Record<string, string>, t as (key: TranslationKey, params?: Record<string, string>) => string);
 
                                 return (
                                     <div
@@ -146,7 +157,7 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                                                 <span className={styles.detailText}>
                                                     {label}
                                                     {deviceInfo.isBot && (
-                                                        <Badge variant="warning" shape="square" style={{ marginLeft: '8px', fontSize: '9px', padding: '1px 4px' }}>
+                                                        <Badge variant="warning" shape="square" className={styles.botBadge}>
                                                             {t('detail_bot')}
                                                         </Badge>
                                                     )}

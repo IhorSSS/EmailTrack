@@ -6,9 +6,8 @@ import { useFilteredEmails } from './useFilteredEmails';
 import { useExtensionSettings } from './useExtensionSettings';
 import { useStatusModal } from './useStatusModal';
 import { useHistoryManager } from './useHistoryManager';
-import { LocalStorageService } from '../services/LocalStorageService';
-import { logger } from '../utils/logger';
 import { useTranslation } from './useTranslation';
+import { useAppActions } from './useAppActions';
 
 export const useAppController = () => {
     const { t } = useTranslation();
@@ -47,7 +46,7 @@ export const useAppController = () => {
         searchQuery, setSearchQuery,
         filterType, setFilterType,
         senderFilter, setSenderFilter,
-        uniqueSenders, processedEmails,
+        uniqueSenders, processedEmails, senderFilteredEmails,
         stats: filteredStats
     } = useFilteredEmails(emails);
 
@@ -69,109 +68,40 @@ export const useAppController = () => {
     // Sync conflict status from Auth hook
     useEffect(() => {
         if (authError?.includes('Account Conflict')) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setConflictEmail('another account');
         } else if (!authError) {
             setConflictEmail(null);
         }
     }, [authError]);
 
-    const handleLogin = async () => {
-        if (authLoading) return;
-        try {
-            await login();
-        } catch (e: any) {
-            // Error handled via useAuth state
-        }
-    };
-
-    const resolveConflict = async (wipeAll: boolean) => {
-        try {
-            if (wipeAll) {
-                await LocalStorageService.deleteAll();
-                setCurrentUser(null);
-            } else {
-                await LocalStorageService.deleteSyncedOnly();
-            }
-
-            // CRITICAL fix for "Ghost Data" after Account Switch:
-            // If we kept data (!wipeAll), it still belongs to the OLD user in the DB (local storage).
-            // We need to re-tag it to the NEW user upon successful login, otherwise strict identity filter hides it.
-
-            // 1. Clear blocker
-            await new Promise<void>((resolve) => {
-                chrome.storage.local.remove(['lastLoggedInEmail'], () => resolve());
-            });
-            clearAuthError();
-            setConflictEmail(null);
-
-            // 2. Re-login and MIGRATE data if successful
-            const profile = await login(); // Ensure useAuth.login returns profile!
-
-            if (profile && !wipeAll) {
-                // We kept local data, now we must adopt it for the new user
-                const allLocal = await LocalStorageService.getEmails();
-                const ids = allLocal.map(e => e.id);
-                if (ids.length > 0) {
-                    await LocalStorageService.updateOwnership(ids, profile.email);
-                    // Refresh to show migrated data
-                    await fetchEmails();
-                }
-            }
-        } catch (e: any) {
-            showStatus(t('modal_status_resolution_failed'), e.message, 'danger');
-        }
-    };
-
     const activeIdentity = userProfile ? userProfile.email : currentUser;
     const loading = authLoading || dataLoading;
-    const dataOnlyError = dataError; // For views that only need data error
+    const dataOnlyError = dataError;
 
-    const handleLogoutClick = () => {
-        setLogoutModalOpen(true);
-    };
-
-    const confirmLogout = async (clearData: boolean) => {
-        if (clearData) {
-            setCurrentUser(null);
-        } else if (userProfile?.email) {
-            // CRITICAL: Update state identity BEFORE logout clears userProfile
-            setCurrentUser(userProfile.email);
-        }
-        await logout(clearData);
-        setLogoutModalOpen(false);
-    };
-
-    const refreshSelectedEmail = async () => {
-        if (!selectedEmail) return;
-
-        try {
-            // Re-fetch all or at least trigger a global sync
-            await fetchEmails();
-        } catch (e: any) {
-            logger.error('Failed to refresh email', e);
-        }
-    };
-
-    const handleDeleteSingleEmail = async () => {
-        if (!emailToDelete) return;
-        try {
-            const result = await deleteSingleEmail(emailToDelete.id);
-            if (result.success) {
-                setEmailToDelete(null);
-                if (result.message) {
-                    showStatus(
-                        result.type === 'warning' ? t('modal_status_note') : t('modal_status_deleted'),
-                        result.message,
-                        result.type || 'success'
-                    );
-                }
-            } else {
-                showStatus(t('modal_status_delete_failed'), result.message || t('error_unknown_error'), 'danger');
-            }
-        } catch (e: any) {
-            showStatus(t('modal_status_delete_failed'), e.message, 'danger');
-        }
-    };
+    const {
+        handleLogin,
+        resolveConflict,
+        handleLogoutClick,
+        confirmLogout,
+        refreshSelectedEmail,
+        handleDeleteSingleEmail
+    } = useAppActions({
+        t,
+        login,
+        logout,
+        clearAuthError,
+        userProfile,
+        setCurrentUser,
+        fetchEmails,
+        deleteSingleEmail,
+        showStatus,
+        selectedEmail,
+        emailToDelete,
+        setConflictEmail,
+        setLogoutModalOpen,
+        setEmailToDelete
+    });
 
     // Effect to update selectedEmail when emails list changes
     // This ensures that after fetchEmails, the detail view sees the latest data
@@ -196,6 +126,7 @@ export const useAppController = () => {
             searchQuery,
             filterType,
             processedEmails,
+            senderFilteredEmails,
             statusModal,
             globalEnabled,
             bodyPreviewLength,

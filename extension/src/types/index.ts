@@ -38,3 +38,8 @@ export interface LocalEmailMetadata {
     isOwned?: boolean; // True if item belongs to a registered account
     openCount?: number;
 }
+export interface EmailStats {
+    tracked: number;
+    opened: number;
+    rate: number;
+}

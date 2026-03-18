@@ -4,14 +4,14 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(15, 23, 42, 0.4);
-    backdrop-filter: blur(4px);
+    background: var(--bg-overlay, rgba(15, 23, 42, 0.4));
+    backdrop-filter: blur(var(--blur-sm));
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
-    padding: 20px;
-    animation: fadeIn 0.2s ease-out;
+    z-index: var(--z-index-overlay);
+    padding: var(--spacing-lg-xl);
+    animation: fadeIn var(--transition-base);
 }
 
 .modal {
@@ -24,7 +24,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: slideUp var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .modal.danger {
@@ -36,7 +36,7 @@
 }
 
 .header {
-    padding: 16px 20px;
+    padding: var(--spacing-lg) var(--spacing-lg-xl);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -44,7 +44,7 @@
 }
 
 .title {
-    font-size: 15px;
+    font-size: var(--font-size-lg);
     font-weight: 800;
     color: var(--text-primary);
     margin: 0;
@@ -55,10 +55,10 @@
     background: none;
     border: none;
     color: var(--text-muted);
-    font-size: 24px;
-    line-height: 1;
+    font-size: var(--spacing-xl);
+    line-height: var(--line-height-tight);
     cursor: pointer;
-    padding: 4px;
+    padding: var(--spacing-xs);
     border-radius: var(--radius-sm);
     transition: var(--transition-base);
 }
@@ -74,10 +74,10 @@
 }
 
 .body {
-    padding: 20px;
+    padding: var(--spacing-lg-xl);
     color: var(--text-secondary);
-    line-height: 1.5;
-    font-size: 14px;
+    line-height: var(--line-height-relaxed);
+    font-size: var(--font-size-md);
     background: var(--bg-card);
     max-height: 380px;
     overflow-y: auto;
@@ -90,19 +90,19 @@
 }
 
 .footer {
-    padding: 16px 20px;
+    padding: var(--spacing-lg) var(--spacing-lg-xl);
     background: var(--bg-app);
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
+    gap: var(--spacing-md);
     border-top: 1px solid var(--border-color);
 }
 
 .confirmBtn,
 .cancelBtn {
-    padding: 8px 16px;
+    padding: var(--spacing-sm) var(--spacing-lg);
     border-radius: var(--radius-md);
-    font-size: 13px;
+    font-size: var(--font-size-base);
     font-weight: 600;
     cursor: pointer;
     transition: var(--transition-base);
@@ -116,7 +116,6 @@
 
 .cancelBtn:hover {
     background: var(--bg-header);
-    /* slightly darker/different than card */
     border-color: var(--text-muted);
     color: var(--text-primary);
 }
@@ -144,13 +143,11 @@
 }
 
 .confirmBtn.warning {
-    background: #f59e0b;
-    /* Amber 500 */
+    background: var(--color-warning);
 }
 
 .confirmBtn.warning:hover {
-    background: #d97706;
-    /* Amber 600 */
+    background: var(--color-warning-hover);
 }
 
 .confirmBtn:disabled,
@@ -172,7 +169,7 @@
 
 @keyframes slideUp {
     from {
-        transform: translateY(20px);
+        transform: translateY(var(--spacing-lg-xl));
         opacity: 0;
     }
 

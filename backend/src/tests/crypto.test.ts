@@ -1,5 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { encrypt, decrypt } from '../utils/crypto';
+
+vi.mock('../config', () => ({
+    CONFIG: {
+        ENCRYPTION_KEY: 'test_encryption_key_32_chars_long_!!'
+    }
+}));
 
 describe('Crypto Utils', () => {
     it('should encrypt and decrypt a string', () => {

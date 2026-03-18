@@ -1,6 +1,9 @@
 import { logger } from '../utils/logger';
 import { API_CONFIG } from '../config/api';
 import { LocalStorageService } from '../services/LocalStorageService';
+import { AuthService } from '../services/AuthService';
+import type { LocalEmailMetadata, TrackedEmail } from '../types';
+import { CONSTANTS } from '../config/constants';
 
 logger.log('EmailTrack: Background Script Loaded');
 
@@ -43,10 +46,10 @@ async function processOutbox() {
 }
 
 // Set up periodic retry (every 5 minutes)
-chrome.alarms.create('retry_registration', { periodInMinutes: 5 });
+chrome.alarms.create(CONSTANTS.ALARMS.RETRY_REGISTRATION, { periodInMinutes: CONSTANTS.INTERVALS.RETRY_REGISTRATION_MIN });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === 'retry_registration') {
+    if (alarm.name === CONSTANTS.ALARMS.RETRY_REGISTRATION) {
         processOutbox();
     }
 });
@@ -57,7 +60,7 @@ chrome.runtime.onStartup.addListener(() => {
     processOutbox();
 });
 
-async function handleRegister(data: any) {
+async function handleRegister(data: Partial<TrackedEmail> | LocalEmailMetadata) {
     logger.log('Registering email. ID:', data.id);
 
     // REMOVED: Proactive call to processOutbox() to prevent infinite recursion loop
@@ -66,12 +69,12 @@ async function handleRegister(data: any) {
     try {
         // Check if user is logged in (Cloud mode)
         // Use local storage as it is more reliable for extension communication
-        const storageData = await chrome.storage.local.get(['userProfile']);
-        const userProfile = storageData.userProfile as { id: string; email: string } | undefined;
+        const storageData = await chrome.storage.local.get([CONSTANTS.STORAGE_KEYS.USER_PROFILE]);
+        const userProfile = storageData[CONSTANTS.STORAGE_KEYS.USER_PROFILE] as { id: string; email: string } | undefined;
 
         logger.log('[Background] UserProfile active:', !!userProfile);
 
-        const payload: any = {
+        const payload: Record<string, unknown> = {
             id: data.id,
             subject: data.subject,
             recipient: data.recipient,
@@ -92,17 +95,8 @@ async function handleRegister(data: any) {
 
             // SECURITY: Get Sync Token to prove identity
             try {
-                // We use non-interactive to check if we have a valid session
-                const token = await new Promise<string | undefined>((resolve) => {
-                    chrome.identity.getAuthToken({ interactive: false }, (token: any) => {
-                        if (chrome.runtime.lastError || !token) {
-                            logger.warn('[Background] Auth Token retrieval failed:', chrome.runtime.lastError?.message);
-                            resolve(undefined);
-                        } else {
-                            resolve(token);
-                        }
-                    });
-                });
+                // Use AuthService for consistent token retrieval
+                const token = await AuthService.getAuthToken(false).catch(() => undefined);
 
                 if (token) {
                     headers['Authorization'] = `Bearer ${token}`;
@@ -140,16 +134,17 @@ async function handleRegister(data: any) {
         }
 
         if (data.user) {
-            chrome.storage.local.set({ currentUser: data.user });
+            chrome.storage.local.set({ [CONSTANTS.STORAGE_KEYS.CURRENT_USER]: data.user });
         }
 
         logger.log('Email registered successfully');
         // Return success so the content script (or outbox) can mark it as synced.
         // It's 'synced' if it successfully reached the backend.
         return { success: true, synced: true };
-    } catch (err: any) {
-        logger.error('Registration failed:', err);
-        return { success: false, error: err.message };
+    } catch (err: unknown) {
+        const e = err as Error;
+        logger.error('Registration failed:', e);
+        return { success: false, error: e.message };
     }
 }
 
@@ -157,8 +152,8 @@ async function handleGetStats(trackId: string, senderHint?: string) {
     logger.log('Fetching stats for:', trackId, 'senderHint:', senderHint);
     try {
         // 1. Check if we *should* satisfy this request as an authenticated user
-        const storageData = await chrome.storage.local.get(['userProfile']);
-        const userProfile = storageData.userProfile as { id: string; email: string } | undefined;
+        const storageData = await chrome.storage.local.get([CONSTANTS.STORAGE_KEYS.USER_PROFILE]);
+        const userProfile = storageData[CONSTANTS.STORAGE_KEYS.USER_PROFILE] as { id: string; email: string } | undefined;
 
         // Get auth token if available (for ownership validation)
         const headers: Record<string, string> = {};
@@ -171,16 +166,8 @@ async function handleGetStats(trackId: string, senderHint?: string) {
         let token: string | undefined;
 
         try {
-            token = await new Promise<string | undefined>((resolve) => {
-                chrome.identity.getAuthToken({ interactive: false }, (t: any) => {
-                    if (chrome.runtime.lastError || !t) {
-                        resolve(undefined);
-                    } else {
-                        resolve(t);
-                    }
-                });
-            });
-        } catch (e) {
+            token = await AuthService.getAuthToken(false).catch(() => undefined);
+        } catch {
             // Ignore error
         }
 
@@ -194,7 +181,7 @@ async function handleGetStats(trackId: string, senderHint?: string) {
                 // Doing so would allow a logged-in user (with a broken token) to see "incognito" (unowned) stats
                 // which might belong to another user on the same machine.
                 logger.warn('[Background] Logged in but no token. Blocking public fallback.');
-                return { error: 'Auth Required', status: 401 };
+                return { error: 'Auth Required', status: CONSTANTS.STATUS.UNAUTHORIZED };
             }
         } else {
             // INCOGNITO MODE: Public Access
@@ -213,18 +200,19 @@ async function handleGetStats(trackId: string, senderHint?: string) {
         }
 
         const data = await res.json();
-        return { ...data, status: 200 };
-    } catch (err: any) {
-        logger.error('Stats fetch error:', err);
-        return { error: err.message || 'Unknown error', status: 0 };
+        return { ...data, status: CONSTANTS.STATUS.OK };
+    } catch (err: unknown) {
+        const e = err as Error;
+        logger.error('Stats fetch error:', e);
+        return { error: e.message || 'Unknown error', status: 0 };
     }
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.type === 'REGISTER_EMAIL') {
+    if (message.type === CONSTANTS.MESSAGES.REGISTER_EMAIL) {
         handleRegister(message.data).then((result) => sendResponse(result));
         return true; // Keep channel open
-    } else if (message.type === 'GET_STATS') {
+    } else if (message.type === CONSTANTS.MESSAGES.GET_STATS) {
         handleGetStats(message.trackId, message.senderHint).then(sendResponse);
         return true; // Keep channel open for async response
     }

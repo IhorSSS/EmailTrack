@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { logger } from '../utils/logger';
+import { CONSTANTS } from '../config/constants';
+import { LocalStorageService } from '../services/LocalStorageService';
 
 export interface ExtensionSettings {
     currentUser: string | null;
@@ -23,14 +25,17 @@ export function useExtensionSettings(): ExtensionSettings {
     const [theme, setThemeState] = useState<'light' | 'dark' | 'system'>('system');
     const [showTrackingIndicator, setShowTrackingIndicatorState] = useState(true);
 
-    const setCurrentUser = (user: string | null) => {
+    const setCurrentUser = async (user: string | null) => {
         setLocalCurrentUser(user);
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-            if (user) {
-                chrome.storage.local.set({ currentUser: user });
-            } else {
-                chrome.storage.local.remove('currentUser');
-            }
+        if (user) {
+            await LocalStorageService.updateSettings({ [CONSTANTS.STORAGE_KEYS.CURRENT_USER]: user });
+        } else {
+            // chrome.storage.local.remove([CONSTANTS.STORAGE_KEYS.CURRENT_USER]);
+            // For now, identity is semi-local, but let's keep it in sync for simplicity
+            const settings = await LocalStorageService.getSettings();
+            const updatedSettings = { ...settings };
+            delete updatedSettings[CONSTANTS.STORAGE_KEYS.CURRENT_USER];
+            await LocalStorageService.updateSettings(updatedSettings);
         }
     };
 
@@ -38,40 +43,29 @@ export function useExtensionSettings(): ExtensionSettings {
     useEffect(() => {
         const loadSettings = async () => {
             logger.log('[useExtensionSettings] Starting settings load...');
-            if (typeof chrome !== 'undefined' && chrome.storage) {
-                const results = await new Promise<any>((resolve) => {
-                    chrome.storage.local.get(['currentUser'], (res) => {
-                        logger.log('[useExtensionSettings] Loaded from storage:', res);
-                        resolve(res);
-                    });
-                });
+            const settings = await LocalStorageService.getSettings();
+            const profile = await LocalStorageService.getUserProfile();
 
-                if (results.currentUser) {
-                    logger.log('[useExtensionSettings] Setting currentUser to:', results.currentUser);
-                    setLocalCurrentUser(results.currentUser);
-                } else {
-                    logger.log('[useExtensionSettings] No currentUser in storage');
-                }
-
-                if (chrome.storage.sync) {
-                    const syncResults = await new Promise<any>((resolve) => {
-                        chrome.storage.sync.get(['trackingEnabled', 'bodyPreviewLength', 'theme', 'showTrackingIndicator'], (res) => resolve(res));
-                    });
-
-                    if (syncResults.trackingEnabled !== undefined) {
-                        setGlobalEnabled(syncResults.trackingEnabled);
-                    }
-                    if (syncResults.showTrackingIndicator !== undefined) {
-                        setShowTrackingIndicatorState(syncResults.showTrackingIndicator);
-                    }
-                    if (syncResults.bodyPreviewLength !== undefined) {
-                        setBodyPreviewLength(syncResults.bodyPreviewLength);
-                    }
-                    if (syncResults.theme) {
-                        setThemeState(syncResults.theme);
-                    }
-                }
+            // Identity logic
+            if (profile?.email) {
+                setLocalCurrentUser(profile.email);
+            } else if (typeof settings[CONSTANTS.STORAGE_KEYS.CURRENT_USER] === 'string') {
+                setLocalCurrentUser(settings[CONSTANTS.STORAGE_KEYS.CURRENT_USER] as string);
             }
+
+            if (typeof settings[CONSTANTS.STORAGE_KEYS.TRACKING_ENABLED] === 'boolean') {
+                setGlobalEnabled(settings[CONSTANTS.STORAGE_KEYS.TRACKING_ENABLED] as boolean);
+            }
+            if (typeof settings[CONSTANTS.STORAGE_KEYS.SHOW_TRACKING_INDICATOR] === 'boolean') {
+                setShowTrackingIndicatorState(settings[CONSTANTS.STORAGE_KEYS.SHOW_TRACKING_INDICATOR] as boolean);
+            }
+            if (typeof settings[CONSTANTS.STORAGE_KEYS.BODY_PREVIEW_LENGTH] === 'number') {
+                setBodyPreviewLength(settings[CONSTANTS.STORAGE_KEYS.BODY_PREVIEW_LENGTH] as number);
+            }
+            if (typeof settings[CONSTANTS.STORAGE_KEYS.THEME] === 'string') {
+                setThemeState(settings[CONSTANTS.STORAGE_KEYS.THEME] as 'light' | 'dark' | 'system');
+            }
+
             logger.log('[useExtensionSettings] Settings loaded, setting settingsLoaded=true');
             setSettingsLoaded(true);
         };
@@ -79,35 +73,25 @@ export function useExtensionSettings(): ExtensionSettings {
         loadSettings();
     }, []);
 
-    const toggleGlobal = () => {
-        setGlobalEnabled(prev => {
-            const newValue = !prev;
-            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
-                chrome.storage.sync.set({ trackingEnabled: newValue });
-            }
-            return newValue;
-        });
+    const toggleGlobal = async () => {
+        const newValue = !globalEnabled;
+        setGlobalEnabled(newValue);
+        await LocalStorageService.updateSettings({ [CONSTANTS.STORAGE_KEYS.TRACKING_ENABLED]: newValue });
     };
 
-    const handleBodyPreviewChange = (value: number) => {
+    const handleBodyPreviewChange = async (value: number) => {
         setBodyPreviewLength(value);
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
-            chrome.storage.sync.set({ bodyPreviewLength: value });
-        }
+        await LocalStorageService.updateSettings({ [CONSTANTS.STORAGE_KEYS.BODY_PREVIEW_LENGTH]: value });
     };
 
-    const handleThemeChange = (value: 'light' | 'dark' | 'system') => {
+    const handleThemeChange = async (value: 'light' | 'dark' | 'system') => {
         setThemeState(value);
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
-            chrome.storage.sync.set({ theme: value });
-        }
+        await LocalStorageService.updateSettings({ [CONSTANTS.STORAGE_KEYS.THEME]: value });
     };
 
-    const handleShowTrackingIndicatorChange = (value: boolean) => {
+    const handleShowTrackingIndicatorChange = async (value: boolean) => {
         setShowTrackingIndicatorState(value);
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
-            chrome.storage.sync.set({ showTrackingIndicator: value });
-        }
+        await LocalStorageService.updateSettings({ [CONSTANTS.STORAGE_KEYS.SHOW_TRACKING_INDICATOR]: value });
     };
 
     return {

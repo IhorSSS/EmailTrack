@@ -26,7 +26,7 @@ export const DashboardService = {
         });
 
         if (!res.ok) {
-            const err: any = new Error(`HTTP ${res.status}: ${res.statusText}`);
+            const err = new Error(`HTTP ${res.status}: ${res.statusText}`) as Error & { status?: number };
             err.status = res.status;
             throw err;
         }
@@ -51,7 +51,7 @@ export const DashboardService = {
         });
 
         if (!res.ok) {
-            const err: any = new Error(`API_ERROR: Failed to delete tracking (Status ${res.status})`);
+            const err = new Error(`API_ERROR: Failed to delete tracking (Status ${res.status})`) as Error & { status?: number };
             err.status = res.status;
             throw err;
         }
@@ -61,7 +61,7 @@ export const DashboardService = {
      * Efficiently sync status for a list of IDs (Anonymous/Local Mode).
      * Uses POST to avoid URL length limits and returns limited metadata.
      */
-    async syncStatus(ids: string[]): Promise<any[]> {
+    async syncStatus(ids: string[]): Promise<unknown[]> {
         if (ids.length === 0) return [];
 
         const res = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}/sync`, {

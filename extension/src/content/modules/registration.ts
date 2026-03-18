@@ -1,11 +1,13 @@
 import { logger } from '../../utils/logger';
 import { LocalStorageService } from '../../services/LocalStorageService';
 import { handleOptimisticBadge } from './stats';
+import { CONSTANTS } from '../../config/constants';
 
-// --- Helper to extract user email from Gmail UI ---
+/**
+ * Helper to extract user email from Gmail UI using centralized selectors.
+ */
 function extractUserEmail(): string | null {
-    // Try Gmail's user email element
-    const emailElement = document.querySelector('.gb_Ha.gb_i, [aria-label*="@"]');
+    const emailElement = document.querySelector(CONSTANTS.GMAIL_SELECTORS.USER_EMAIL);
     if (emailElement && emailElement.getAttribute('aria-label')) {
         const label = emailElement.getAttribute('aria-label');
         const match = label?.match(/\(([^)]+)\)/);
@@ -19,99 +21,84 @@ function extractUserEmail(): string | null {
 export function setupRegistrationListener() {
     window.addEventListener('message', async (event) => {
         if (event.source !== window) return;
-        if (!event.data || event.data.type !== 'EMAILTRACK_REGISTER') return;
+        if (!event.data || event.data.type !== CONSTANTS.MESSAGES.EMAILTRACK_REGISTER) return;
 
-        logger.log('[Content] EMAILTRACK_REGISTER event received:', event.data.detail);
+        logger.log('[Registration] EMAILTRACK_REGISTER received:', event.data.detail.id);
         const { id, subject, recipient, cc, bcc, body } = event.data.detail;
 
-        // Validation: Only require ID (subject can be empty in Gmail)
         if (!id) {
-            logger.warn('[Content] Ignoring registration event without ID:', event.data.detail);
+            logger.warn('[Registration] Ignored registration event: missing ID');
             return;
         }
 
         const userEmail = extractUserEmail();
-        logger.log('[Content] Extracted user email:', userEmail);
-
-        // Save Current User to Local Storage for Popup usage
+        
+        // Persist current user for popup and settings context
         if (userEmail && chrome.runtime?.id) {
-            chrome.storage.local.set({ currentUser: userEmail }, () => {
-                if (chrome.runtime?.lastError) {
-                    // ignore
-                }
-            });
+            chrome.storage.local.set({ [CONSTANTS.STORAGE_KEYS.CURRENT_USER]: userEmail });
         }
 
-        // 1. Save Metadata to Local Storage (Incognito)
+        const fallbackNoSubject = chrome.i18n.getMessage('detail_no_subject') || '(No Subject)';
+        const fallbackUnknownRecipient = chrome.i18n.getMessage('recipient_unknown') || 'Unknown';
+        const fallbackUnknownUser = chrome.i18n.getMessage('data_unknown_user') || 'Unknown User';
+
+        // 1. Save to Local Storage (Immediate feedback/offline support)
         try {
             await LocalStorageService.saveEmail({
                 id,
-                subject: subject || chrome.i18n.getMessage('detail_no_subject'),
-                recipient: recipient || chrome.i18n.getMessage('recipient_unknown'),
+                subject: subject || fallbackNoSubject,
+                recipient: recipient || fallbackUnknownRecipient,
                 cc,
                 bcc,
                 body: body || '',
-                user: userEmail || chrome.i18n.getMessage('data_unknown_user'),
+                user: userEmail || fallbackUnknownUser,
                 createdAt: new Date().toISOString()
             });
-            logger.log('[Content] Saved metadata locally.');
         } catch (e) {
-            logger.error('[Content] Failed to save local metadata:', e);
+            logger.error('[Registration] Local save failed:', e);
         }
 
-        // 2. Register with Backend via Background Script (Delegation)
-        try {
+        // 2. Delegate to Background for Sync
+        if (chrome.runtime?.id) {
             chrome.runtime.sendMessage({
-                type: 'REGISTER_EMAIL',
+                type: CONSTANTS.MESSAGES.REGISTER_EMAIL,
                 data: {
                     id,
-                    subject: subject || chrome.i18n.getMessage('detail_no_subject'),
-                    recipient: recipient || chrome.i18n.getMessage('recipient_unknown'),
+                    subject: subject || fallbackNoSubject,
+                    recipient: recipient || fallbackUnknownRecipient,
                     cc,
                     bcc,
                     body: body || '',
-                    user: userEmail || chrome.i18n.getMessage('data_unknown_user') // Pass extracted sender
+                    user: userEmail || fallbackUnknownUser
                 }
             }, (response) => {
                 if (chrome.runtime?.lastError) {
-                    logger.error('[Content] Background registration error:', chrome.runtime.lastError);
+                    logger.error('[Registration] Sync message failed:', chrome.runtime.lastError.message);
                     return;
                 }
-                if (response && response.success) {
-                    logger.log('[Content] Successfully registered email via background');
-                    // Mark as synced locally
-                    LocalStorageService.markAsSynced([id]).then(() => {
-                        logger.log('[Content] Marked email as synced locally.');
-                    });
-                } else {
-                    logger.warn('[Content] Background registration returned failure:', response);
+                if (response?.success) {
+                    LocalStorageService.markAsSynced([id]).catch(err => 
+                        logger.error('[Registration] Failed to mark as synced:', err)
+                    );
                 }
             });
-        } catch (err) {
-            logger.error('[Content] Failed to send message to background:', err);
         }
 
-        // 2. Optimistic UI Update (With Retries)
-        // 2. Optimistic UI Update (With Retries)
+        // 3. Optimistic UI Injection with Backoff
         const attemptInject = (attempt = 1) => {
-            const success = handleOptimisticBadge(id, userEmail);
-            if (success) {
-                logger.log(`EmailTrack: [UI] Badge Injected on attempt ${attempt}`);
-            } else if (attempt < 5) {
-                // Retry with backoff (500ms, 1000ms... 2500ms)
-                setTimeout(() => attemptInject(attempt + 1), 500 * attempt);
+            if (handleOptimisticBadge(id, userEmail)) {
+                logger.log(`[Registration] UI Badge injected (Attempt ${attempt})`);
+            } else if (attempt < CONSTANTS.CONTENT.BADGE_INJECTION_MAX_ATTEMPTS) {
+                setTimeout(() => attemptInject(attempt + 1), CONSTANTS.CONTENT.BADGE_INJECTION_RETRY_MS * attempt);
             } else {
-                // Determine if we are even in a message view
-                const isMessageView = document.querySelectorAll('div.adn').length > 0;
-
+                const isMessageView = document.querySelectorAll(CONSTANTS.GMAIL_SELECTORS.MESSAGE_ROW).length > 0;
                 if (isMessageView) {
-                    logger.warn('EmailTrack: [UI] Failed to inject optimistic badge after 5 attempts');
-                } else {
-                    logger.log('EmailTrack: [UI] Stopped retrying badge injection - user likely navigated away or view changed.');
+                    logger.warn(`[Registration] UI Injection failed after ${CONSTANTS.CONTENT.BADGE_INJECTION_MAX_ATTEMPTS} attempts`);
                 }
             }
         };
 
-        setTimeout(() => attemptInject(1), 500);
+        setTimeout(() => attemptInject(1), CONSTANTS.CONTENT.BADGE_INJECTION_RETRY_MS);
     });
 }
+

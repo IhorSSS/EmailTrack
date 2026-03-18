@@ -8,18 +8,19 @@ import { scanComposeWindows } from './utils/dom';
 import { GmailWrapper } from './utils/gmail';
 import { handleSendInterceptor } from './utils/interceptor';
 import { logger } from '../utils/logger';
+import { CONSTANTS } from '../config/constants';
 
-const MAX_INIT_RETRIES = 5;
 let initRetries = 0;
 let observer: MutationObserver | null = null;
 
 function initialize() {
     const CONFIG = getConfig();
     if (!CONFIG.HOST) {
-        if (initRetries < MAX_INIT_RETRIES) {
+        if (initRetries < CONSTANTS.RETRY.ATTEMPTS) {
             initRetries++;
+            // Exponential backoff
             const delay = Math.pow(2, initRetries) * 1000;
-            logger.warn(`EmailTrack: [Logic] Missing API Host Config. Retrying in ${delay}ms (Attempt ${initRetries}/${MAX_INIT_RETRIES})`);
+            logger.warn(`EmailTrack: [Logic] Missing API Host Config. Retrying in ${delay}ms (Attempt ${initRetries}/${CONSTANTS.RETRY.ATTEMPTS})`);
             setTimeout(initialize, delay);
         } else {
             logger.error("EmailTrack: [Logic] Failed to initialize after maximum retries. Tracking disabled for this session.");
@@ -36,7 +37,7 @@ function initialize() {
     if (window.trustedTypes && window.trustedTypes.createPolicy) {
         try {
             if (!window.__emailTrackPolicy) {
-                window.__emailTrackPolicy = window.trustedTypes.createPolicy('emailTrackPolicy', {
+                window.__emailTrackPolicy = window.trustedTypes.createPolicy(CONSTANTS.SECURITY.TRUSTED_TYPES_POLICY, {
                     createHTML: (string: string) => string
                 });
             }
@@ -75,9 +76,21 @@ function initialize() {
     // --- GMAIL.JS INTEGRATION ---
     gmailWrapper.init((gmail) => {
         // Expose for debugging if needed
-        if (logger.isDebug()) window.GmailInstance = gmail;
+        if (logger.isDebug()) {
+            const win = window as unknown as { GmailInstance?: unknown };
+            win.GmailInstance = gmail;
+        }
 
-        gmail.observe.before('send_message', (_url: string, _body: any, data: any, xhr: any) => {
+        interface GmailInstance {
+            observe: {
+                before: (event: string, callback: (...args: unknown[]) => boolean | void) => void;
+            };
+        }
+
+        const gmailInst = gmail as GmailInstance;
+
+        gmailInst.observe.before(CONSTANTS.GMAIL_EVENTS.SEND_MESSAGE, (...args: unknown[]) => {
+            const [, , data, xhr] = args as [string, unknown, Record<string, unknown>, { xhrParams?: { body_params?: unknown } }];
             return handleSendInterceptor(CONFIG, data, xhr, logger);
         });
     });
@@ -93,3 +106,4 @@ window.addEventListener('unload', () => {
         observer = null;
     }
 });
+

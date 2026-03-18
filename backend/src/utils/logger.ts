@@ -6,7 +6,7 @@ const SENSITIVE_KEYS = ['subject', 'body', 'recipient', 'cc', 'bcc', 'token', 'a
 /**
  * Simple sanitizer to mask emails and sensitive data in logs
  */
-function sanitize(arg: any): any {
+function sanitize(arg: unknown): unknown {
     if (typeof arg === 'string') {
         // Simple email mask: a***b@c.com
         return arg.replace(/([a-zA-Z0-9._-]+)@([a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/g, (_match, p1, p2) => {
@@ -29,12 +29,13 @@ function sanitize(arg: any): any {
             return arg.map(sanitize);
         }
 
-        const sanitized: any = {};
-        for (const key in arg) {
+        const sanitized: Record<string, unknown> = {};
+        const safeArg = arg as Record<string, unknown>;
+        for (const key in safeArg) {
             if (SENSITIVE_KEYS.includes(key.toLowerCase())) {
                 sanitized[key] = '[MASKED]';
             } else {
-                sanitized[key] = sanitize(arg[key]);
+                sanitized[key] = sanitize(safeArg[key]);
             }
         }
         return sanitized;
@@ -43,22 +44,22 @@ function sanitize(arg: any): any {
 }
 
 export const logger = {
-    log: (...args: any[]) => {
+    log: (...args: unknown[]) => {
         if (process.env.DEBUG === 'true' || process.env.NODE_ENV !== 'production') {
             console.log(...args.map(sanitize));
         }
     },
-    info: (...args: any[]) => {
+    info: (...args: unknown[]) => {
         if (process.env.DEBUG === 'true' || process.env.NODE_ENV !== 'production') {
             console.info(...args.map(sanitize));
         }
     },
-    warn: (...args: any[]) => {
+    warn: (...args: unknown[]) => {
         if (process.env.DEBUG === 'true' || process.env.NODE_ENV !== 'production') {
             console.warn(...args.map(sanitize));
         }
     },
-    error: (...args: any[]) => {
+    error: (...args: unknown[]) => {
         console.error(...args.map(sanitize));
     }
 };

@@ -1,4 +1,4 @@
-
+import { CONSTANTS } from '../../config/constants';
 import { getConfig } from './pixel';
 
 export function getBodyPreviewLength(): number {
@@ -28,7 +28,7 @@ export function extractSenderEmail(): string | null {
         }
 
         // Strategy 3: Dialog data-from
-        const composeForm = document.querySelector('[role="dialog"] form, td.Bu form');
+        const composeForm = document.querySelector(CONSTANTS.GMAIL_SELECTORS.COMPOSE_FORM);
         if (composeForm) {
             const dataFrom = composeForm.getAttribute('data-from') || composeForm.querySelector('[data-from]')?.getAttribute('data-from');
             if (dataFrom) {
@@ -47,29 +47,23 @@ export function extractSenderEmail(): string | null {
             }
         }
         return null;
-    } catch (e) {
+    } catch {
         return null;
     }
 }
 
 // --- DOM INJECTION (Visual / Draft Persistence) ---
-export function scanComposeWindows(injectedDrafts: WeakSet<Element>, logger: any) {
-    const config = getConfig(); // Get fresh config if needed? 
-    // Actually scanComposeWindows needs PIXEL_BASE or similar.
-    // Let's passed config in or assume it uses the getter. 
-    // Best to pass it to avoid cyclic deps or weird state.
-    // But getConfig is stateless mostly.
-
-    // We'll import getConfig to handle DOM reading.
+export function scanComposeWindows(injectedDrafts: WeakSet<Element>, logger: { log: (...args: unknown[]) => void, error: (...args: unknown[]) => void }) {
+    const config = getConfig(); 
     const { HOST, PIXEL_BASE, showTrackingIndicator, trackingEnabled } = config;
 
-    const editables = document.querySelectorAll('div[contenteditable="true"][role="textbox"]');
+    const editables = document.querySelectorAll(CONSTANTS.GMAIL_SELECTORS.COMPOSE_EDITABLE);
     editables.forEach(editable => {
-        const isCompose = editable.closest('[role="dialog"]') ||
-            editable.closest('td.Bu') ||
-            editable.closest('.M9') ||
-            editable.closest('.aoI') ||
-            editable.closest('.a9n');
+        const isCompose = editable.closest(CONSTANTS.GMAIL_SELECTORS.COMPOSE_DIALOG) ||
+            editable.closest(CONSTANTS.GMAIL_SELECTORS.COMPONENTS.LEGACY_COMPOSE_TD) ||
+            editable.closest(CONSTANTS.GMAIL_SELECTORS.COMPONENTS.LEGACY_COMPOSE_M9) ||
+            editable.closest(CONSTANTS.GMAIL_SELECTORS.COMPONENTS.LEGACY_COMPOSE_AOI) ||
+            editable.closest(CONSTANTS.GMAIL_SELECTORS.COMPONENTS.LEGACY_COMPOSE_A9N);
 
         if (!isCompose) return;
 
@@ -114,12 +108,13 @@ export function scanComposeWindows(injectedDrafts: WeakSet<Element>, logger: any
     });
 }
 
-function injectVisualIndicator(editable: Element, enabled: boolean, logger: any) {
-    const composeWindow = editable.closest('[role="dialog"]') ||
-        editable.closest('td.Bu') ||
-        editable.closest('.M9') ||
-        editable.closest('.aoI') ||
-        editable.closest('.a9n');
+function injectVisualIndicator(editable: Element, enabled: boolean, logger: { log: (...args: unknown[]) => void, error: (...args: unknown[]) => void }) {
+    const { COMPONENTS, COMPOSE_DIALOG } = CONSTANTS.GMAIL_SELECTORS;
+    const composeWindow = editable.closest(COMPOSE_DIALOG) ||
+        editable.closest(COMPONENTS.LEGACY_COMPOSE_TD) ||
+        editable.closest(COMPONENTS.LEGACY_COMPOSE_M9) ||
+        editable.closest(COMPONENTS.LEGACY_COMPOSE_AOI) ||
+        editable.closest(COMPONENTS.LEGACY_COMPOSE_A9N);
 
     if (!composeWindow) return;
 
@@ -138,23 +133,23 @@ function injectVisualIndicator(editable: Element, enabled: boolean, logger: any)
         const configEl = document.getElementById('emailtrack-config');
         const heartbeat = parseInt(configEl?.getAttribute('data-heartbeat') || '0', 10);
         const trackingEnabledAttr = configEl?.getAttribute('data-tracking-enabled') !== 'false';
-        const isOrphaned = !configEl || (Date.now() - heartbeat > 10000);
+        const isOrphaned = !configEl || (Date.now() - heartbeat > CONSTANTS.INTERVALS.HEARTBEAT_THRESHOLD_MS);
 
         const diode = indicator.firstElementChild as HTMLElement;
         if (diode) {
             if (isOrphaned) {
-                diode.style.background = '#ef4444'; // Red
-                diode.style.boxShadow = '0 0 6px rgba(239, 68, 68, 0.4)';
+                diode.style.background = CONSTANTS.COLORS.DANGER;
+                diode.style.boxShadow = `0 0 ${CONSTANTS.DIMENSIONS.DIODE_SHADOW_BLUR} ${CONSTANTS.COLORS.DANGER}66`;
                 const title = configEl?.getAttribute('data-msg-diode-error') || 'Error';
                 indicator.setAttribute('title', title);
             } else if (!trackingEnabledAttr) {
-                diode.style.background = '#f59e0b'; // Amber/Yellow
-                diode.style.boxShadow = '0 0 6px rgba(245, 158, 11, 0.4)';
+                diode.style.background = CONSTANTS.COLORS.WARNING;
+                diode.style.boxShadow = `0 0 ${CONSTANTS.DIMENSIONS.DIODE_SHADOW_BLUR} ${CONSTANTS.COLORS.WARNING}66`;
                 const title = configEl?.getAttribute('data-msg-diode-disabled') || 'Disabled';
                 indicator.setAttribute('title', title);
             } else {
-                diode.style.background = '#22c55e'; // Green
-                diode.style.boxShadow = '0 0 6px rgba(34, 197, 94, 0.4)';
+                diode.style.background = CONSTANTS.COLORS.SUCCESS;
+                diode.style.boxShadow = `0 0 ${CONSTANTS.DIMENSIONS.DIODE_SHADOW_BLUR} ${CONSTANTS.COLORS.SUCCESS}66`;
                 const title = configEl?.getAttribute('data-msg-diode-active') || 'Active';
                 indicator.setAttribute('title', title);
             }
@@ -167,14 +162,7 @@ function injectVisualIndicator(editable: Element, enabled: boolean, logger: any)
     indicator.className = 'emailtrack-visual-indicator';
 
     // Robust selector for Send button across locales (English, Ukrainian, etc.)
-    const sendButtons = composeWindow.querySelectorAll([
-        '[role="button"][aria-label^="Send"]',
-        '[role="button"][aria-label^="Надіслати"]',
-        '[role="button"][data-tooltip^="Send"]',
-        '[role="button"][data-tooltip^="Надіслати"]',
-        '.aoO', // Standard Gmail Send button class
-        '.T-I.J-J5-Ji.aoO.v7.T-I-atl.L3'
-    ].join(', '));
+    const sendButtons = composeWindow.querySelectorAll(CONSTANTS.GMAIL_SELECTORS.SEND_BUTTONS.join(', '));
     const sendButton = sendButtons.length > 0 ? sendButtons[sendButtons.length - 1] : null;
 
     if (sendButton) {
@@ -194,7 +182,7 @@ function injectVisualIndicator(editable: Element, enabled: boolean, logger: any)
         Object.assign((indicator as HTMLElement).style, {
             display: 'inline-flex',
             alignItems: 'center',
-            marginLeft: '10px',
+            marginLeft: CONSTANTS.DIMENSIONS.DIODE_SIZE, // reuse size for margin
             verticalAlign: 'middle',
             cursor: 'help',
             opacity: '0.9',
@@ -205,19 +193,19 @@ function injectVisualIndicator(editable: Element, enabled: boolean, logger: any)
         const configEl = document.getElementById('emailtrack-config');
         const heartbeat = parseInt(configEl?.getAttribute('data-heartbeat') || '0', 10);
         const trackingEnabledAttr = configEl?.getAttribute('data-tracking-enabled') !== 'false';
-        const isOrphaned = !configEl || (Date.now() - heartbeat > 10000);
+        const isOrphaned = !configEl || (Date.now() - heartbeat > CONSTANTS.INTERVALS.HEARTBEAT_THRESHOLD_MS);
 
-        let color = '#22c55e';
-        let shadow = 'rgba(34, 197, 94, 0.4)';
+        let color: string = CONSTANTS.COLORS.SUCCESS;
+        let shadow: string = `${CONSTANTS.COLORS.SUCCESS}66`;
         let title = 'EmailTrack: Active & Tracking';
 
         if (isOrphaned) {
-            color = '#ef4444';
-            shadow = 'rgba(239, 68, 68, 0.4)';
+            color = CONSTANTS.COLORS.DANGER;
+            shadow = `${CONSTANTS.COLORS.DANGER}66`;
             title = configEl?.getAttribute('data-msg-diode-error') || 'Error: Extension reloaded';
         } else if (!trackingEnabledAttr) {
-            color = '#f59e0b';
-            shadow = 'rgba(245, 158, 11, 0.4)';
+            color = CONSTANTS.COLORS.WARNING;
+            shadow = `${CONSTANTS.COLORS.WARNING}66`;
             title = configEl?.getAttribute('data-msg-diode-disabled') || 'Tracking Disabled';
         } else {
             // Default active
@@ -225,7 +213,7 @@ function injectVisualIndicator(editable: Element, enabled: boolean, logger: any)
         }
 
         const html = `
-            <div style="width: 10px; height: 10px; background: ${color}; border-radius: 50%; box-shadow: 0 0 6px ${shadow}; border: 2px solid white; transition: background 0.3s ease;"></div>
+            <div style="width: ${CONSTANTS.DIMENSIONS.DIODE_SIZE}; height: ${CONSTANTS.DIMENSIONS.DIODE_SIZE}; background: ${color}; border-radius: 50%; box-shadow: 0 0 ${CONSTANTS.DIMENSIONS.DIODE_SHADOW_BLUR} ${shadow}; border: ${CONSTANTS.DIMENSIONS.DIODE_BORDER} solid ${CONSTANTS.COLORS.WHITE}; transition: background 0.3s ease;"></div>
         `;
 
         if (window.__emailTrackPolicy) {
@@ -235,7 +223,8 @@ function injectVisualIndicator(editable: Element, enabled: boolean, logger: any)
         }
         indicator.setAttribute('title', title);
 
-        const groupContainer = lastInGroup.closest('.dC') || lastInGroup.closest('.HP') || lastInGroup.closest('[role="group"]');
+        const groupAnchors = CONSTANTS.GMAIL_SELECTORS.INDICATOR_ANCHORS;
+        const groupContainer = groupAnchors.reduce<Element | null>((acc, selector) => acc || lastInGroup.closest(selector), null);
         const anchor = groupContainer || lastInGroup;
         anchor.insertAdjacentElement('afterend', indicator);
         logger.log('EmailTrack: [Logic] Visual Indicator injected');

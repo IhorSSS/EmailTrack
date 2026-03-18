@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { buildApp } from '../app';
+import { AuthService } from '../services/AuthService';
 
 // Mock DB to prevent connection attempts
 vi.mock('../db', () => ({
@@ -11,12 +13,11 @@ vi.mock('../db', () => ({
     },
 }));
 
-import { buildApp } from '../app';
-
-// Mock the auth utility
-const verifyTokenMock = vi.fn();
-vi.mock('../utils/auth', () => ({
-    verifyGoogleToken: (token: string) => verifyTokenMock(token)
+// Mock AuthService
+vi.mock('../services/AuthService', () => ({
+    AuthService: {
+        verifyGoogleToken: vi.fn()
+    }
 }));
 
 describe('Auth Route Security', () => {
@@ -59,7 +60,7 @@ describe('Auth Route Security', () => {
     });
 
     it('POST /auth/sync should reject requests with invalid token', async () => {
-        verifyTokenMock.mockRejectedValue(new Error('Invalid token'));
+        (AuthService.verifyGoogleToken as any).mockRejectedValue(new Error('Invalid token'));
 
         const response = await app.inject({
             method: 'POST',
@@ -88,7 +89,5 @@ describe('Auth Route Security', () => {
 
         expect(response.statusCode).toBe(401);
     });
-
-    // We skip the success case as it requires mocking the UserService/DB which is out of scope for this specific security check
-    // logic is verified by unit tests of verifyGoogleToken if needed.
 });
+

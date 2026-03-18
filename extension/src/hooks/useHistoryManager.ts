@@ -1,5 +1,5 @@
-
 import { useTranslation } from './useTranslation';
+import { CONSTANTS } from '../config/constants';
 
 /**
  * Hook to manage history deletion logic
@@ -9,8 +9,8 @@ export const useHistoryManager = (
     deleteEmails: (filter: string) => Promise<{ success: boolean; message: string; type?: 'success' | 'warning' }>,
     senderFilter: string,
     setSenderFilter: (filter: string) => void,
-    userProfile: any,
-    showStatus: (title: string, message: string, type: any) => void,
+    userProfile: { email: string } | null,
+    showStatus: (title: string, message: string, type: 'success' | 'danger' | 'warning' | 'info') => void,
     setCurrentUser: (user: string | null) => void,
     currentUser: string | null
 ) => {
@@ -41,7 +41,7 @@ export const useHistoryManager = (
 
             // If full wipe, clear who we thought was logged in
             if (senderFilter === 'all') {
-                chrome.storage.local.remove(['lastLoggedInEmail']);
+                chrome.storage.local.remove([CONSTANTS.STORAGE_KEYS.LAST_LOGGED_IN_EMAIL]);
             }
 
             // RESET FILTER so UI doesn't show an empty list
@@ -49,8 +49,9 @@ export const useHistoryManager = (
                 setSenderFilter('all');
             }
 
-        } catch (e: any) {
-            showStatus(t('modal_status_error'), t('error_history_clear_failed') + ': ' + e.message, 'danger');
+        } catch (e: unknown) {
+            const errBase = e as Error;
+            showStatus(t('modal_status_error'), t('error_history_clear_failed') + ': ' + (errBase.message || String(e)), 'danger');
         }
     };
 
