@@ -13,6 +13,7 @@ export interface UseAppActionsProps {
     userProfile: UserProfile | null;
     setCurrentUser: (user: string | null) => void;
     fetchEmails: () => Promise<void>;
+    setEmails: React.Dispatch<React.SetStateAction<TrackedEmail[]>>;
     deleteSingleEmail: (id: string) => Promise<{ success: boolean; message?: string; type?: 'success' | 'warning' }>;
     showStatus: (title: string, msg: string, type: 'success' | 'warning' | 'danger') => void;
     selectedEmail: TrackedEmail | null;
@@ -25,7 +26,7 @@ export interface UseAppActionsProps {
 export const useAppActions = (props: UseAppActionsProps) => {
     const {
         t, login, logout, clearAuthError, userProfile, setCurrentUser,
-        fetchEmails, deleteSingleEmail, showStatus,
+        fetchEmails, setEmails, deleteSingleEmail, showStatus,
         selectedEmail, emailToDelete,
         setConflictEmail, setLogoutModalOpen, setEmailToDelete
     } = props;
@@ -77,10 +78,14 @@ export const useAppActions = (props: UseAppActionsProps) => {
         await logout(clearData);
         if (clearData) {
             setCurrentUser(null);
-        } else if (userProfile?.email) {
-            setCurrentUser(userProfile.email);
+            // Directly reset React state to avoid stale closure re-fetching from server
+            setEmails([]);
+        } else {
+            if (userProfile?.email) {
+                setCurrentUser(userProfile.email);
+            }
+            await fetchEmails();
         }
-        await fetchEmails();
         setLogoutModalOpen(false);
     };
 

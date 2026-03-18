@@ -39,7 +39,7 @@ export const useAppController = () => {
 
     const {
         emails, loading: dataLoading, error: dataError,
-        fetchEmails, deleteEmails, deleteSingleEmail
+        fetchEmails, deleteEmails, deleteSingleEmail, setEmails
     } = useEmails(userProfile, currentUser, authToken, settingsLoaded);
 
     const {
@@ -94,6 +94,7 @@ export const useAppController = () => {
         userProfile,
         setCurrentUser,
         fetchEmails,
+        setEmails,
         deleteSingleEmail,
         showStatus,
         selectedEmail,

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
-import { AuthService, type UserProfile, type EmailItem } from '../services/AuthService';
+import { AuthService, type UserProfile } from '../services/AuthService';
 import { LocalStorageService } from '../services/LocalStorageService';
+import { CONSTANTS } from '../config/constants';
 import { logger } from '../utils/logger';
 import { useTranslation } from './useTranslation';
 
@@ -36,7 +37,15 @@ export const useAuthSync = () => {
         if (freshLocalEmails.length > 0) {
             try {
                 const count = await AuthService.uploadHistory(
-                    freshLocalEmails as unknown as EmailItem[], 
+                    freshLocalEmails.map(e => ({
+                        id: e.id,
+                        subject: e.subject,
+                        recipient: e.recipient,
+                        cc: e.cc,
+                        bcc: e.bcc,
+                        body: e.body,
+                        sender: e.user
+                    })),
                     profile.id, 
                     profile.email, 
                     token
@@ -56,7 +65,7 @@ export const useAuthSync = () => {
         }
 
         // 5. Update Last Logged In Marker
-        await LocalStorageService.updateSettings({ lastLoggedInEmail: profile.email });
+        await LocalStorageService.updateSettings({ [CONSTANTS.STORAGE_KEYS.LAST_LOGGED_IN_EMAIL]: profile.email });
         
         return true;
     }, [t]);

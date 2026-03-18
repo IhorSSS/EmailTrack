@@ -123,7 +123,7 @@ export const useEmailDelete = (
                 }
 
                 if (ownedCount > 0 || remoteFailedWithForbidden) {
-                    fetchEmails();
+                    await fetchEmails();
                     return {
                         success: true,
                         message: t('delete_warning_owned_data'),
@@ -132,7 +132,7 @@ export const useEmailDelete = (
                 }
             }
 
-            fetchEmails();
+            await fetchEmails();
 
             return {
                 success: true,
