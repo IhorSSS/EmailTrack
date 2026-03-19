@@ -1,8 +1,9 @@
 import { prisma } from '../db';
-import { encrypt } from '../utils/crypto';
+import { encrypt, decrypt } from '../utils/crypto';
 import { logger } from '../utils/logger';
 import { UserService } from './UserService';
 import { EmailData, GoogleAuthInfo } from '../types';
+import { EmailMapper } from '../utils/mapper';
 import crypto from 'crypto';
 
 export class PMService {
@@ -11,7 +12,7 @@ export class PMService {
      * Handles encryption, ownership resolution, and hijack prevention.
      */
     static async registerEmail(data: EmailData, authInfo?: GoogleAuthInfo | null) {
-        const { id, subject, recipient, cc, bcc, body, user, ownerId } = data;
+        const { id, subject, recipient, cc, bcc, body, user, threadId, ownerId } = data;
         const targetId = id || crypto.randomUUID();
 
 
@@ -24,36 +25,44 @@ export class PMService {
             primaryEmailFromAuth || user || null
         );
 
-        // SECURITY CHECK: If email exists and has an owner, verify requester ownership
-        if (id) {
-            const isHijack = await this.isEmailOwnedByAnother(id, resolvedOwnerUuid);
-            if (isHijack) {
-                logger.warn(`[PMService] Hijack attempt for email ${id} by user ${resolvedOwnerUuid || 'Anonymous'}`);
-                throw new Error('FORBIDDEN_OWNERSHIP');
-            }
-        }
+        return prisma.$transaction(async (tx) => {
+            // SECURITY CHECK: If email exists and has an owner, verify requester ownership
+            if (id) {
+                const existingEmail = await tx.trackedEmail.findUnique({
+                    where: { id },
+                    select: { ownerId: true }
+                });
 
-        return prisma.trackedEmail.upsert({
-            where: { id: targetId },
-            update: {
-                subject: subject ? encrypt(subject) : subject,
-                recipient: recipient ? encrypt(recipient) : recipient,
-                cc: cc ? encrypt(cc) : cc,
-                bcc: bcc ? encrypt(bcc) : bcc,
-                body: body ? encrypt(body) : body,
-                user: user ? encrypt(user) : user,
-                ownerId: resolvedOwnerUuid
-            },
-            create: {
-                id: targetId,
-                subject: subject ? encrypt(subject) : subject,
-                recipient: recipient ? encrypt(recipient) : recipient,
-                cc: cc ? encrypt(cc) : cc,
-                bcc: bcc ? encrypt(bcc) : bcc,
-                body: body ? encrypt(body) : body,
-                user: user ? encrypt(user) : user,
-                ownerId: resolvedOwnerUuid
+                if (existingEmail && existingEmail.ownerId && existingEmail.ownerId !== resolvedOwnerUuid) {
+                    logger.warn(`[PMService] Hijack attempt for email ${id} by user ${resolvedOwnerUuid || 'Anonymous'}`);
+                    throw new Error('FORBIDDEN_OWNERSHIP');
+                }
             }
+
+            return tx.trackedEmail.upsert({
+                where: { id: targetId },
+                update: {
+                    subject: subject ? encrypt(subject) : subject,
+                    recipient: recipient ? encrypt(recipient) : recipient,
+                    cc: cc ? encrypt(cc) : cc,
+                    bcc: bcc ? encrypt(bcc) : bcc,
+                    body: body ? encrypt(body) : body,
+                    user: user ? encrypt(user) : user,
+                    threadId: threadId || null,
+                    ownerId: resolvedOwnerUuid
+                },
+                create: {
+                    id: targetId,
+                    subject: subject ? encrypt(subject) : subject,
+                    recipient: recipient ? encrypt(recipient) : recipient,
+                    cc: cc ? encrypt(cc) : cc,
+                    bcc: bcc ? encrypt(bcc) : bcc,
+                    body: body ? encrypt(body) : body,
+                    user: user ? encrypt(user) : user,
+                    threadId: threadId || null,
+                    ownerId: resolvedOwnerUuid
+                }
+            });
         });
     }
 
@@ -80,7 +89,17 @@ export class PMService {
     static async getEmailStats(id: string) {
         const email = await prisma.trackedEmail.findUnique({
             where: { id },
-            include: {
+            select: {
+                id: true,
+                subject: true,
+                recipient: true,
+                body: true,
+                user: true,
+                cc: true,
+                bcc: true,
+                threadId: true,
+                ownerId: true,
+                createdAt: true,
                 opens: {
                     orderBy: { openedAt: 'desc' }
                 }
@@ -90,15 +109,12 @@ export class PMService {
         if (!email) return null;
 
         return {
-            id: email.id,
+            ...EmailMapper.mapTrackedEmail(email),
             tracked: true,
+            threadId: email.threadId,
             openCount: email.opens.length,
-            opens: email.opens.map(open => ({
-                openedAt: open.openedAt,
-                device: open.device,
-                location: open.location
-            }))
+            lastOpened: email.opens.length > 0 ? email.opens[0].openedAt : null,
+            opens: email.opens
         };
     }
 }
-

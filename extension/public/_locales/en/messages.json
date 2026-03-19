@@ -421,5 +421,11 @@
     },
     "detail_len_opens": {
         "message": "Opens: {count}"
+    },
+    "status_last_opened": {
+        "message": "Last Opened"
+    },
+    "status_sent": {
+        "message": "Sent"
     }
 }

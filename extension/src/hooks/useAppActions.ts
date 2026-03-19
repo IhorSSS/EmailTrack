@@ -4,9 +4,10 @@ import { logger } from '../utils/logger';
 import type { TrackedEmail } from '../types';
 import type { UserProfile } from '../services/AuthService';
 
+import type { TranslationKey } from '../types/i18n';
+
 export interface UseAppActionsProps {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    t: (key: any) => string;
+    t: (key: TranslationKey) => string;
     login: () => Promise<UserProfile | undefined>;
     logout: (clearData: boolean) => Promise<void>;
     clearAuthError: () => void;

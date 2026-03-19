@@ -32,14 +32,6 @@ export const CONSTANTS = {
         BADGE_INJECTION_MAX_ATTEMPTS: 5
     },
 
-    // Semantic Colors (Hex for injected scripts context)
-    COLORS: {
-        SUCCESS: '#10b981',
-        DANGER: '#ef4444',
-        WARNING: '#f59e0b',
-        WHITE: '#ffffff'
-    },
-
     // Injected DOM Dimensions
     DIMENSIONS: {
         DIODE_SIZE: '10px',
@@ -53,7 +45,9 @@ export const CONSTANTS = {
         INJECTION_DELAY: 500,
         API_RETRY_BASE: 1000,
         MAX_API_WAIT: 10000,
-        YIELD: 100
+        YIELD: 100,
+        THREADLIST_CACHE_MS: 2000,
+        DEBOUNCE: 500
     },
 
     INTERVALS: {
@@ -68,9 +62,18 @@ export const CONSTANTS = {
     },
 
     LAYOUT: {
-        STATS_MIN_SPACE: 200,
+        ICON_SIZE_SMALL: 16,
         ICON_SIZE_TINY: 12,
-        ICON_SIZE_SMALL: 14
+        STATS_MIN_SPACE: 300,
+        POPUP_PADDING: 20
+    },
+
+    // Semantic Colors (Shared across Contexts)
+    COLORS: {
+        SUCCESS: '#10b981',
+        DANGER: '#ef4444',
+        WARNING: '#f59e0b',
+        WHITE: '#ffffff'
     },
 
     // Gmail-specific Selectors (Systemic Centralization)
@@ -82,6 +85,14 @@ export const CONSTANTS = {
         MESSAGE_SUBJECT_H2: 'h2.hP',
         USER_EMAIL: '.gb_Ha.gb_i, [aria-label*="@"]',
         COMPOSE_EDITABLE: 'div[contenteditable="true"][role="textbox"]',
+        
+        // Threadlist (Inbox/Sent/etc)
+        THREAD_ROW: '.zA',
+        USER_EMAIL_ACCOUNT_SWITCHER: '.gb_A', // Account switcher area
+        GMAIL_ACCOUNT_SWITCHER_SELECTOR: 'a[aria-label*="Google Account:"]',
+        THREAD_SUBJECT: 'span.bog',
+        THREAD_DATE: 'td.xW.xY',
+        THREAD_STATUS_CONTAINER: 'td.apU', // Column with star/etc, good for our checkmarks
 
         COMPOSE_DIALOG: '[role="dialog"]',
         COMPOSE_FORM: '[role="dialog"] form, td.Bu form',
@@ -132,7 +143,11 @@ export const CONSTANTS = {
     // Regex Centralization
     REGEX: {
         TRACKING_ID: /(?:track(?:%2F|\/)|id=)([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i,
-        GMAIL_ID: /#msg-(?:f|a):([a-f0-9]+)/i
+        TRACKING_ID_V2: /\/track\/([a-f0-9-]{36})/,
+        GMAIL_ID: /#msg-(?:f|a):([a-f0-9]+)/i,
+        SUBJECT_CLEANUP: /^(Re|Fwd|Re: |Fwd: |re: |fwd: )+/i,
+        GMAIL_IDENTITY_LABEL: /\(([^)]+)\)/,
+        GMAIL_IDENTITY_TITLE: / - ([^ ]+@[^ ]+) - /
     },
 
     // Trusted Types
@@ -177,6 +192,18 @@ export const CONSTANTS = {
         NETWORK: 'Network',
         CUSTOM_CONTENT: 'custom content',
         AUTH_TOKEN_MISSING: 'AUTH_TOKEN_MISSING'
+    },
+    
+    // CSS Class names and Data attributes
+    CSS_CLASSES: {
+        THREAD_BADGE_ROOT: 'et-thread-badge-root',
+        STATS_INJECTED: 'email-track-stats-injected',
+        INJECT_ROOT: 'et-inject-root'
+    },
+    
+    DATA_ATTRS: {
+        ET_STATUS: 'data-et-status',
+        _INJECTED: 'email-track-stats-injected'
     }
 } as const;
 

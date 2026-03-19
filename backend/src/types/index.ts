@@ -16,6 +16,7 @@ export interface EmailData {
     bcc?: string | null;
     body?: string;
     user?: string;
+    threadId?: string | null;
     ownerId?: string | null;
 }
 

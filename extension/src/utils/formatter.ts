@@ -62,6 +62,12 @@ export const formatDateTime = (dateStr: string, locale: string = 'en-US'): strin
     }
 };
 
+export const formatTime = (dateStr: string | Date, locale: string = 'en-US'): string => {
+    if (!dateStr) return '';
+    const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
+    return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(date);
+};
+
 export const formatFullDate = (dateStr: string, locale: string = 'en-US'): string => {
     return new Intl.DateTimeFormat(locale, {
         year: 'numeric',

@@ -34,10 +34,12 @@ export class EmailStorage {
                 body: email.body,
                 user: email.user || '',
                 ownerEmail: email.ownerEmail,
+                threadId: email.threadId,
                 createdAt: email.createdAt,
                 synced: true,
                 isOwned: !!email.ownerId,
-                openCount: email.openCount ?? 0
+                openCount: email.openCount ?? 0,
+                lastOpenedAt: email.opens?.[0]?.openedAt || email.opens?.[0]?.timestamp
             });
         });
 

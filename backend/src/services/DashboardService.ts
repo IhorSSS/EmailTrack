@@ -1,8 +1,8 @@
 import { prisma } from '../db';
-import { decrypt } from '../utils/crypto';
 import { Prisma } from '@prisma/client';
 import { UserService } from './UserService';
 import { DashboardFilter, DeleteFilter, GoogleAuthInfo } from '../types';
+import { EmailMapper } from '../utils/mapper';
 
 export class DashboardService {
     /**
@@ -59,6 +59,7 @@ export class DashboardService {
                 id: true,
                 ownerId: true,
                 createdAt: true,
+                threadId: true,
                 opens: {
                     orderBy: { openedAt: 'desc' },
                     select: {
@@ -88,15 +89,7 @@ export class DashboardService {
         ]);
 
         return {
-            data: data.map(item => ({
-                ...item,
-                subject: item.subject ? decrypt(item.subject) : item.subject,
-                body: item.body ? decrypt(item.body) : item.body,
-                recipient: item.recipient ? decrypt(item.recipient) : item.recipient,
-                user: item.user ? decrypt(item.user) : item.user,
-                cc: item.cc ? decrypt(item.cc) : item.cc,
-                bcc: item.bcc ? decrypt(item.bcc) : item.bcc,
-            })),
+            data: data.map(EmailMapper.mapTrackedEmail),
             total,
             page,
             limit
@@ -173,6 +166,7 @@ export class DashboardService {
                 id: true,
                 ownerId: true,
                 createdAt: true,
+                threadId: true,
                 opens: {
                     orderBy: { openedAt: 'desc' },
                     select: {

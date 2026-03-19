@@ -25,6 +25,7 @@ model TrackedEmail {
   user      String?     // Sender email address (Source Identity)
   cc        String?
   bcc       String?
+  threadId  String?     // Gmail thread identifier
   
   ownerId   String?     // Master Account ID (Nullable for Incognito/Legacy)
   owner     User?       @relation(fields: [ownerId], references: [id])

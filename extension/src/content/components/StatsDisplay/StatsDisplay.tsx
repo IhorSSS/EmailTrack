@@ -106,7 +106,7 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
                 }
 
                 if (rect.left + POPUP.WIDTH > window.innerWidth) {
-                    style.left = window.innerWidth - POPUP.WIDTH - 20;
+                    style.left = window.innerWidth - POPUP.WIDTH - CONSTANTS.LAYOUT.POPUP_PADDING;
                 }
                 setPopupStyle(style);
             }
@@ -157,7 +157,10 @@ const StatsDisplay: React.FC<StatsDisplayProps> = ({ trackId, senderHint }) => {
         }).format(d);
     };
 
-    const groupedEvents = processStatsEvents(Array.isArray(stats?.opens) ? stats?.opens : [], t);
+    const groupedEvents = React.useMemo(() => 
+        processStatsEvents(Array.isArray(stats?.opens) ? stats?.opens : [], t),
+        [stats?.opens, t]
+    );
 
     return (
         <div className="email-track-stats-container" data-theme={currentTheme}>

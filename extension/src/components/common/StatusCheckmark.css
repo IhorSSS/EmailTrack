@@ -1,0 +1,40 @@
+/**
+ * StatusCheckmark styles
+ * Used in both message view (compact) and threadlist.
+ */
+:root {
+    --et-color-tick-single: #80868b;
+    --et-color-tick-double: #1a73e8;
+}
+.et-checkmark-root {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 4px;
+    vertical-align: middle;
+    cursor: help;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.et-checkmark-root:hover {
+    transform: scale(1.2);
+}
+
+.et-checkmark-svg {
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.1));
+}
+
+/* Second tick animation */
+.et-checkmark-tick-second {
+    animation: et-pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes et-pop-in {
+    0% {
+        opacity: 0;
+        transform: translate(-4px, 4px) scale(0.5);
+    }
+    100% {
+        opacity: 1;
+        transform: translate(0, 0) scale(1);
+    }
+}

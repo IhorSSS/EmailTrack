@@ -82,6 +82,9 @@ function initialize() {
         }
 
         interface GmailInstance {
+            get: {
+                email_id: () => string;
+            };
             observe: {
                 before: (event: string, callback: (...args: unknown[]) => boolean | void) => void;
             };
@@ -91,7 +94,7 @@ function initialize() {
 
         gmailInst.observe.before(CONSTANTS.GMAIL_EVENTS.SEND_MESSAGE, (...args: unknown[]) => {
             const [, , data, xhr] = args as [string, unknown, Record<string, unknown>, { xhrParams?: { body_params?: unknown } }];
-            return handleSendInterceptor(CONFIG, data, xhr, logger);
+            return handleSendInterceptor(CONFIG, data, xhr, logger, gmailInst);
         });
     });
 }

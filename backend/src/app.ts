@@ -30,7 +30,7 @@ export function buildApp(): FastifyInstance {
             }
             cb(new Error("Not allowed"), false);
         },
-        allowedHeaders: ['Content-Type', 'Authorization', 'Bypass-Tunnel-Reminder'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Bypass-Tunnel-Reminder', 'X-Sender-Hint'],
         methods: ['GET', 'POST', 'OPTIONS', 'DELETE']
     });
 

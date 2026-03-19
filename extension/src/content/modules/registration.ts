@@ -24,7 +24,7 @@ export function setupRegistrationListener() {
         if (!event.data || event.data.type !== CONSTANTS.MESSAGES.EMAILTRACK_REGISTER) return;
 
         logger.log('[Registration] EMAILTRACK_REGISTER received:', event.data.detail.id);
-        const { id, subject, recipient, cc, bcc, body } = event.data.detail;
+        const { id, subject, recipient, cc, bcc, body, threadId } = event.data.detail;
 
         if (!id) {
             logger.warn('[Registration] Ignored registration event: missing ID');
@@ -52,6 +52,7 @@ export function setupRegistrationListener() {
                 bcc,
                 body: body || '',
                 user: userEmail || fallbackUnknownUser,
+                threadId: threadId || undefined,
                 createdAt: new Date().toISOString()
             });
         } catch (e) {
@@ -69,7 +70,8 @@ export function setupRegistrationListener() {
                     cc,
                     bcc,
                     body: body || '',
-                    user: userEmail || fallbackUnknownUser
+                    user: userEmail || fallbackUnknownUser,
+                    threadId: threadId || undefined
                 }
             }, (response) => {
                 if (chrome.runtime?.lastError) {

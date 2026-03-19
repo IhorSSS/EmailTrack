@@ -14,6 +14,7 @@ const registerRoutes: FastifyPluginAsync = async (fastify, opts) => {
         bcc: z.string().nullable().optional(),
         body: z.string().optional(),
         user: z.string().optional(),
+        threadId: z.string().nullable().optional(),
         ownerId: z.string().optional()
     });
 

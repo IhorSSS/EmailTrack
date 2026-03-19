@@ -421,5 +421,11 @@
     },
     "detail_len_opens": {
         "message": "Переглядів: {count}"
+    },
+    "status_last_opened": {
+        "message": "Востаннє відкрито"
+    },
+    "status_sent": {
+        "message": "Надіслано"
     }
 }

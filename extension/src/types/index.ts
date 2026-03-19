@@ -19,6 +19,7 @@ export interface TrackedEmail {
     createdAt: string;
     opens: OpenEvent[];
     openCount: number;
+    threadId?: string; // Gmail thread ID for robust list-view matching
     ownerEmail?: string; // Grouping ID for multi-sender accounts
     ownerId?: string | null;  // Backend UUID (presence means owned)
     _count?: { opens: number }; // Backend format
@@ -35,8 +36,10 @@ export interface LocalEmailMetadata {
     ownerEmail?: string; // Grouping ID for multi-sender accounts
     createdAt: string;
     synced?: boolean;
+    threadId?: string; // Gmail thread ID
     isOwned?: boolean; // True if item belongs to a registered account
     openCount?: number;
+    lastOpenedAt?: string;
 }
 export interface EmailStats {
     tracked: number;

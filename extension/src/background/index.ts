@@ -81,7 +81,8 @@ async function handleRegister(data: Partial<TrackedEmail> | LocalEmailMetadata) 
             cc: data.cc,
             bcc: data.bcc,
             body: data.body,
-            user: data.user
+            user: data.user,
+            threadId: data.threadId
         };
 
         const headers: Record<string, string> = {

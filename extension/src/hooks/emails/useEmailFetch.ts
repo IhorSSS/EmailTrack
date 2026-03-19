@@ -189,6 +189,7 @@ export const useEmailFetch = (
                     bcc: e.bcc || localEmail?.bcc,
                     body: e.body || localEmail?.body || '',
                     user: localEmail?.user || e.user || activeEmail || '',
+                    threadId: e.threadId || localEmail?.threadId,
                     openCount: calculatedCount,
                     opens: e.opens || [],
                     createdAt: e.createdAt || localEmail?.createdAt || new Date().toISOString(),

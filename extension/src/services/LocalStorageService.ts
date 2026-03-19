@@ -3,6 +3,9 @@ import { EmailStorage } from './storage/EmailStorage';
 import { SyncQueue } from './storage/SyncQueue';
 import { CONSTANTS } from '../config/constants';
 
+let cachedEmails: LocalEmailMetadata[] = [];
+let lastFetchTime = 0;
+
 export interface ExtensionSettings {
     [CONSTANTS.STORAGE_KEYS.TRACKING_ENABLED]?: boolean;
     [CONSTANTS.STORAGE_KEYS.BODY_PREVIEW_LENGTH]?: number;
@@ -12,7 +15,6 @@ export interface ExtensionSettings {
     [CONSTANTS.STORAGE_KEYS.LAST_LOGGED_IN_EMAIL]?: string | null;
 }
 
-
 /**
  * LocalStorageService - Entry point (Facade)
  * Decomposed into EmailStorage and SyncQueue for architectural compliance.
@@ -20,8 +22,23 @@ export interface ExtensionSettings {
 export class LocalStorageService {
     static async saveEmails(emailsToSave: TrackedEmail[]) { return EmailStorage.saveEmails(emailsToSave); }
     static async saveEmail(email: LocalEmailMetadata) { return EmailStorage.saveEmail(email); }
-    static async getEmails() { return EmailStorage.getEmails(); }
+    static async getEmails(): Promise<LocalEmailMetadata[]> {
+        return EmailStorage.getEmails();
+    }
     static async setEmails(emails: LocalEmailMetadata[]) { return EmailStorage.setEmails(emails); }
+
+    /**
+     * Get emails with a 2-second memory cache to prevent storage spam
+     * during heavy DOM mutations.
+     */
+    static async getCachedEmails(): Promise<LocalEmailMetadata[]> {
+        const now = Date.now();
+        if (now - lastFetchTime > CONSTANTS.TIMEOUTS.THREADLIST_CACHE_MS) {
+            cachedEmails = await this.getEmails();
+            lastFetchTime = now;
+        }
+        return cachedEmails;
+    }
 
     static async markAsSynced(ids: string[]): Promise<void> {
         const history = await EmailStorage.getEmails();

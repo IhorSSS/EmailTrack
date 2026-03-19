@@ -13,7 +13,8 @@ export function handleSendInterceptor(
     config: InterceptionConfig,
     data: Record<string, unknown> | null,
     xhr: { xhrParams?: { body_params?: unknown } } | null,
-    logger: { log: (...args: unknown[]) => void, error: (...args: unknown[]) => void, isDebug?: () => boolean }
+    logger: { log: (...args: unknown[]) => void, error: (...args: unknown[]) => void, isDebug?: () => boolean },
+    gmail?: { get: { email_id: () => string } }
 ): boolean {
     const trackId = crypto.randomUUID();
     const pixelTag = createPixel(trackId, config.HOST, config.PIXEL_BASE);
@@ -79,7 +80,8 @@ export function handleSendInterceptor(
             cc: ccStr,
             bcc: bccStr,
             body: bodyPreview || null,
-            sender: senderEmail
+            sender: senderEmail,
+            threadId: gmail?.get?.email_id() || null
         };
 
         // SECURITY: Restrict postMessage to origin
