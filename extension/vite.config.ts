@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => {
       __APP_VERSION__: JSON.stringify(pkg.version),
     },
     esbuild: {
-      drop: mode === 'production' ? ['console', 'debugger'] : [],
+      drop: mode === 'production' ? ['debugger'] : [],
     },
     build: {
       rollupOptions: {

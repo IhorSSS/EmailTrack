@@ -6,10 +6,18 @@
     --et-color-tick-single: #80868b;
     --et-color-tick-double: #1a73e8;
 }
+/* Container injected before the subject text in threadlist */
+.et-thread-badge-root {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    margin-right: 4px;
+    line-height: 0;
+}
+
 .et-checkmark-root {
     display: inline-flex;
     align-items: center;
-    margin-right: 4px;
     vertical-align: middle;
     cursor: help;
     transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);

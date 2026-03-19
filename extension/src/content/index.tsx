@@ -8,6 +8,7 @@ import './components/StatsDisplay/StatsDisplay.css';
 import '../components/common/StatusCheckmark.css';
 
 logger.log('EmailTrack: Content Script UI Loaded');
+console.log('[EMAIL_TRACK_DEBUG] Content script index.tsx executed');
 
 // 1. Inject Scripts (jQuery, Gmail.js, logic.js)
 const injectCoreScripts = async () => {
@@ -74,20 +75,16 @@ try {
 setupRegistrationListener();
 
 // 4. Setup Stats Injection (Message View)
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-const observer = new MutationObserver(() => {
+const observer = new MutationObserver((mutations) => {
     if (!isValidContext()) {
         observer.disconnect();
         return;
     }
-    
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-        if (!isValidContext()) return;
-        injectStats();
-        injectThreadlistStatus();
-    }, CONSTANTS.TIMEOUTS.DEBOUNCE || 500);
+    if (mutations.length > 0) {
+        console.log(`[EMAIL_TRACK_DEBUG] MutationObserver fired with ${mutations.length} mutations`);
+    }
+    injectStats();
+    injectThreadlistStatus();
 });
 
 const startStatsObserver = () => {
@@ -108,6 +105,5 @@ if (document.readyState === 'loading') {
 window.addEventListener('beforeunload', () => {
     if (observer) observer.disconnect();
     if (heartbeatId) clearInterval(heartbeatId);
-    if (debounceTimer) clearTimeout(debounceTimer);
 });
 

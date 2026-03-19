@@ -369,6 +369,8 @@
     align-items: center;
     vertical-align: middle;
     position: relative;
+    min-width: 14px;
+    min-height: 14px;
 }
 
 .et-no-wrap {

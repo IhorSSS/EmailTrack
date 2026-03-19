@@ -49,8 +49,13 @@ export async function injectThreadlistStatus() {
             if (match) {
                 const status: 'sent' | 'opened' = (match.openCount && match.openCount > 0) ? 'opened' : 'sent';
                 const existingStatus = htmlRow.getAttribute(CONSTANTS.DATA_ATTRS.ET_STATUS);
+                
+                // IMPORTANT: Gmail SPA recycles rows. It might keep the attribute but destroy the actual badge element.
+                // We must check if the badge DOM node actually exists.
+                const subjectSpan = htmlRow.querySelector(CONSTANTS.GMAIL_SELECTORS.THREAD_SUBJECT);
+                const hasBadgeElement = subjectSpan?.parentElement?.querySelector(`.${CONSTANTS.CSS_CLASSES.THREAD_BADGE_ROOT}`);
 
-                if (existingStatus !== status) {
+                if (existingStatus !== status || !hasBadgeElement) {
                     injectBadgeForRow(htmlRow, match, status);
                 }
             }
@@ -86,20 +91,21 @@ function findMatchForRow(
 }
 
 function injectBadgeForRow(row: HTMLElement, email: LocalEmailMetadata, status: 'sent' | 'opened') {
-    const anchor = row.querySelector(CONSTANTS.GMAIL_SELECTORS.THREAD_STATUS_CONTAINER);
-    if (!anchor) return;
+    const subjectSpan = row.querySelector(CONSTANTS.GMAIL_SELECTORS.THREAD_SUBJECT);
+    if (!subjectSpan || !subjectSpan.parentElement) return;
 
     // Remove existing if updating
-    const existing = anchor.querySelector(`.${CONSTANTS.CSS_CLASSES.THREAD_BADGE_ROOT}`);
+    const existing = subjectSpan.parentElement.querySelector(`.${CONSTANTS.CSS_CLASSES.THREAD_BADGE_ROOT}`);
     if (existing) existing.remove();
 
-    const container = document.createElement('div');
+    const container = document.createElement('span');
     container.className = CONSTANTS.CSS_CLASSES.THREAD_BADGE_ROOT;
     
     // Checkmarks should not trigger row click
     container.onclick = (e) => e.stopPropagation();
 
-    anchor.appendChild(container);
+    // Insert before the subject text
+    subjectSpan.parentElement.insertBefore(container, subjectSpan);
     row.setAttribute(CONSTANTS.DATA_ATTRS.ET_STATUS, status);
 
     createRoot(container).render(

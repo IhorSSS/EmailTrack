@@ -12,8 +12,8 @@ export interface ProcessedEvent extends Record<string, unknown> {
     openedAt?: string;
 }
 
-export const formatLocation = (loc: string, t: (key: TranslationKey, params?: Record<string, string>) => string) => {
-    if (!loc) return t('location_unknown');
+export const formatLocation = (loc: string | unknown, t: (key: TranslationKey, params?: Record<string, string>) => string) => {
+    if (!loc || typeof loc !== 'string') return t('location_unknown');
     if (loc.startsWith(', ')) return loc.substring(2);
     return loc;
 };
