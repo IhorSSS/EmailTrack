@@ -9,7 +9,7 @@ export class DashboardService {
      * Fetch dashboard data with security and ownership resolution.
      */
     static async getDashboardData(filter: DashboardFilter, authInfo?: GoogleAuthInfo | null) {
-        const { page, limit, user, ids, ownerId } = filter;
+        const { page, limit, user, ids, ownerId, since } = filter;
         const skip = (page - 1) * limit;
         const take = limit;
 
@@ -45,13 +45,22 @@ export class DashboardService {
             }
         }
 
+        if (since) {
+            const isNumeric = /^\d+$/.test(since);
+            const sinceDate = new Date(isNumeric ? parseInt(since, 10) : since);
+            
+            if (!isNaN(sinceDate.getTime())) {
+                whereClause.updatedAt = { gte: sinceDate };
+            }
+        }
+
         const isAnonymous = !resolvedOwnerUuid;
 
         const queryOptions: Prisma.TrackedEmailFindManyArgs = {
             where: whereClause,
             skip,
             take,
-            orderBy: { createdAt: 'desc' }
+            orderBy: since ? { updatedAt: 'asc' } : { updatedAt: 'desc' }
         };
 
         if (isAnonymous) {
@@ -99,7 +108,8 @@ export class DashboardService {
             })),
             total,
             page,
-            limit
+            limit,
+            meta: { serverTime: Date.now() }
         };
     }
 

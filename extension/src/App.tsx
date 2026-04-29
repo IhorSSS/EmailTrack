@@ -19,8 +19,8 @@ const App = () => {
   const { t } = useTranslation();
   const { state, actions } = useAppController();
   const {
-    view, selectedEmail, userProfile, loading, error,
-    stats, uniqueSenders, senderFilter, searchQuery, filterType,
+    view, selectedEmail, userProfile, loading, isRefetching, error,
+    stats, uniqueSenders, senderFilter, searchQuery, filterType, sortField, sortDirection,
     processedEmails, senderFilteredEmails, statusModal, globalEnabled, bodyPreviewLength,
     logoutModalOpen, deleteConfirmModalOpen, conflictEmail, theme, authError,
     emailToDelete
@@ -36,7 +36,7 @@ const App = () => {
         email={selectedEmail}
         onBack={() => actions.setSelectedEmail(null)}
         onRefresh={actions.refreshSelectedEmail}
-        loading={loading}
+        loading={loading || isRefetching}
       />
     );
   }
@@ -45,7 +45,7 @@ const App = () => {
     <>
       <MainLayout
         userProfile={userProfile}
-        loading={loading}
+        loading={loading || isRefetching}
         onLogin={actions.handleLogin}
         onLogout={actions.logout}
         onRefresh={() => actions.fetchEmails()}
@@ -75,6 +75,10 @@ const App = () => {
             setSearchQuery={actions.setSearchQuery}
             filterType={filterType}
             setFilterType={actions.setFilterType}
+            sortField={sortField}
+            setSortField={actions.setSortField}
+            sortDirection={sortDirection}
+            setSortDirection={actions.setSortDirection}
             processedEmails={processedEmails}
             onEmailClick={actions.setSelectedEmail}
             onDeleteClick={actions.openDeleteSingleConfirm}

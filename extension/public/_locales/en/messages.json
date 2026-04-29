@@ -421,5 +421,20 @@
     },
     "detail_len_opens": {
         "message": "Opens: {count}"
+    },
+    "activity_sort_sent": {
+        "message": "Sent"
+    },
+    "activity_sort_last_opened": {
+        "message": "Last Opened"
+    },
+    "activity_sort_open_count": {
+        "message": "Opens"
+    },
+    "activity_sort_asc": {
+        "message": "Ascending"
+    },
+    "activity_sort_desc": {
+        "message": "Descending"
     }
 }

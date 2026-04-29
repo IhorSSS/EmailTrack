@@ -5,6 +5,8 @@ export const useFilteredEmails = (emails: TrackedEmail[]) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterType, setFilterType] = useState<'all' | 'opened' | 'unopened'>('all');
     const [senderFilter, setSenderFilter] = useState<string>('all');
+    const [sortField, setSortField] = useState<'sent' | 'last_opened' | 'open_count'>('sent');
+    const [sortDirection, setSortDirection] = useState<'desc' | 'asc'>('desc');
 
     const uniqueSenders = useMemo(() => {
         const senders = new Set<string>();
@@ -39,8 +41,44 @@ export const useFilteredEmails = (emails: TrackedEmail[]) => {
             filtered = filtered.filter(e => e.openCount === 0);
         }
 
+        // Sorting
+        filtered = [...filtered].sort((a, b) => {
+            const multiplier = sortDirection === 'desc' ? 1 : -1;
+
+            if (sortField === 'open_count') {
+                if (b.openCount !== a.openCount) {
+                    return (b.openCount - a.openCount) * multiplier;
+                }
+                // Fallback to sent time if open counts are equal
+                return (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) * multiplier;
+            }
+            
+            if (sortField === 'last_opened') {
+                const getLatestOpenTime = (email: TrackedEmail) => {
+                    if (!email.opens || email.opens.length === 0) return 0;
+                    // Find the max timestamp among opens
+                    return Math.max(...email.opens.map(o => {
+                        const ts = o.openedAt || o.timestamp;
+                        return ts ? new Date(ts).getTime() : 0;
+                    }));
+                };
+                
+                const aTime = getLatestOpenTime(a);
+                const bTime = getLatestOpenTime(b);
+                
+                if (aTime !== bTime) {
+                    return (bTime - aTime) * multiplier;
+                }
+                // Fallback to sent time
+                return (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) * multiplier;
+            }
+
+            // Default: 'sent'
+            return (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) * multiplier;
+        });
+
         return filtered;
-    }, [senderFilteredEmails, searchQuery, filterType]);
+    }, [senderFilteredEmails, searchQuery, filterType, sortField, sortDirection]);
 
     const stats = useMemo(() => {
         // Stats are usually calculated for the senderFilter context (ignoring search and status filter for dashboard-like feel)
@@ -61,6 +99,10 @@ export const useFilteredEmails = (emails: TrackedEmail[]) => {
         setFilterType,
         senderFilter,
         setSenderFilter,
+        sortField,
+        setSortField,
+        sortDirection,
+        setSortDirection,
         uniqueSenders,
         senderFilteredEmails,
         processedEmails,

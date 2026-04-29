@@ -16,7 +16,7 @@
 
 .select {
     width: 100%;
-    padding: var(--spacing-xs-sm) var(--spacing-md);
+    padding: var(--spacing-xs-sm) 32px var(--spacing-xs-sm) var(--spacing-md);
     border-radius: var(--radius-md);
     border: 1px solid var(--border-color);
     background: var(--bg-card);
@@ -26,6 +26,9 @@
     cursor: pointer;
     transition: var(--transition-base);
     outline: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .select:focus {

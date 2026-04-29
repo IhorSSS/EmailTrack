@@ -45,7 +45,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className={`glass ${styles.header}`}>
                 <div className={styles.headerTop}>
                     {/* Sender Filter */}
-                    {loading && uniqueSenders.length === 0 ? (
+                    {loading ? (
                         <div className={styles.filterSelect}>
                             <Skeleton height={36} borderRadius="var(--radius-md)" />
                         </div>
@@ -79,7 +79,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 {/* Stats Grid - Collapsible */}
                 {isHeaderExpanded && (
                     <div className={`animate-fade-in ${styles.statsGrid}`}>
-                    {loading && processedEmails.length === 0 ? (
+                    {loading ? (
                         <>
                             <Skeleton height={36} borderRadius="var(--radius-md)" />
                             <Skeleton height={36} borderRadius="var(--radius-md)" />
@@ -121,9 +121,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </div>
 
                     <div 
-                        className={`${styles.recentActivityList} ${loading && processedEmails.length === 0 ? styles.recentActivityListLoading : styles.recentActivityListReady}`} 
+                        className={`${styles.recentActivityList} ${loading ? styles.recentActivityListLoading : styles.recentActivityListReady}`} 
                     >
-                        {loading && processedEmails.length === 0 ? (
+                        {loading ? (
                             <>
                                 <Skeleton height={70} borderRadius="var(--radius-md)" />
                                 <Skeleton height={70} borderRadius="var(--radius-md)" />
@@ -151,7 +151,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     fullWidth
                     onClick={onViewAllClick}
                     className={styles.marginTopXs}
-                    disabled={loading && processedEmails.length === 0}
+                    disabled={loading}
                 >
                     {t('dashboard_view_full_history')}
                 </Button>

@@ -3,9 +3,11 @@ import { EmailItem } from '../components/activity/EmailItem';
 import { FilterChip } from '../components/common/FilterChip';
 import { Select } from '../components/common/Select';
 import { Skeleton } from '../components/common/Skeleton';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Badge } from '../components/common/Badge';
+import { ChevronDown, ChevronUp, ArrowDownNarrowWide, ArrowUpWideNarrow } from 'lucide-react';
 import { usePersistentToggle } from '../hooks/usePersistentToggle';
 import type { TrackedEmail } from '../types';
+import { Virtuoso } from 'react-virtuoso';
 
 interface ActivityViewProps {
     uniqueSenders: string[];
@@ -15,6 +17,10 @@ interface ActivityViewProps {
     setSearchQuery: (val: string) => void;
     filterType: 'all' | 'opened' | 'unopened';
     setFilterType: (val: 'all' | 'opened' | 'unopened') => void;
+    sortField: 'sent' | 'last_opened' | 'open_count';
+    setSortField: (val: 'sent' | 'last_opened' | 'open_count') => void;
+    sortDirection: 'asc' | 'desc';
+    setSortDirection: (val: 'asc' | 'desc') => void;
     processedEmails: TrackedEmail[];
     onEmailClick: (email: TrackedEmail) => void;
     onDeleteClick?: (email: TrackedEmail) => void;
@@ -32,6 +38,10 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
     setSearchQuery,
     filterType,
     setFilterType,
+    sortField,
+    setSortField,
+    sortDirection,
+    setSortDirection,
     processedEmails,
     onEmailClick,
     onDeleteClick,
@@ -45,36 +55,63 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
             {/* Header Content with Search and Filters */}
             <div className={`glass ${styles.header}`}>
                 <div className={styles.headerTop}>
-                    {/* Sender Select at the top */}
-                    {loading && uniqueSenders.length === 0 ? (
-                        <div className={styles.filterSelect}>
-                            <Skeleton height={36} borderRadius="var(--radius-md)" />
-                        </div>
-                    ) : (
-                        <div className={styles.filterSelect}>
-                            <Select
-                                value={uniqueSenders.length <= 1 ? 'all' : senderFilter}
-                                onChange={(e) => setSenderFilter(e.target.value)}
-                                disabled={uniqueSenders.length <= 1}
-                                options={
-                                    uniqueSenders.length > 0
-                                        ? [
-                                              { value: 'all', label: t('dashboard_filter_all_senders') },
-                                              ...uniqueSenders.map(s => ({ value: s, label: s }))
-                                          ]
-                                        : [{ value: 'all', label: t('dashboard_no_senders') || 'No senders' }]
-                                }
-                            />
-                        </div>
-                    )}
+                    <div className={styles.leftGroup}>
+                        {!loading && (
+                            <Badge variant="primary" shape="pill" className={styles.counterBadge}>
+                                {processedEmails.length}
+                            </Badge>
+                        )}
+                        {loading && uniqueSenders.length === 0 ? (
+                            <div className={styles.filterSelect}>
+                                <Skeleton height={36} borderRadius="var(--radius-md)" />
+                            </div>
+                        ) : (
+                            <div className={styles.filterSelect}>
+                                <Select
+                                    value={uniqueSenders.length <= 1 ? 'all' : senderFilter}
+                                    onChange={(e) => setSenderFilter(e.target.value)}
+                                    disabled={uniqueSenders.length <= 1}
+                                    title={senderFilter === 'all' ? t('dashboard_filter_all_senders') : senderFilter}
+                                    options={
+                                        uniqueSenders.length > 0
+                                            ? [
+                                                  { value: 'all', label: t('dashboard_filter_all_senders') },
+                                                  ...uniqueSenders.map(s => ({ value: s, label: s }))
+                                              ]
+                                            : [{ value: 'all', label: t('dashboard_no_senders') || 'No senders' }]
+                                    }
+                                />
+                            </div>
+                        )}
+                    </div>
 
-                    <button
-                        onClick={toggleHeader}
-                        className={styles.toggleButton}
-                        title={isHeaderExpanded ? t('common_collapse') || 'Collapse' : t('common_expand') || 'Expand'}
-                    >
-                        {isHeaderExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </button>
+                    <div className={styles.headerActions}>
+                        <div className={styles.sortControls}>
+                            <Select
+                                value={sortField}
+                                onChange={(e) => setSortField(e.target.value as any)}
+                                options={[
+                                    { value: 'sent', label: t('activity_sort_sent') || 'Sent' },
+                                    { value: 'last_opened', label: t('activity_sort_last_opened') || 'Last Opened' },
+                                    { value: 'open_count', label: t('activity_sort_open_count') || 'Opens' }
+                                ]}
+                            />
+                            <button
+                                onClick={() => setSortDirection(sortDirection === 'desc' ? 'asc' : 'desc')}
+                                className={styles.directionButton}
+                                title={sortDirection === 'desc' ? t('activity_sort_desc') || 'Descending' : t('activity_sort_asc') || 'Ascending'}
+                            >
+                                {sortDirection === 'desc' ? <ArrowDownNarrowWide size={16} /> : <ArrowUpWideNarrow size={16} />}
+                            </button>
+                        </div>
+                        <button
+                            onClick={toggleHeader}
+                            className={styles.toggleButton}
+                            title={isHeaderExpanded ? t('common_collapse') || 'Collapse' : t('common_expand') || 'Expand'}
+                        >
+                            {isHeaderExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Search Bar + Filters Row - Collapsible */}
@@ -109,21 +146,23 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
 
                         {/* Filters */}
                         <div className={styles.filtersGroup}>
-                            <FilterChip
-                                label={t('activity_filter_all')}
-                                active={filterType === 'all'}
-                                onClick={() => setFilterType('all')}
-                            />
-                            <FilterChip
-                                label={t('activity_filter_opened')}
-                                active={filterType === 'opened'}
-                                onClick={() => setFilterType('opened')}
-                            />
-                            <FilterChip
-                                label={t('activity_filter_unopened')}
-                                active={filterType === 'unopened'}
-                                onClick={() => setFilterType('unopened')}
-                            />
+                            <div className={styles.filterChips}>
+                                <FilterChip
+                                    label={t('activity_filter_all')}
+                                    active={filterType === 'all'}
+                                    onClick={() => setFilterType('all')}
+                                />
+                                <FilterChip
+                                    label={t('activity_filter_opened')}
+                                    active={filterType === 'opened'}
+                                    onClick={() => setFilterType('opened')}
+                                />
+                                <FilterChip
+                                    label={t('activity_filter_unopened')}
+                                    active={filterType === 'unopened'}
+                                    onClick={() => setFilterType('unopened')}
+                                />
+                            </div>
                         </div>
                     </div>
                 )}
@@ -131,7 +170,7 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
 
             {/* Email List */}
             <div className={styles.mainContent}>
-                {loading && processedEmails.length === 0 ? (
+                {loading ? (
                     <>
                         <Skeleton height={78} borderRadius="var(--radius-md)" />
                         <Skeleton height={78} borderRadius="var(--radius-md)" />
@@ -154,14 +193,19 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
                         </div>
                     </div>
                 ) : (
-                    processedEmails.map(email => (
-                        <EmailItem
-                            key={email.id}
-                            email={email}
-                            onClick={() => onEmailClick(email)}
-                            onDelete={() => onDeleteClick?.(email)}
-                        />
-                    ))
+                    <Virtuoso
+                        data={processedEmails}
+                        itemContent={(_index, email) => (
+                            <div key={email.id} style={{ paddingBottom: 'var(--spacing-md)' }}>
+                                <EmailItem
+                                    email={email}
+                                    onClick={() => onEmailClick(email)}
+                                    onDelete={() => onDeleteClick?.(email)}
+                                />
+                            </div>
+                        )}
+                        style={{ height: '100%' }}
+                    />
                 )}
             </div>
         </div>

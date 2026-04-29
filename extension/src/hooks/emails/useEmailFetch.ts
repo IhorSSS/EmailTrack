@@ -20,7 +20,7 @@ export const useEmailFetch = (
     const [emails, setEmails] = useState<TrackedEmail[]>([]);
     const [stats, setStats] = useState<EmailStats>({ tracked: 0, opened: 0, rate: 0 });
     const [loading, setLoading] = useState(true);
-    const [syncing, setSyncing] = useState(false);
+    const [isRefetching, setIsRefetching] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const processPendingDeletes = async () => {
@@ -64,15 +64,20 @@ export const useEmailFetch = (
             setLoading(false);
             return;
         }
-        setLoading(true);
+        
+        // Strict separation: initial load vs background refetch
+        if (emails.length > 0) {
+            setIsRefetching(true);
+        } else {
+            setLoading(true);
+        }
+        
         setError(null);
         try {
             const effectiveProfile = overrideProfile !== undefined ? overrideProfile : userProfile;
 
             // 1. Process Pending Deletes
-            setSyncing(true);
             await processPendingDeletes();
-            setSyncing(false);
 
             // 2. Load Local History
             const rawLocalMetadata: LocalEmailMetadata[] = await LocalStorageService.getEmails();
@@ -106,6 +111,11 @@ export const useEmailFetch = (
             params.append('limit', String(CONSTANTS.UI.FETCH_LIMIT));
             params.append('t', String(Date.now()));
 
+            const lastSync = await LocalStorageService.getLastSyncTimestamp();
+            if (lastSync && effectiveProfile) {
+                params.append('since', lastSync);
+            }
+
             if (effectiveProfile) {
                 params.append('ownerId', effectiveProfile.id);
             } else if (localIds.length > 0) {
@@ -120,24 +130,35 @@ export const useEmailFetch = (
             }
 
             let rawResults: ServerEmail[] = [];
-            const fetchPromises: Promise<ServerEmail[]>[] = [];
+            const fetchPromises: Promise<void>[] = [];
+            let serverTime = null as number | null;
 
             if (effectiveProfile) {
-                fetchPromises.push(DashboardService.fetchEmails(params, authToken) as Promise<ServerEmail[]>);
+                fetchPromises.push(
+                    DashboardService.fetchEmails(params, authToken).then(res => {
+                        rawResults.push(...(res.data as ServerEmail[]));
+                        if (res.meta?.serverTime) {
+                            serverTime = res.meta.serverTime;
+                        }
+                    })
+                );
             }
 
             if (localIds.length > 0) {
                 const CHUNK_SIZE = CONSTANTS.CHUNKS.FETCH_SIZE;
                 for (let i = 0; i < localIds.length; i += CHUNK_SIZE) {
                     const chunkIds = localIds.slice(i, i + CHUNK_SIZE);
-                    fetchPromises.push(DashboardService.syncStatus(chunkIds) as Promise<ServerEmail[]>);
+                    fetchPromises.push(
+                        DashboardService.syncStatus(chunkIds).then(res => {
+                            rawResults.push(...(res as ServerEmail[]));
+                        })
+                    );
                 }
             }
 
             if (fetchPromises.length > 0) {
                 try {
-                    const results = await Promise.all(fetchPromises);
-                    rawResults = results.flat();
+                    await Promise.all(fetchPromises);
                 } catch (err) {
                     logger.error('[useEmailFetch] Data fetch failed:', err);
                 }
@@ -227,19 +248,25 @@ export const useEmailFetch = (
             const rate = tracked > 0 ? Math.round((opened / tracked) * 100) : 0;
             setStats({ tracked, opened, rate });
 
+            if (effectiveProfile && serverTime) {
+                await LocalStorageService.setLastSyncTimestamp(serverTime.toString());
+            }
+
         } catch (e: unknown) {
             const err = e as Error;
             logger.error('Failed to fetch emails:', err);
             setError(err.message || t('error_load_data'));
         } finally {
             setLoading(false);
+            setIsRefetching(false);
         }
-    }, [userProfile, currentUser, authToken, settingsLoaded, t]);
+    }, [userProfile, currentUser, authToken, settingsLoaded, emails.length, t]);
 
     return {
         emails,
         stats,
-        loading: loading || syncing,
+        loading,
+        isRefetching,
         error,
         fetchEmails,
         setEmails

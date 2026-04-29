@@ -16,7 +16,8 @@
     "jquery": "^3.7.1",
     "lucide-react": "^0.560.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-virtuoso": "^4.18.6"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.3.0",

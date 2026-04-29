@@ -38,7 +38,7 @@ export const useAppController = () => {
     }, [userProfile, currentUser, setCurrentUser]);
 
     const {
-        emails, loading: dataLoading, error: dataError,
+        emails, loading: dataLoading, isRefetching, error: dataError,
         fetchEmails, deleteEmails, deleteSingleEmail, setEmails
     } = useEmails(userProfile, currentUser, authToken, settingsLoaded);
 
@@ -46,6 +46,8 @@ export const useAppController = () => {
         searchQuery, setSearchQuery,
         filterType, setFilterType,
         senderFilter, setSenderFilter,
+        sortField, setSortField,
+        sortDirection, setSortDirection,
         uniqueSenders, processedEmails, senderFilteredEmails,
         stats: filteredStats
     } = useFilteredEmails(emails);
@@ -118,6 +120,7 @@ export const useAppController = () => {
             selectedEmail,
             userProfile,
             loading,
+            isRefetching,
             error: dataOnlyError,
             authError,
             activeIdentity,
@@ -126,6 +129,8 @@ export const useAppController = () => {
             senderFilter,
             searchQuery,
             filterType,
+            sortField,
+            sortDirection,
             processedEmails,
             senderFilteredEmails,
             statusModal,
@@ -149,6 +154,8 @@ export const useAppController = () => {
             setSenderFilter,
             setSearchQuery,
             setFilterType,
+            setSortField,
+            setSortDirection,
             toggleGlobal,
             setBodyPreviewLength,
             handleDeleteHistory,

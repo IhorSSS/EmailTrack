@@ -19,6 +19,7 @@ export const useEmails = (
         emails, 
         stats, 
         loading, 
+        isRefetching,
         error, 
         fetchEmails, 
         setEmails 
@@ -42,6 +43,7 @@ export const useEmails = (
         emails,
         stats,
         loading,
+        isRefetching,
         error,
         fetchEmails,
         deleteEmails,

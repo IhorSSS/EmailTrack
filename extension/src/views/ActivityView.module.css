@@ -22,8 +22,33 @@
     gap: var(--spacing-sm);
 }
 
+.leftGroup {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex: 1;
+    min-width: 0;
+}
+
 .filterSelect {
     flex: 1;
+    min-width: 0;
+}
+
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.counterBadge {
+    min-width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
 }
 
 .toggleButton {
@@ -91,8 +116,40 @@
 
 .filtersGroup {
     display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-shrink: 0;
+    overflow-x: auto;
+}
+
+.filterChips {
+    display: flex;
     gap: var(--spacing-xs);
     flex-shrink: 0;
+}
+
+.sortControls {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.directionButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--icon-size-lg);
+    height: var(--icon-size-lg);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    transition: var(--transition-base);
+}
+
+.directionButton:hover {
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
 }
 
 .mainContent {
@@ -101,7 +158,7 @@
     flex-direction: column;
     gap: var(--spacing-md);
     flex: 1;
-    overflow-y: auto;
+    overflow-y: hidden;
 }
 
 .noResults {

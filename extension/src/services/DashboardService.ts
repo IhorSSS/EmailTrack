@@ -14,7 +14,7 @@ export const DashboardService = {
     /**
      * Fetch tracked emails from the server.
      */
-    async fetchEmails(params: URLSearchParams, token?: string | null): Promise<TrackedEmail[]> {
+    async fetchEmails(params: URLSearchParams, token?: string | null): Promise<{ data: TrackedEmail[], meta?: { serverTime: number } }> {
         const headers: HeadersInit = {};
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
@@ -31,8 +31,8 @@ export const DashboardService = {
             throw err;
         }
 
-        const { data } = await res.json();
-        return data || [];
+        const json = await res.json();
+        return { data: json.data || [], meta: json.meta };
     },
 
     /**

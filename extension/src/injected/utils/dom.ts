@@ -138,18 +138,15 @@ function injectVisualIndicator(editable: Element, enabled: boolean, logger: { lo
         const diode = indicator.firstElementChild as HTMLElement;
         if (diode) {
             if (isOrphaned) {
-                diode.style.background = CONSTANTS.COLORS.DANGER;
-                diode.style.boxShadow = `0 0 ${CONSTANTS.DIMENSIONS.DIODE_SHADOW_BLUR} ${CONSTANTS.COLORS.DANGER}66`;
+                diode.className = 'emailtrack-diode emailtrack-diode-danger';
                 const title = configEl?.getAttribute('data-msg-diode-error') || 'Error';
                 indicator.setAttribute('title', title);
             } else if (!trackingEnabledAttr) {
-                diode.style.background = CONSTANTS.COLORS.WARNING;
-                diode.style.boxShadow = `0 0 ${CONSTANTS.DIMENSIONS.DIODE_SHADOW_BLUR} ${CONSTANTS.COLORS.WARNING}66`;
+                diode.className = 'emailtrack-diode emailtrack-diode-warning';
                 const title = configEl?.getAttribute('data-msg-diode-disabled') || 'Disabled';
                 indicator.setAttribute('title', title);
             } else {
-                diode.style.background = CONSTANTS.COLORS.SUCCESS;
-                diode.style.boxShadow = `0 0 ${CONSTANTS.DIMENSIONS.DIODE_SHADOW_BLUR} ${CONSTANTS.COLORS.SUCCESS}66`;
+                diode.className = 'emailtrack-diode emailtrack-diode-success';
                 const title = configEl?.getAttribute('data-msg-diode-active') || 'Active';
                 indicator.setAttribute('title', title);
             }
@@ -159,7 +156,7 @@ function injectVisualIndicator(editable: Element, enabled: boolean, logger: { lo
 
     // Create minimalist indicator
     indicator = document.createElement('div');
-    indicator.className = 'emailtrack-visual-indicator';
+    indicator.className = 'emailtrack-visual-indicator emailtrack-diode-container';
 
     // Robust selector for Send button across locales (English, Ukrainian, etc.)
     const sendButtons = composeWindow.querySelectorAll(CONSTANTS.GMAIL_SELECTORS.SEND_BUTTONS.join(', '));
@@ -179,33 +176,19 @@ function injectVisualIndicator(editable: Element, enabled: boolean, logger: { lo
             next = next.nextElementSibling;
         }
 
-        Object.assign((indicator as HTMLElement).style, {
-            display: 'inline-flex',
-            alignItems: 'center',
-            marginLeft: CONSTANTS.DIMENSIONS.DIODE_SIZE, // reuse size for margin
-            verticalAlign: 'middle',
-            cursor: 'help',
-            opacity: '0.9',
-            padding: '4px',
-            flexShrink: '0'
-        });
-
         const configEl = document.getElementById('emailtrack-config');
         const heartbeat = parseInt(configEl?.getAttribute('data-heartbeat') || '0', 10);
         const trackingEnabledAttr = configEl?.getAttribute('data-tracking-enabled') !== 'false';
         const isOrphaned = !configEl || (Date.now() - heartbeat > CONSTANTS.INTERVALS.HEARTBEAT_THRESHOLD_MS);
 
-        let color: string = CONSTANTS.COLORS.SUCCESS;
-        let shadow: string = `${CONSTANTS.COLORS.SUCCESS}66`;
+        let statusClass = 'emailtrack-diode-success';
         let title = 'EmailTrack: Active & Tracking';
 
         if (isOrphaned) {
-            color = CONSTANTS.COLORS.DANGER;
-            shadow = `${CONSTANTS.COLORS.DANGER}66`;
+            statusClass = 'emailtrack-diode-danger';
             title = configEl?.getAttribute('data-msg-diode-error') || 'Error: Extension reloaded';
         } else if (!trackingEnabledAttr) {
-            color = CONSTANTS.COLORS.WARNING;
-            shadow = `${CONSTANTS.COLORS.WARNING}66`;
+            statusClass = 'emailtrack-diode-warning';
             title = configEl?.getAttribute('data-msg-diode-disabled') || 'Tracking Disabled';
         } else {
             // Default active
@@ -213,7 +196,7 @@ function injectVisualIndicator(editable: Element, enabled: boolean, logger: { lo
         }
 
         const html = `
-            <div style="width: ${CONSTANTS.DIMENSIONS.DIODE_SIZE}; height: ${CONSTANTS.DIMENSIONS.DIODE_SIZE}; background: ${color}; border-radius: 50%; box-shadow: 0 0 ${CONSTANTS.DIMENSIONS.DIODE_SHADOW_BLUR} ${shadow}; border: ${CONSTANTS.DIMENSIONS.DIODE_BORDER} solid ${CONSTANTS.COLORS.WHITE}; transition: background 0.3s ease;"></div>
+            <div class="emailtrack-diode ${statusClass}"></div>
         `;
 
         if (window.__emailTrackPolicy) {

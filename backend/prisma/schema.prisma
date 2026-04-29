@@ -30,6 +30,7 @@ model TrackedEmail {
   owner     User?       @relation(fields: [ownerId], references: [id])
   
   createdAt DateTime    @default(now())
+  updatedAt DateTime    @default(now()) @updatedAt
   opens     OpenEvent[]
 
   @@map("tracked_emails")

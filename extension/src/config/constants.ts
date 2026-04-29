@@ -32,21 +32,6 @@ export const CONSTANTS = {
         BADGE_INJECTION_MAX_ATTEMPTS: 5
     },
 
-    // Semantic Colors (Hex for injected scripts context)
-    COLORS: {
-        SUCCESS: '#10b981',
-        DANGER: '#ef4444',
-        WARNING: '#f59e0b',
-        WHITE: '#ffffff'
-    },
-
-    // Injected DOM Dimensions
-    DIMENSIONS: {
-        DIODE_SIZE: '10px',
-        DIODE_BORDER: '2px',
-        DIODE_SHADOW_BLUR: '6px'
-    },
-
     // Timeouts and Intervals (ms)
     TIMEOUTS: {
         CONFIG_READY: 100,
@@ -115,6 +100,7 @@ export const CONSTANTS = {
         CURRENT_USER: 'currentUser',
         USER_PROFILE: 'userProfile',
         LAST_LOGGED_IN_EMAIL: 'lastLoggedInEmail',
+        LAST_SYNC_TIMESTAMP: 'lastSyncTimestamp',
         TRACKING_ENABLED: 'trackingEnabled',
         BODY_PREVIEW_LENGTH: 'bodyPreviewLength',
         THEME: 'theme',

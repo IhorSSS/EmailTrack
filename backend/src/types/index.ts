@@ -34,6 +34,7 @@ export interface DashboardFilter {
     user?: string;
     ownerId?: string | null;
     ids?: string[];
+    since?: string;
     // Resolved owner UUID after auth check
     resolvedOwnerUuid?: string | null;
 }

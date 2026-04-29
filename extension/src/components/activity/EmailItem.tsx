@@ -57,7 +57,7 @@ export const EmailItem = ({ email, onClick, onDelete }: EmailItemProps) => {
                         )}
                     {email.opens && email.opens.length > 0 && (
                         <span className={styles.timestamp}>
-                            {t('email_last_opened', { date: formatDateTime(email.opens[email.opens.length - 1].openedAt || email.opens[email.opens.length - 1].timestamp || '') })}
+                            {t('email_last_opened', { date: formatDateTime(email.opens[0].openedAt || email.opens[0].timestamp || '') })}
                         </span>
                     )}
                 </div>

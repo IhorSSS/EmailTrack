@@ -41,16 +41,22 @@ export class TrackerService {
             }
 
             if (email) {
-                await prisma.openEvent.create({
-                    data: {
-                        trackedEmailId: trackId,
-                        ip: ip,
-                        userAgent: userAgent,
-                        device: JSON.stringify(metadata),
-                        location: location
-                    }
-                });
-                logger.info(`[TrackerService] OpenEvent created for ${trackId}`);
+                await prisma.$transaction([
+                    prisma.openEvent.create({
+                        data: {
+                            trackedEmailId: trackId,
+                            ip: ip,
+                            userAgent: userAgent,
+                            device: JSON.stringify(metadata),
+                            location: location
+                        }
+                    }),
+                    prisma.trackedEmail.update({
+                        where: { id: trackId },
+                        data: { updatedAt: new Date() }
+                    })
+                ]);
+                logger.info(`[TrackerService] OpenEvent created and updatedAt touched for ${trackId}`);
             }
 
         } catch (error) {

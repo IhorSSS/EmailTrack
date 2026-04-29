@@ -421,5 +421,20 @@
     },
     "detail_len_opens": {
         "message": "Переглядів: {count}"
+    },
+    "activity_sort_sent": {
+        "message": "Час"
+    },
+    "activity_sort_last_opened": {
+        "message": "Ост. відкр."
+    },
+    "activity_sort_open_count": {
+        "message": "К-сть"
+    },
+    "activity_sort_asc": {
+        "message": "За зростанням"
+    },
+    "activity_sort_desc": {
+        "message": "За спаданням"
     }
 }

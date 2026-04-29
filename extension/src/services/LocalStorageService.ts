@@ -102,6 +102,21 @@ export class LocalStorageService {
         });
     }
 
+    // Sync Timestamp
+    static async getLastSyncTimestamp(): Promise<string | null> {
+        return new Promise((resolve) => {
+            chrome.storage.local.get([CONSTANTS.STORAGE_KEYS.LAST_SYNC_TIMESTAMP], (res) => {
+                resolve((res[CONSTANTS.STORAGE_KEYS.LAST_SYNC_TIMESTAMP] as string) || null);
+            });
+        });
+    }
+
+    static async setLastSyncTimestamp(timestamp: string): Promise<void> {
+        return new Promise((resolve) => {
+            chrome.storage.local.set({ [CONSTANTS.STORAGE_KEYS.LAST_SYNC_TIMESTAMP]: timestamp }, resolve);
+        });
+    }
+
     // Retries
     static async queuePendingDelete(ids: string[], user?: string) { return SyncQueue.queuePendingDelete(ids, user); }
     static async getPendingDeletes() { return SyncQueue.getPendingDeletes(); }

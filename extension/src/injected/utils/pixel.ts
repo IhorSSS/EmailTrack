@@ -17,5 +17,5 @@ export function createPixel(trackId: string, host: string, pixelBase: string): s
     // Sanitize trackId just in case, though it's a UUID
     const safeId = trackId.replace(/[^a-zA-Z0-9-]/g, '');
     const url = `${host}${pixelBase}?id=${safeId}&t=${Date.now()}`;
-    return `<img src="${url}" alt="" width="1" height="1" style="display:none;" data-track-id="${safeId}" />`;
+    return `<img src="${url}" alt="" width="1" height="1" class="emailtrack-pixel-hidden" data-track-id="${safeId}" />`;
 }

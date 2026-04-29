@@ -9,7 +9,8 @@ const GetDashboardQuerySchema = z.object({
     limit: z.coerce.number().min(1).max(1000).default(20),
     user: z.string().optional(),
     ownerId: z.union([z.string(), z.array(z.string())]).transform(val => Array.isArray(val) ? val[0] : val).optional(),
-    ids: z.union([z.string(), z.array(z.string())]).transform(val => Array.isArray(val) ? val[0] : val).optional()
+    ids: z.union([z.string(), z.array(z.string())]).transform(val => Array.isArray(val) ? val[0] : val).optional(),
+    since: z.string().optional()
 });
 
 const DeleteDashboardQuerySchema = z.object({
@@ -27,7 +28,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
             return reply.status(400).send({ error: 'Invalid query parameters', details: parseResult.error.format() });
         }
 
-        const { page, limit, user, ownerId, ids } = parseResult.data;
+        const { page, limit, user, ownerId, ids, since } = parseResult.data;
         const idList = ids ? ids.split(',').filter(Boolean) : undefined;
 
         if (!ownerId && !idList && !user) {
@@ -41,7 +42,8 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
                 limit,
                 user,
                 ownerId,
-                ids: idList
+                ids: idList,
+                since
             }, authInfo);
 
             reply.send(result);
