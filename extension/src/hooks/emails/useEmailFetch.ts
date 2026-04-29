@@ -112,7 +112,7 @@ export const useEmailFetch = (
             params.append('t', String(Date.now()));
 
             const lastSync = await LocalStorageService.getLastSyncTimestamp();
-            if (lastSync && effectiveProfile) {
+            if (lastSync && effectiveProfile && rawLocalEmails.length > 0) {
                 params.append('since', lastSync);
             }
 

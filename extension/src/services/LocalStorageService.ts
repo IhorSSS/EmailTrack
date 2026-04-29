@@ -49,7 +49,10 @@ export class LocalStorageService {
 
     static async deleteAll(): Promise<void> {
         return new Promise((resolve) => {
-            chrome.storage.local.remove(CONSTANTS.STORAGE_KEYS.LOCAL_HISTORY, resolve);
+            chrome.storage.local.remove([
+                CONSTANTS.STORAGE_KEYS.LOCAL_HISTORY,
+                CONSTANTS.STORAGE_KEYS.LAST_SYNC_TIMESTAMP
+            ], resolve);
         });
     }
 
