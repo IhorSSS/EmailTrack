@@ -195,6 +195,10 @@ export const ActivityView: React.FC<ActivityViewProps> = ({
                 ) : (
                     <Virtuoso
                         data={processedEmails}
+                        initialTopMostItemIndex={Number(sessionStorage.getItem('activityScrollIndex') || 0)}
+                        rangeChanged={(range) => {
+                            sessionStorage.setItem('activityScrollIndex', String(range.startIndex));
+                        }}
                         itemContent={(_index, email) => (
                             <div key={email.id} style={{ paddingBottom: 'var(--spacing-md)' }}>
                                 <EmailItem
