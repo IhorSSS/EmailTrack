@@ -5,8 +5,8 @@ import { RefreshButton } from '../common/RefreshButton';
 import { logger } from '../../utils/logger';
 import type { TrackedEmail, OpenEvent } from '../../types';
 import { useTranslation } from '../../hooks/useTranslation';
-import { useAuth } from '../../hooks/useAuth';
 import { DashboardService } from '../../services/DashboardService';
+import { AuthService } from '../../services/AuthService';
 import styles from './DetailView.module.css';
 import { MapPin, Monitor, Smartphone, Globe } from 'lucide-react';
 
@@ -29,7 +29,6 @@ interface DeviceInfo {
 
 export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProps) => {
     const { t, language } = useTranslation();
-    const { authToken } = useAuth();
     const [opens, setOpens] = useState<OpenEvent[]>(email.opens || []);
     const [page, setPage] = useState(1);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -41,8 +40,9 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
         if (loadingMore || !hasMore) return;
         setLoadingMore(true);
         try {
+            const token = await AuthService.getAuthToken(false).catch(() => null);
             const nextPage = page + 1;
-            const res = await DashboardService.getEmailOpens(email.id, nextPage, OPENS_PAGE_SIZE, authToken);
+            const res = await DashboardService.getEmailOpens(email.id, nextPage, OPENS_PAGE_SIZE, token);
             if (res.data && res.data.length > 0) {
                 setOpens(prev => [...prev, ...res.data]);
                 setPage(nextPage);
