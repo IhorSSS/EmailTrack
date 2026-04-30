@@ -442,5 +442,8 @@
     },
     "loading": {
         "message": "Loading..."
+    },
+    "activity_sort_tooltip": {
+        "message": "Toggle sort order"
     }
 }

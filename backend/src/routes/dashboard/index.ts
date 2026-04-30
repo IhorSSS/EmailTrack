@@ -106,7 +106,8 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
     fastify.get('/emails/:id/opens', async (request, reply) => {
         const QuerySchema = z.object({
             page: z.coerce.number().min(1).default(1),
-            limit: z.coerce.number().min(1).max(100).default(50)
+            limit: z.coerce.number().min(1).max(100).default(50),
+            sort: z.enum(['asc', 'desc']).default('desc')
         });
 
         const ParamsSchema = z.object({
@@ -121,7 +122,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
         }
 
         const { id } = paramsParse.data;
-        const { page, limit } = queryParse.data;
+        const { page, limit, sort } = queryParse.data;
         const skip = (page - 1) * limit;
 
         try {
@@ -133,7 +134,7 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
                 // Ignore auth error, DashboardService.getEmailOpens will check if auth is required
             }
             
-            const data = await DashboardService.getEmailOpens(id, skip, limit, authInfo);
+            const data = await DashboardService.getEmailOpens(id, skip, limit, authInfo, sort);
             reply.send(data);
         } catch (err) {
             if (err instanceof Error && err.message === 'NOT_FOUND') {

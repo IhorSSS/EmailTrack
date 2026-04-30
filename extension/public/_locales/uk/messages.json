@@ -442,5 +442,8 @@
     },
     "loading": {
         "message": "Завантаження..."
+    },
+    "activity_sort_tooltip": {
+        "message": "Змінити напрямок сортування"
     }
 }

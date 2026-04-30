@@ -205,7 +205,7 @@ export class DashboardService {
         });
     }
 
-    static async getEmailOpens(emailId: string, skip: number, take: number, authInfo: GoogleAuthInfo | null) {
+    static async getEmailOpens(emailId: string, skip: number, take: number, authInfo: GoogleAuthInfo | null, sort: 'asc' | 'desc' = 'desc') {
         // Find the email and its owner to check ownership securely
         const email = await prisma.trackedEmail.findUnique({
             where: { id: emailId },
@@ -224,7 +224,7 @@ export class DashboardService {
         const [data, total] = await Promise.all([
             prisma.openEvent.findMany({
                 where: { trackedEmailId: emailId },
-                orderBy: { openedAt: 'desc' },
+                orderBy: { openedAt: sort },
                 skip,
                 take,
                 select: {

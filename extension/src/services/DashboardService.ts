@@ -60,14 +60,14 @@ export const DashboardService = {
     /**
      * Fetch paginated opens history for a specific email.
      */
-    async getEmailOpens(emailId: string, page: number, limit: number, token?: string | null): Promise<{ data: OpenEvent[], total: number }> {
+    async getEmailOpens(emailId: string, page: number, limit: number, token?: string | null, sort: 'asc' | 'desc' = 'desc'): Promise<{ data: OpenEvent[], total: number }> {
         const urlBase = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}/emails/${emailId}/opens`;
         const headers: HeadersInit = {};
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const res = await fetch(`${urlBase}?page=${page}&limit=${limit}`, {
+        const res = await fetch(`${urlBase}?page=${page}&limit=${limit}&sort=${sort}`, {
             method: 'GET',
             headers
         });

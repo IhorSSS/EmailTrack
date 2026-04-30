@@ -165,6 +165,26 @@
 
 .historyLabel {
     margin: 0;
+    flex: 1;
+}
+
+.sortBtn {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-base);
+}
+
+.sortBtn:hover {
+    color: var(--color-primary);
+    background: var(--bg-hover);
+    border-color: var(--color-primary-soft);
 }
 
 .botBadge {

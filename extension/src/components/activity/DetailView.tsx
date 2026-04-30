@@ -8,7 +8,7 @@ import { useTranslation } from '../../hooks/useTranslation';
 import { DashboardService } from '../../services/DashboardService';
 import { AuthService } from '../../services/AuthService';
 import styles from './DetailView.module.css';
-import { MapPin, Monitor, Smartphone, Globe } from 'lucide-react';
+import { MapPin, Monitor, Smartphone, Globe, ArrowDownNarrowWide, ArrowUpWideNarrow } from 'lucide-react';
 
 import type { TranslationKey } from '../../types/i18n';
 
@@ -33,6 +33,7 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
     const [page, setPage] = useState(1);
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState((email.openCount || 0) > (email.opens?.length || 0));
+    const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
 
     const OPENS_PAGE_SIZE = 50;
 
@@ -42,7 +43,7 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
         try {
             const token = await AuthService.getAuthToken(false).catch(() => null);
             const nextPage = page + 1;
-            const res = await DashboardService.getEmailOpens(email.id, nextPage, OPENS_PAGE_SIZE, token);
+            const res = await DashboardService.getEmailOpens(email.id, nextPage, OPENS_PAGE_SIZE, token, sortOrder);
             if (res.data && res.data.length > 0) {
                 setOpens(prev => [...prev, ...res.data]);
                 setPage(nextPage);
@@ -52,6 +53,26 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
             }
         } catch (err) {
             logger.error('Failed to load more opens', err);
+        } finally {
+            setLoadingMore(false);
+        }
+    };
+
+    const handleSortToggle = async () => {
+        const newOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+        setSortOrder(newOrder);
+        
+        // Reset state
+        setPage(1);
+        setLoadingMore(true);
+        
+        try {
+            const token = await AuthService.getAuthToken(false).catch(() => null);
+            const res = await DashboardService.getEmailOpens(email.id, 1, OPENS_PAGE_SIZE, token, newOrder);
+            setOpens(res.data || []);
+            setHasMore(res.data.length < res.total);
+        } catch (err) {
+            logger.error('Failed to sort opens', err);
         } finally {
             setLoadingMore(false);
         }
@@ -141,6 +162,14 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                         {email.openCount > 0 && (
                             <Badge variant="success" shape="pill">{email.openCount}</Badge>
                         )}
+                        <button 
+                            className={styles.sortBtn}
+                            onClick={handleSortToggle}
+                            disabled={loadingMore}
+                            title={t('activity_sort_tooltip' as TranslationKey) || 'Toggle Sort Order'}
+                        >
+                            {sortOrder === 'desc' ? <ArrowDownNarrowWide size={16} /> : <ArrowUpWideNarrow size={16} />}
+                        </button>
                     </div>
                     {(!opens || opens.length === 0) ? (
                         <div className={styles.emptyState}>
