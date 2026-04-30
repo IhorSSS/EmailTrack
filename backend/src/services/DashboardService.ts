@@ -205,19 +205,19 @@ export class DashboardService {
         });
     }
 
-    static async getEmailOpens(emailId: string, skip: number, take: number, authInfo: { id: string } | null) {
-        // Find the email to check ownership
+    static async getEmailOpens(emailId: string, skip: number, take: number, authInfo: GoogleAuthInfo | null) {
+        // Find the email and its owner to check ownership securely
         const email = await prisma.trackedEmail.findUnique({
             where: { id: emailId },
-            select: { ownerId: true }
+            select: { ownerId: true, owner: { select: { googleId: true } } }
         });
 
         if (!email) {
             throw new Error('NOT_FOUND');
         }
 
-        // If email has an owner, verify the authenticated user is the owner
-        if (email.ownerId && (!authInfo || authInfo.id !== email.ownerId)) {
+        // If email has an owner, verify the authenticated user matches the owner's Google ID
+        if (email.ownerId && (!authInfo || authInfo.googleId !== email.owner?.googleId)) {
             throw new Error('FORBIDDEN_ACCESS');
         }
 
