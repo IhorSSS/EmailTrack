@@ -171,4 +171,22 @@
     margin-left: var(--spacing-sm);
     font-size: var(--font-size-3xs);
     padding: var(--spacing-3xs) var(--spacing-xs);
+}.loadMoreBtn {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-top: var(--spacing-md);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.loadMoreBtn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.loadMoreBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

@@ -35,6 +35,7 @@ model TrackedEmail {
 
   @@map("tracked_emails")
   @@index([ownerId])
+  @@index([ownerId, updatedAt(sort: Desc)])
 }
 
 model OpenEvent {

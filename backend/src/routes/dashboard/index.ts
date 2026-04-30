@@ -98,11 +98,55 @@ const dashboardRoutes: FastifyPluginAsync = async (fastify, opts) => {
             const data = await DashboardService.syncDashboardData(parseResult.data.ids);
             reply.send({ data });
         } catch (err) {
-            logger.error('Sync error:', err);
+            logger.error('Failed to sync dashboard data:', err);
+            reply.status(500).send({ error: 'Internal Server Error' });
+        }
+    });
+
+    fastify.get('/emails/:id/opens', async (request, reply) => {
+        const QuerySchema = z.object({
+            page: z.coerce.number().min(1).default(1),
+            limit: z.coerce.number().min(1).max(100).default(50)
+        });
+
+        const ParamsSchema = z.object({
+            id: z.string()
+        });
+
+        const queryParse = QuerySchema.safeParse(request.query);
+        const paramsParse = ParamsSchema.safeParse(request.params);
+
+        if (!queryParse.success || !paramsParse.success) {
+            return reply.status(400).send({ error: 'Invalid parameters' });
+        }
+
+        const { id } = paramsParse.data;
+        const { page, limit } = queryParse.data;
+        const skip = (page - 1) * limit;
+
+        try {
+            // Optional auth - public emails can be viewed without auth, owned emails require auth
+            let authInfo = null;
+            try {
+                authInfo = await getAuthenticatedUser(request);
+            } catch {
+                // Ignore auth error, DashboardService.getEmailOpens will check if auth is required
+            }
+            
+            const data = await DashboardService.getEmailOpens(id, skip, limit, authInfo);
+            reply.send(data);
+        } catch (err) {
+            if (err instanceof Error && err.message === 'NOT_FOUND') {
+                return reply.status(404).send({ error: 'Email not found' });
+            }
+            if (err instanceof Error && err.message === 'FORBIDDEN_ACCESS') {
+                return reply.status(403).send({ error: 'Forbidden' });
+            }
+            logger.error('Failed to get opens:', err);
             reply.status(500).send({ error: 'Internal Server Error' });
         }
     });
 };
 
-export default dashboardRoutes;
 
+export default dashboardRoutes;

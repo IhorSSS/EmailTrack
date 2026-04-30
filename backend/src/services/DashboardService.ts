@@ -70,10 +70,13 @@ export class DashboardService {
                 createdAt: true,
                 opens: {
                     orderBy: { openedAt: 'desc' },
+                    take: 50,
                     select: {
+                        id: true,
                         openedAt: true,
                         location: true,
-                        device: true
+                        device: true,
+                        ip: true
                     }
                 },
                 _count: {
@@ -83,7 +86,8 @@ export class DashboardService {
         } else {
             queryOptions.include = {
                 opens: {
-                    orderBy: { openedAt: 'desc' }
+                    orderBy: { openedAt: 'desc' },
+                    take: 50
                 },
                 _count: {
                     select: { opens: true }
@@ -185,10 +189,13 @@ export class DashboardService {
                 createdAt: true,
                 opens: {
                     orderBy: { openedAt: 'desc' },
+                    take: 50,
                     select: {
+                        id: true,
                         openedAt: true,
                         location: true,
-                        device: true
+                        device: true,
+                        ip: true
                     }
                 },
                 _count: {
@@ -196,6 +203,44 @@ export class DashboardService {
                 }
             }
         });
+    }
+
+    static async getEmailOpens(emailId: string, skip: number, take: number, authInfo: { id: string } | null) {
+        // Find the email to check ownership
+        const email = await prisma.trackedEmail.findUnique({
+            where: { id: emailId },
+            select: { ownerId: true }
+        });
+
+        if (!email) {
+            throw new Error('NOT_FOUND');
+        }
+
+        // If email has an owner, verify the authenticated user is the owner
+        if (email.ownerId && (!authInfo || authInfo.id !== email.ownerId)) {
+            throw new Error('FORBIDDEN_ACCESS');
+        }
+
+        const [data, total] = await Promise.all([
+            prisma.openEvent.findMany({
+                where: { trackedEmailId: emailId },
+                orderBy: { openedAt: 'desc' },
+                skip,
+                take,
+                select: {
+                    id: true,
+                    openedAt: true,
+                    location: true,
+                    device: true,
+                    ip: true
+                }
+            }),
+            prisma.openEvent.count({
+                where: { trackedEmailId: emailId }
+            })
+        ]);
+
+        return { data, total };
     }
 }
 

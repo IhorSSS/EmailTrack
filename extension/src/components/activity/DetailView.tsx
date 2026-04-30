@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { Badge } from '../common/Badge';
 import { formatRecipient, formatFullDate, getDeviceLabel } from '../../utils/formatter';
 import { RefreshButton } from '../common/RefreshButton';
 import { logger } from '../../utils/logger';
 import type { TrackedEmail, OpenEvent } from '../../types';
 import { useTranslation } from '../../hooks/useTranslation';
+import { useAuth } from '../../hooks/useAuth';
+import { DashboardService } from '../../services/DashboardService';
 import styles from './DetailView.module.css';
 import { MapPin, Monitor, Smartphone, Globe } from 'lucide-react';
 
@@ -26,6 +29,31 @@ interface DeviceInfo {
 
 export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProps) => {
     const { t, language } = useTranslation();
+    const { authToken } = useAuth();
+    const [opens, setOpens] = useState<OpenEvent[]>(email.opens || []);
+    const [page, setPage] = useState(1);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState((email.openCount || 0) > (email.opens?.length || 0));
+
+    const loadMore = async () => {
+        if (loadingMore || !hasMore) return;
+        setLoadingMore(true);
+        try {
+            const nextPage = page + 1;
+            const res = await DashboardService.getEmailOpens(email.id, nextPage, 50, authToken);
+            if (res.data && res.data.length > 0) {
+                setOpens(prev => [...prev, ...res.data]);
+                setPage(nextPage);
+                setHasMore(opens.length + res.data.length < res.total);
+            } else {
+                setHasMore(false);
+            }
+        } catch (err) {
+            logger.error('Failed to load more opens', err);
+        } finally {
+            setLoadingMore(false);
+        }
+    };
 
     // Determine locale for formatting
     const localeMap: Record<string, string> = {
@@ -112,13 +140,13 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                             <Badge variant="success" shape="pill">{email.openCount}</Badge>
                         )}
                     </div>
-                    {(!email.opens || email.opens.length === 0) ? (
+                    {(!opens || opens.length === 0) ? (
                         <div className={styles.emptyState}>
                             {t('detail_no_opens')}
                         </div>
                     ) : (
                         <div className={styles.opensList}>
-                            {email.opens.map((open: OpenEvent, idx: number) => {
+                            {opens.map((open: OpenEvent, idx: number) => {
                                 // Parse device JSON
                                 let deviceInfo: DeviceInfo = { device: null, os: null, browser: null, isBot: false };
                                 try {
@@ -185,6 +213,15 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
                                     </div>
                                 );
                             })}
+                            {hasMore && (
+                                <button 
+                                    className={styles.loadMoreBtn} 
+                                    onClick={loadMore} 
+                                    disabled={loadingMore}
+                                >
+                                    {loadingMore ? t('loading' as TranslationKey) || 'Loading...' : t('detail_load_more' as TranslationKey) || 'Load More'}
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>

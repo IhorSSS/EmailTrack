@@ -58,6 +58,30 @@ export const DashboardService = {
     },
 
     /**
+     * Fetch paginated opens history for a specific email.
+     */
+    async getEmailOpens(emailId: string, page: number, limit: number, token?: string | null): Promise<{ data: any[], total: number }> {
+        const urlBase = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}/emails/${emailId}/opens`;
+        const headers: HeadersInit = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const res = await fetch(`${urlBase}?page=${page}&limit=${limit}`, {
+            method: 'GET',
+            headers
+        });
+
+        if (!res.ok) {
+            const err = new Error(`API_ERROR: Failed to fetch opens (Status ${res.status})`) as Error & { status?: number };
+            err.status = res.status;
+            throw err;
+        }
+
+        return res.json();
+    },
+
+    /**
      * Efficiently sync status for a list of IDs (Anonymous/Local Mode).
      * Uses POST to avoid URL length limits and returns limited metadata.
      */
