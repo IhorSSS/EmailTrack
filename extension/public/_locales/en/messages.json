@@ -436,5 +436,11 @@
     },
     "activity_sort_desc": {
         "message": "Descending"
+    },
+    "detail_load_more": {
+        "message": "Load More"
+    },
+    "loading": {
+        "message": "Loading..."
     }
 }

@@ -436,5 +436,11 @@
     },
     "activity_sort_desc": {
         "message": "За спаданням"
+    },
+    "detail_load_more": {
+        "message": "Завантажити ще"
+    },
+    "loading": {
+        "message": "Завантаження..."
     }
 }
