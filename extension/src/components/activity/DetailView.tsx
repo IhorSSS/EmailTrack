@@ -35,12 +35,14 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState((email.openCount || 0) > (email.opens?.length || 0));
 
+    const OPENS_PAGE_SIZE = 50;
+
     const loadMore = async () => {
         if (loadingMore || !hasMore) return;
         setLoadingMore(true);
         try {
             const nextPage = page + 1;
-            const res = await DashboardService.getEmailOpens(email.id, nextPage, 50, authToken);
+            const res = await DashboardService.getEmailOpens(email.id, nextPage, OPENS_PAGE_SIZE, authToken);
             if (res.data && res.data.length > 0) {
                 setOpens(prev => [...prev, ...res.data]);
                 setPage(nextPage);
@@ -166,7 +168,7 @@ export const DetailView = ({ email, onBack, onRefresh, loading }: DetailViewProp
 
                                 return (
                                     <div
-                                        key={idx}
+                                        key={open.id || idx}
                                         className={styles.openItem}
                                     >
                                         <div className={styles.openRow}>

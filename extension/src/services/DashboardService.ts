@@ -1,5 +1,5 @@
 import { API_CONFIG } from '../config/api';
-import type { TrackedEmail } from '../types';
+import type { TrackedEmail, OpenEvent } from '../types';
 
 export interface DashboardStats {
     tracked: number;
@@ -60,7 +60,7 @@ export const DashboardService = {
     /**
      * Fetch paginated opens history for a specific email.
      */
-    async getEmailOpens(emailId: string, page: number, limit: number, token?: string | null): Promise<{ data: any[], total: number }> {
+    async getEmailOpens(emailId: string, page: number, limit: number, token?: string | null): Promise<{ data: OpenEvent[], total: number }> {
         const urlBase = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.DASHBOARD}/emails/${emailId}/opens`;
         const headers: HeadersInit = {};
         if (token) {
