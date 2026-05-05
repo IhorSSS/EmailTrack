@@ -14,7 +14,7 @@ describe('pixel utils', () => {
             expect(result).toContain('<img');
             expect(result).toContain(`src="${host}${pixelBase}?id=${trackId}`);
             expect(result).toContain('data-track-id="test-id-123"');
-            expect(result).toContain('display:none');
+            expect(result).toContain('class="emailtrack-pixel-hidden"');
         });
 
         it('should sanitize trackId', () => {
