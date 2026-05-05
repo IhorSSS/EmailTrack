@@ -57,22 +57,34 @@ Before you begin, ensure you have the following installed:
 ## ⚙️ Environment Variables
 
 ### Backend (`backend/.env`)
-| Variable | Description |
-| :--- | :--- |
-| `DATABASE_URL` | PostgreSQL connection string. |
-| `DB_PASSWORD` | Password for the PostgreSQL container (min 16 chars). |
-| `JWT_SECRET` | Secret key for signing session tokens (min 32 chars). |
-| `GOOGLE_CLIENT_ID` | OAuth 2.0 Client ID from Google Cloud Console. |
-| `EXTENSION_ID` | The ID of your loaded Chrome extension (for CORS). |
-| `ENCRYPTION_KEY` | 32-character hex key for data encryption (`openssl rand -hex 16`). |
-| `PORT` | Port the backend server listens on (default: 3000). |
+
+> Copy `backend/.env.example` to `backend/.env` and fill in your values.
+
+| Variable | Required | Description |
+| :--- | :---: | :--- |
+| `DATABASE_URL` | Docker: auto | PostgreSQL connection string. Auto-built in Docker from `DB_PASSWORD`. |
+| `DB_PASSWORD` | ✅ | Password for the PostgreSQL container (min 16 chars). |
+| `JWT_SECRET` | ✅ prod | Secret key for signing session tokens (min 32 chars). Generate: `openssl rand -base64 32` |
+| `ENCRYPTION_KEY` | ✅ | 32-character key for AES-256 data encryption. Generate: `openssl rand -hex 16` |
+| `GOOGLE_CLIENT_ID` | ✅ | OAuth 2.0 Client ID from Google Cloud Console. |
+| `EXTENSION_ID` | ✅ | Chrome extension ID (find at `chrome://extensions`). Used for CORS. |
+| `PORT` | ❌ | Port the backend listens on. Default: `3000` |
+| `BASE_URL` | ✅ prod | Public URL of the backend (e.g., `https://emailtrack.yourdomain.com`). Used for pixel URLs. |
+| `CORS_ALLOWED_ORIGINS` | ❌ | Comma-separated allowed CORS origins. Dev defaults to `localhost`. |
+| `RATE_LIMIT_ALLOW_LIST` | ❌ | Comma-separated IPs to exclude from rate limiting. Default: `127.0.0.1` |
+| `VIRTUAL_HOST` | ❌ | Domain for nginx-proxy / Let's Encrypt (Docker only). |
+| `LETSENCRYPT_EMAIL` | ❌ | Email for Let's Encrypt SSL certificate notifications (Docker only). |
 
 ### Extension (`extension/.env`)
-| Variable | Description |
-| :--- | :--- |
-| `VITE_API_URL` | URL of your backend server (e.g., `http://localhost:3000`). |
-| `VITE_GOOGLE_CLIENT_ID` | Must match the `GOOGLE_CLIENT_ID` in the backend. |
-| `VITE_DEBUG` | Set to `true` to enable verbose console logging. |
+
+> Copy `extension/.env.example` to `extension/.env` and fill in your values.
+> These variables are injected at **build time** — after changing, rebuild with `npm run build`.
+
+| Variable | Required | Description |
+| :--- | :---: | :--- |
+| `VITE_API_URL` | ✅ | URL of your backend server (e.g., `https://emailtrack.yourdomain.com`). |
+| `VITE_GOOGLE_CLIENT_ID` | ✅ | Must match `GOOGLE_CLIENT_ID` in the backend `.env`. |
+| `VITE_DEBUG` | ❌ | Set to `true` for verbose logging. Default: `false`. Set `false` for production. |
 
 ---
 
